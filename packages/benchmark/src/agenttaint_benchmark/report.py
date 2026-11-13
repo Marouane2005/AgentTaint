@@ -6,7 +6,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from agenttaint_benchmark.schema import AggregateMetrics, BenchmarkReport
+from agenttaint_benchmark.schema import (
+    AggregateMetrics,
+    BenchmarkReport,
+    VariabilitySummary,
+)
 
 
 def _fmt_rate(value: float | None) -> str:
@@ -36,7 +40,10 @@ def metrics_table(per: dict[str, AggregateMetrics]) -> str:
         "lat_med_ms",
         "lat_p95_ms",
     ]
-    lines = ["| " + " | ".join(headers) + " |", "| " + " | ".join(["---"] * len(headers)) + " |"]
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join(["---"] * len(headers)) + " |",
+    ]
     for name, m in sorted(per.items()):
         row = [
             name,
@@ -56,15 +63,47 @@ def metrics_table(per: dict[str, AggregateMetrics]) -> str:
     return "\n".join(lines)
 
 
-def write_report(report: BenchmarkReport, out_dir: Path) -> tuple[Path, Path]:
+def variability_table(rows: list[VariabilitySummary]) -> str:
+    headers = ["defense", "metric", "mean", "std", "min", "max", "n_seeds"]
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join(["---"] * len(headers)) + " |",
+    ]
+    for row in rows:
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    row.defense,
+                    row.metric,
+                    _fmt_rate(row.mean),
+                    _fmt_rate(row.std),
+                    _fmt_rate(row.min),
+                    _fmt_rate(row.max),
+                    str(row.n_seeds),
+                ]
+            )
+            + " |"
+        )
+    return "\n".join(lines)
+
+
+def write_report(
+    report: BenchmarkReport,
+    out_dir: Path,
+    *,
+    tag: str = "",
+) -> tuple[Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    json_path = out_dir / f"report_{report.split}_{report.report_id[:8]}.json"
-    md_path = out_dir / f"report_{report.split}_{report.report_id[:8]}.md"
+    suffix = f"_{tag}" if tag else ""
+    json_path = out_dir / f"report_{report.split}{suffix}_{report.report_id[:8]}.json"
+    md_path = out_dir / f"report_{report.split}{suffix}_{report.report_id[:8]}.md"
     json_path.write_text(
         json.dumps(report.model_dump(mode="json"), indent=2) + "\n",
         encoding="utf-8",
     )
 
+    backend = report.config.get("semantic_backend", "n/a")
     md: list[str] = [
         f"# AgentTaint Benchmark Report (`{report.split}`)",
         "",
@@ -72,6 +111,7 @@ def write_report(report: BenchmarkReport, out_dir: Path) -> tuple[Path, Path]:
         f"- **created_at:** `{report.created_at.isoformat()}`",
         f"- **dataset_version:** `{report.dataset_version}`",
         f"- **seed:** `{report.seed}`",
+        f"- **semantic_backend:** `{backend}`",
         f"- **command:** `{report.command}`",
         "",
         "## Per-defense metrics",
@@ -88,12 +128,30 @@ def write_report(report: BenchmarkReport, out_dir: Path) -> tuple[Path, Path]:
                 "",
             ]
         )
+    if report.per_difficulty_combined:
+        md.extend(
+            [
+                "## Per-difficulty metrics (`combined`)",
+                "",
+                metrics_table(report.per_difficulty_combined),
+                "",
+            ]
+        )
     if report.per_family_combined:
         md.extend(
             [
                 "## Per-family metrics (`combined`)",
                 "",
                 metrics_table(report.per_family_combined),
+                "",
+            ]
+        )
+    if report.variability:
+        md.extend(
+            [
+                "## Multi-seed bootstrap variability",
+                "",
+                variability_table(report.variability),
                 "",
             ]
         )

@@ -114,34 +114,51 @@ Each task is done only when its **acceptance tests** pass.
 
 **Also delivered:** channel ablations; challenge probes; `docs/benchmark_results.md` with measured tables.
 
-**Deliverable:** Reproducible custom experiments. Externals unavailable this milestone.  
-**Hold:** Do not start Milestone 7 (dashboard) until explicit approval.
+**Deliverable:** Reproducible custom experiments. Externals unavailable this milestone.
 
 ---
 
-## Milestone 7 — Dashboard + hardening (Week 7)
+## Milestone 7 — Research validation & benchmark expansion — DONE
+
+*(User-directed: strengthen experimental evidence **before** dashboard.)*
 
 | ID | Task | Acceptance |
 |----|------|------------|
-| 7.1 | FastAPI metrics + graph export | Used by UI |
-| 7.2 | Next.js overview + timeline + decision explorer | Live data only |
-| 7.3 | Graph explorer | KNOWN/INFERRED/UNKNOWN visual distinction |
-| 7.4 | Security tests pack | Forgery, replay, bypass attempts |
-| 7.5 | Playwright smoke | Dashboard loads decisions |
+| 7.1 | Expand held-out corpus + hard families | Dataset `m7.1`; train/test separated |
+| 7.2 | Local BGE vs fixture semantic eval | Separate measured reports |
+| 7.3 | Multi-seed bootstrap variability | Seeds recorded; mean/std tables |
+| 7.4 | Latency / utility / security trade-offs | Documented from actual runs |
+| 7.5 | AgentDojo feasibility | Probe JSON; partial coverage only |
+| 7.6 | Honest contribution assessment | `docs/research_contribution.md` |
+
+**Deliverable:** Stronger reproducible evidence; **no dashboard**.  
+**Hold:** Do not start dashboard / next milestone until explicit approval.
+
+---
+
+## Milestone 8 — Dashboard + hardening (deferred)
+
+| ID | Task | Acceptance |
+|----|------|------------|
+| 8.1 | FastAPI metrics + graph export | Used by UI |
+| 8.2 | Next.js overview + timeline + decision explorer | Live data only |
+| 8.3 | Graph explorer | KNOWN/INFERRED/UNKNOWN visual distinction |
+| 8.4 | Security tests pack | Forgery, replay, bypass attempts |
+| 8.5 | Playwright smoke | Dashboard loads decisions |
 
 **Deliverable:** Developer-facing platform over real engine.
 
 ---
 
-## Milestone 8 — Research release (Week 8)
+## Milestone 9 — Research release (deferred)
 
 | ID | Task | Acceptance |
 |----|------|------------|
-| 8.1 | `docs/limitations.md` + paper draft | No invented numbers/citations |
-| 8.2 | Docker Compose full stack | Fresh clone demo |
-| 8.3 | Demo recording script | Walkthrough artifact |
-| 8.4 | CONTRIBUTING + LICENSE | Present |
-| 8.5 | Related work update after results | Novelty claim only if supported |
+| 9.1 | `docs/limitations.md` + paper draft | No invented numbers/citations |
+| 9.2 | Docker Compose full stack | Fresh clone demo |
+| 9.3 | Demo recording script | Walkthrough artifact |
+| 9.4 | CONTRIBUTING + LICENSE | Present |
+| 9.5 | Related work update after results | Novelty claim only if supported |
 
 ---
 

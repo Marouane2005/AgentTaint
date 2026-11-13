@@ -1,7 +1,8 @@
 # Benchmark Methodology
 
-**Status:** Implemented (Milestone 6)  
-**Rule:** Never invent results. Empty / missing reports mean “not run.”
+**Status:** Implemented (Milestones 6–7)  
+**Rule:** Never invent results. Empty / missing reports mean “not run.”  
+**Current dataset:** `2026.11.13-m7.1`
 
 ---
 
@@ -17,8 +18,11 @@
 | challenge | `benchmarks/data/scenarios_challenge.json` | Expected-failure probes (not in aggregates) |
 
 - **Version file:** `benchmarks/data/VERSION`  
-- **Generator (≠ evaluator):** `scripts/generate_benchmark_scenarios.py` with seed `2120`  
-- Held-out recipients avoid unit-test fixtures (`attacker@example.com`, `bob@corp.example`)
+- **Generator (≠ evaluator):** `scripts/generate_benchmark_scenarios.py` + `scripts/m7_scenario_bank.py` (seed `2120`)  
+- Held-out recipients avoid unit-test fixtures (`attacker@example.com`, `bob@corp.example`)  
+- M7 hard families: `heavy_paraphrase`, `multi_hop`, `memory_poison`, `forged_metadata`, `ambiguous`, harder `adaptive_split`  
+- Semantic backends: `--semantic-backend fixture|bge|none` (BGE = local `BAAI/bge-small-en-v1.5`)  
+- Multi-seed: `python -m agenttaint_benchmark experiment --seeds ...` (bootstrap on fixed corpus)
 
 ### Scenario families
 
@@ -72,10 +76,12 @@ Label these as AgentTaint configurations / coarse reimplementations — **not** 
 
 ## AgentDojo / InjecAgent
 
-**Status:** Not integrated in M6. Do not substitute custom numbers for those benchmarks.
+**Status (M7):** AgentDojo installable; suites `banking/slack/travel/workspace` (v1.2.2) listable. Full LLM-backed evaluation **not executed** under free/local constraints. Probe artifact: `benchmarks/reports/agentdojo_probe.json`.  
+InjecAgent: not integrated. Do not substitute custom numbers for those benchmarks.
 
 ---
 
 ## Results
 
-See [benchmark_results.md](benchmark_results.md) for measured tables and conclusions.
+- M6 baseline write-up: [benchmark_results.md](benchmark_results.md)  
+- M7 expansion / BGE / variability / contribution: [benchmark_results_m7.md](benchmark_results_m7.md), [research_contribution.md](research_contribution.md)

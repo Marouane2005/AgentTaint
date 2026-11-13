@@ -26,7 +26,10 @@
 20. **Custom benchmark ceiling:** held-out scenarios are synthetic and often expose contiguous structural identifiers; near-zero ASR there does not transfer to production agents.  
 21. **Semantic ablation** in CI/benchmark uses a fixture embedder, not a calibrated production model.  
 22. **AgentDojo / InjecAgent** were not run in Milestone 6 — do not cite custom numbers as those benchmarks.  
-23. **No comparative claim** vs CaMeL/FIDES/CapLite/NeuroTaint without a fair shared protocol.
+23. **No comparative claim** vs CaMeL/FIDES/CapLite/NeuroTaint without a fair shared protocol.  
+24. **M7 hard adaptive splits** can still evade fixture reconstruction (CONFIRM / provenance FN); BGE helps on this corpus but costs latency/memory.  
+25. **Bootstrap multi-seed** quantifies sampling uncertainty on a fixed synthetic set — not stochastic LLM variance.  
+26. **AgentDojo** is installable but full free/local ASR evaluation was not completed (LLM-backed protocol).
 
 ## Operational
 

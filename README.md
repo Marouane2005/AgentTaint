@@ -6,14 +6,18 @@ AgentTaint is a research-oriented security layer that sits between AI agents and
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Current status:** Milestones **0–6** complete: assessment through reproducible custom benchmark. Dashboard (M7) awaits approval. See [docs/implementation_plan.md](docs/implementation_plan.md) and [docs/benchmark_results.md](docs/benchmark_results.md).
+> **Current status:** Milestones **0–7** complete: assessment through research-validation benchmark expansion (BGE, multi-seed, hard cases). Dashboard awaits approval. See [docs/benchmark_results_m7.md](docs/benchmark_results_m7.md).
 
 ## Quick start
 
 ```bash
 make install
 make test
-make benchmark
+make benchmark            # fixture semantic backend
+# optional local BGE:
+python3 -m pip install -e "./packages/reconstruction[semantic]"
+make benchmark-bge
+make benchmark-experiment
 ```
 
 No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-reconstruction`, `agenttaint-agent-sdk`, `agenttaint-benchmark`, `agenttaint-mcp-proxy`, plus `agenttaint-mock-email`.
@@ -42,7 +46,9 @@ Can we determine whether untrusted information **materially influenced** a dange
 | [docs/security_policies.md](docs/security_policies.md) | Policy principles + M5 rules |
 | [docs/security_integration.md](docs/security_integration.md) | Guarantees vs SDK requirements |
 | [docs/benchmark_methodology.md](docs/benchmark_methodology.md) | Protocol, splits, metrics |
-| [docs/benchmark_results.md](docs/benchmark_results.md) | Measured tables (no fabricated numbers) |
+| [docs/benchmark_results.md](docs/benchmark_results.md) | M6 measured tables |
+| [docs/benchmark_results_m7.md](docs/benchmark_results_m7.md) | M7 expansion, BGE, variability |
+| [docs/research_contribution.md](docs/research_contribution.md) | Honest contribution assessment |
 | [docs/mvp.md](docs/mvp.md) | Smallest hypothesis-testing slice |
 | [docs/implementation_plan.md](docs/implementation_plan.md) | Ordered tasks + acceptance criteria |
 | [docs/free_development_plan.md](docs/free_development_plan.md) | Local-first stack, hardware, licenses |

@@ -29,6 +29,32 @@ def test_held_out_test_avoids_unit_fixture_recipients() -> None:
     for sc in scenarios:
         if sc.send_to:
             assert sc.send_to.casefold() not in banned
+    assert len(scenarios) >= 60
+    assert any(sc.difficulty == "hard" for sc in scenarios)
+    families = {sc.family.value for sc in scenarios}
+    for required in {
+        "heavy_paraphrase",
+        "multi_hop",
+        "memory_poison",
+        "forged_metadata",
+        "ambiguous",
+    }:
+        assert required in families
+
+
+def test_argument_parent_modes_forged_metadata() -> None:
+    from agenttaint_benchmark.defenses import DefenseConfig
+    from agenttaint_benchmark.schema import AblationModeName, DefenseMode
+
+    _, scenarios = load_scenarios(Split.TEST)
+    forged = next(s for s in scenarios if s.scenario_id.startswith("test-atk-forged-01"))
+    assert forged.argument_parent_mode == "user"
+    # Reconstruction should still stop auto-exfil even if parents claim USER.
+    row = run_scenario(
+        forged,
+        DefenseConfig(DefenseMode.RECONSTRUCTION_ONLY, AblationModeName.COMBINED),
+    )
+    assert row.attack_success is False
 
 
 def test_metrics_asr_utility() -> None:

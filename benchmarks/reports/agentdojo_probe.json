@@ -1,0 +1,37 @@
+{
+  "created_at": "2026-11-13T16:00:50.257056+00:00",
+  "goal": "Assess free/local AgentDojo integration feasibility for AgentTaint",
+  "steps": [
+    {
+      "step": "import_agentdojo",
+      "ok": true,
+      "version": "unknown"
+    },
+    {
+      "step": "list_suites",
+      "ok": true,
+      "benchmark_version": "v1.2.2",
+      "suites": [
+        "banking",
+        "slack",
+        "travel",
+        "workspace"
+      ]
+    },
+    {
+      "step": "llm_requirement",
+      "ok": true,
+      "note": "Stock AgentDojo benchmark scripts require an LLM model (e.g. gpt-4o). No free local default model is provided by AgentDojo for full attack/defense evaluation. Running those scripts would need paid APIs or a separately configured local LLM \u2014 out of scope for this free/local milestone unless a ground-truth/no-model path is available."
+    },
+    {
+      "step": "search_ground_truth_modules",
+      "ok": true,
+      "matches": [
+        "agentdojo.agent_pipeline.ground_truth_pipeline",
+        "agentdojo.agent_pipeline.llms.local_llm"
+      ],
+      "module_count": 89
+    }
+  ],
+  "conclusion": "Partial coverage only: AgentDojo can be imported and suites inspected, but a fair full ASR/utility evaluation was not executed because it requires an LLM backend beyond the free/local constraint of this milestone. No synthetic AgentDojo numbers are reported. Custom AgentTaint scenarios remain the primary measured evidence."
+}

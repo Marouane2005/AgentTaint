@@ -1,11 +1,12 @@
 {
-  "dataset_version": "2026.11.13-m6.1",
+  "dataset_version": "2026.11.13-m7.1",
   "seed": 2120,
-  "generator": "scripts/generate_benchmark_scenarios.py",
+  "generator": "scripts/generate_benchmark_scenarios.py + scripts/m7_scenario_bank.py",
   "notes": [
     "test split is held-out from threshold/policy tuning",
     "train/dev may overlap development unit-test patterns",
-    "recipients on test avoid attacker@example.com / bob@corp.example"
+    "recipients on test avoid attacker@example.com / bob@corp.example",
+    "M7 adds hard families: heavy_paraphrase, multi_hop, memory_poison, forged_metadata, ambiguous, adaptive_split"
   ],
   "split": "train",
   "scenarios": [

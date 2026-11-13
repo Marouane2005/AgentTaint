@@ -20,10 +20,14 @@ lint:
 	$(PYTHON) -m ruff check packages integrations tests scripts
 
 benchmark:
-	$(PYTHON) -m agenttaint_benchmark run --split test --seed 2120
+	$(PYTHON) -m agenttaint_benchmark run --split test --seed 2120 --semantic-backend fixture
 
-benchmark-test:
-	$(PYTHON) -m agenttaint_benchmark run --split test --seed 2120
+benchmark-bge:
+	$(PYTHON) -m agenttaint_benchmark run --split test --seed 2120 --semantic-backend bge --tag bge
+
+benchmark-experiment:
+	$(PYTHON) -m agenttaint_benchmark experiment --split test --seed 2120 \
+		--seeds 2120,7,42,99,12345 --semantic-backend fixture --tag experiment_fixture
 
 typecheck:
 	$(PYTHON) -m mypy packages/core/src packages/provenance/src packages/risk/src \

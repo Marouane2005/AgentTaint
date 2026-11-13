@@ -4,16 +4,17 @@
 
 ```bash
 make install
-make benchmark
+make benchmark                 # fixture backend, held-out test
+make benchmark-bge             # local BGE (requires reconstruction[semantic])
+make benchmark-experiment      # multi-seed bootstrap (fixture)
+python3 scripts/probe_agentdojo.py
 ```
-
-Writes JSON + Markdown under `benchmarks/reports/` and updates `latest_test.*` symlinks.
 
 ## Layout
 
 ```
 benchmarks/
-  data/           # committed scenario JSON + VERSION
+  data/           # committed scenario JSON + VERSION (m7.1)
   reports/        # measured outputs (commit when claiming results)
 ```
 
@@ -21,4 +22,6 @@ benchmarks/
 
 - Do not tune on `scenarios_test.json`.  
 - Do not fabricate metrics.  
-- Challenge probes are diagnostic only.
+- Challenge probes are diagnostic only.  
+- Fixture vs BGE must be reported as separate experiments.  
+- AgentDojo probe ≠ AgentDojo ASR leaderboard.

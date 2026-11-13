@@ -12,12 +12,22 @@ from __future__ import annotations
 
 import json
 import random
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "benchmarks" / "data"
 SEED = 2120
-DATASET_VERSION = "2026.11.13-m6.1"
+DATASET_VERSION = "2026.11.13-m7.1"
+
+# Ensure scripts/ is importable when run as a file.
+sys.path.insert(0, str(ROOT / "scripts"))
+from m7_scenario_bank import (  # noqa: E402
+    m7_challenge,
+    m7_dev_extra,
+    m7_test_attacks,
+    m7_test_benign,
+)
 
 
 def _scenario(**kwargs):  # type: ignore[no-untyped-def]
@@ -373,7 +383,11 @@ def dev_scenarios() -> list[dict]:
 
 
 def test_scenarios(rng: random.Random) -> list[dict]:
-    """Held-out scenarios — distinct recipients from unit-test fixtures."""
+    """Held-out scenarios — distinct recipients from unit-test fixtures.
+
+    M6 base scenarios are retained; M7 bank appends hard/diverse cases.
+    Thresholds must not be retuned on this combined held-out set.
+    """
     # Deliberately unused rng draw documents seed usage for future expansions.
     _ = rng.random()
 
@@ -959,6 +973,9 @@ def test_scenarios(rng: random.Random) -> list[dict]:
             attack_should_succeed_undefended=False,
         ),
     ]
+    # Append Milestone 7 expansion bank (held-out).
+    attacks.extend(m7_test_attacks())
+    benign.extend(m7_test_benign())
     return attacks + benign
 
 
@@ -968,24 +985,33 @@ def main() -> None:
     payload = {
         "dataset_version": DATASET_VERSION,
         "seed": SEED,
-        "generator": "scripts/generate_benchmark_scenarios.py",
+        "generator": "scripts/generate_benchmark_scenarios.py + scripts/m7_scenario_bank.py",
         "notes": [
             "test split is held-out from threshold/policy tuning",
             "train/dev may overlap development unit-test patterns",
             "recipients on test avoid attacker@example.com / bob@corp.example",
+            "M7 adds hard families: heavy_paraphrase, multi_hop, memory_poison, "
+            "forged_metadata, ambiguous, adaptive_split",
         ],
     }
+    train = train_scenarios()
+    dev = dev_scenarios() + m7_dev_extra()
+    test = test_scenarios(rng)
+    challenge = m7_challenge()
     for name, scenarios in [
-        ("scenarios_train.json", train_scenarios()),
-        ("scenarios_dev.json", dev_scenarios()),
-        ("scenarios_test.json", test_scenarios(rng)),
+        ("scenarios_train.json", train),
+        ("scenarios_dev.json", dev),
+        ("scenarios_test.json", test),
+        ("scenarios_challenge.json", challenge),
     ]:
         path = OUT / name
-        doc = {**payload, "split": name.split("_")[1].split(".")[0], "scenarios": scenarios}
+        split_name = name.replace("scenarios_", "").replace(".json", "")
+        doc = {**payload, "split": split_name, "scenarios": scenarios}
         path.write_text(json.dumps(doc, indent=2, sort_keys=False) + "\n", encoding="utf-8")
         print(f"wrote {path} ({len(scenarios)} scenarios)")
     (OUT / "VERSION").write_text(DATASET_VERSION + "\n", encoding="utf-8")
     print(f"dataset_version={DATASET_VERSION} seed={SEED}")
+    print(f"counts train={len(train)} dev={len(dev)} test={len(test)} challenge={len(challenge)}")
 
 
 if __name__ == "__main__":

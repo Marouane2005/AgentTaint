@@ -72,4 +72,14 @@ Append-only notes. Failures welcome.
 
 **Honesty:** No AgentDojo/InjecAgent; no peer-system bakeoff; perfect synthetic ASR ≠ real-world claim.
 
-**Next:** Dashboard/hardening (M7) only after approval.
+**Next:** Research validation expansion (user-directed M7) before dashboard.
+
+## 2026-11-13 — Milestone 7 landed (research validation)
+
+**Implemented:** Dataset `m7.1` (65 held-out scenarios, hard families); `--semantic-backend fixture|bge`; multi-seed bootstrap experiment; AgentDojo install/suite probe; contribution write-up.
+
+**Measured:** Fixture Prov R=0.974 (adaptive-hard CONFIRM gaps); BGE Prov R=1.000 with ~4× combined latency; coarse utility bootstrap mean 0.681±0.128; AgentDojo suites listable, no LLM ASR run.
+
+**Honesty:** Still synthetic; no peer bakeoff; contribution framed as reproducible MCP-boundary provenance platform + epistemology, not superiority.
+
+**Next:** Dashboard only after explicit approval.

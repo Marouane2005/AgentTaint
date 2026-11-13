@@ -43,6 +43,12 @@ class ScenarioFamily(StrEnum):
     BENIGN_OVERLAP = "benign_overlap"
     BENIGN_SIMILAR = "benign_similar"
     BENIGN_LOW_RISK = "benign_low_risk"
+    # Milestone 7 expansions
+    HEAVY_PARAPHRASE = "heavy_paraphrase"
+    MULTI_HOP = "multi_hop"
+    MEMORY_POISON = "memory_poison"
+    FORGED_METADATA = "forged_metadata"
+    AMBIGUOUS = "ambiguous"
 
 
 class PipelineOp(StrEnum):
@@ -84,6 +90,10 @@ class Scenario(BaseModel):
     gold_user_authorizes_recipient: bool = False
     # Extra USER-authorized values injected into gateway (simulating prior USER spans)
     user_authorized_values: list[str] = Field(default_factory=list)
+    # Explicit parent wiring for the sink authority arg:
+    # last | user | none | fabricated
+    argument_parent_mode: str = "last"
+    difficulty: str = "standard"  # standard | hard
     notes: str = ""
 
 
@@ -148,6 +158,21 @@ class AggregateMetrics(BaseModel):
     cpu_user_s: float | None = None
 
 
+class SeedAggregate(BaseModel):
+    seed: int
+    per_defense: dict[str, AggregateMetrics] = Field(default_factory=dict)
+
+
+class VariabilitySummary(BaseModel):
+    metric: str
+    defense: str
+    mean: float | None = None
+    std: float | None = None
+    min: float | None = None
+    max: float | None = None
+    n_seeds: int = 0
+
+
 class BenchmarkReport(BaseModel):
     report_id: str = Field(default_factory=lambda: str(uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -161,7 +186,10 @@ class BenchmarkReport(BaseModel):
     per_defense: dict[str, AggregateMetrics] = Field(default_factory=dict)
     per_ablation: dict[str, AggregateMetrics] = Field(default_factory=dict)
     per_family_combined: dict[str, AggregateMetrics] = Field(default_factory=dict)
+    per_difficulty_combined: dict[str, AggregateMetrics] = Field(default_factory=dict)
     challenge_results: list[ScenarioRunResult] = Field(default_factory=list)
+    seed_runs: list[SeedAggregate] = Field(default_factory=list)
+    variability: list[VariabilitySummary] = Field(default_factory=list)
     results: list[ScenarioRunResult] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)

@@ -16,7 +16,11 @@ from agenttaint_mock_email.backend import MockEmailBackend
 from agenttaint_provenance.registry import ProvenanceRegistry
 from agenttaint_provenance.trust import load_trust_registry
 from agenttaint_reconstruction.engine import CandidateRecord, ReconstructionEngine
-from agenttaint_reconstruction.semantic import FixtureEmbeddingBackend
+from agenttaint_reconstruction.semantic import (
+    EmbeddingBackend,
+    FixtureEmbeddingBackend,
+    SentenceTransformerBackend,
+)
 from agenttaint_risk.classifier import RiskClassifier
 
 from agenttaint_benchmark.defenses import CoarseTaintPolicy, DefenseConfig
@@ -31,11 +35,24 @@ ROOT = Path(__file__).resolve().parents[4]
 TRUST = ROOT / "policies" / "trust_registry.yaml"
 
 
+def resolve_embedding_backend(name: str) -> EmbeddingBackend | None:
+    """Map CLI/config name to an embedding backend instance."""
+    key = name.strip().casefold()
+    if key in {"none", "off", "disabled"}:
+        return None
+    if key in {"fixture", "fixtureembeddingbackend", "hash"}:
+        return FixtureEmbeddingBackend()
+    if key in {"bge", "bge-small", "sentence-transformers", "st"}:
+        return SentenceTransformerBackend("BAAI/bge-small-en-v1.5")
+    raise ValueError(f"unknown embedding backend: {name}")
+
+
 @dataclass
 class PipelineState:
     registry: ProvenanceRegistry
     candidates: list[CandidateRecord] = field(default_factory=list)
     last_span_id: str | None = None
+    user_span_id: str | None = None
     gold_untrusted_span_ids: list[str] = field(default_factory=list)
     origins_seen: set[Origin] = field(default_factory=set)
     send_agent_id: str = "agent_a"
@@ -75,6 +92,7 @@ def _execute_pipeline(scenario: Scenario, state: PipelineState) -> None:
                 )
             )
             state.last_span_id = span.span_id
+            state.user_span_id = span.span_id
             state.origins_seen.add(span.origin)
         elif op == PipelineOp.SUMMARIZE:
             assert step.text is not None and state.last_span_id
@@ -214,7 +232,32 @@ def _refine_gold_sources(scenario: Scenario, state: PipelineState) -> list[str]:
     return gold
 
 
-def run_scenario(scenario: Scenario, defense: DefenseConfig) -> ScenarioRunResult:
+def _resolve_parent_ids(
+    scenario: Scenario, state: PipelineState
+) -> dict[str, list[str]] | None:
+    if not scenario.send_to:
+        return None
+    mode = (scenario.argument_parent_mode or "last").casefold()
+    if mode == "none":
+        return None
+    if mode == "fabricated":
+        return {"to": ["00000000-0000-4000-8000-ffffffffffff"]}
+    if mode == "user":
+        if state.user_span_id:
+            return {"to": [state.user_span_id]}
+        return None
+    # default: last
+    if state.last_span_id:
+        return {"to": [state.last_span_id]}
+    return None
+
+
+def run_scenario(
+    scenario: Scenario,
+    defense: DefenseConfig,
+    *,
+    embedding_backend: EmbeddingBackend | None | object = ...,
+) -> ScenarioRunResult:
     from agenttaint_benchmark.defenses import build_policy
 
     trust = load_trust_registry(TRUST)
@@ -243,11 +286,16 @@ def run_scenario(scenario: Scenario, defense: DefenseConfig) -> ScenarioRunResul
         ],
     )
 
+    if embedding_backend is ...:
+        embedder: EmbeddingBackend | None = FixtureEmbeddingBackend()
+    else:
+        embedder = embedding_backend  # type: ignore[assignment]
+
     reconstruction = None
     if defense.use_reconstruction:
         reconstruction = ReconstructionEngine(
             registry,
-            embedding_backend=FixtureEmbeddingBackend(),
+            embedding_backend=embedder,
         )
 
     gateway = SecurityGateway(
@@ -311,8 +359,8 @@ def run_scenario(scenario: Scenario, defense: DefenseConfig) -> ScenarioRunResul
         _ = _gather_with_ablation
 
     parent_ids: dict[str, list[str]] | None = None
-    if defense.use_explicit and state.last_span_id and scenario.send_to:
-        parent_ids = {"to": [state.last_span_id]}
+    if defense.use_explicit:
+        parent_ids = _resolve_parent_ids(scenario, state)
 
     decision = DecisionOutcome.ALLOW
     policy_id: str | None = None
