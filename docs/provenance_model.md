@@ -1,6 +1,6 @@
 # Provenance Model
 
-**Status:** Implemented through Milestone 3  
+**Status:** Implemented through Milestone 3; M9 clarifies epistemic guarantees  
 **Schema version:** 1
 
 ---
@@ -97,3 +97,16 @@ Integration trust ≠ content trust. Least-trust wins when merging parents.
 - Store `value_hash`, not raw secrets by default.
 - Separate scores; `evidence_type`: `EXPLICIT` | `INFERRED`.
 - `confidence` nullable until calibrated models exist.
+
+---
+
+## Explicit lineage vs reconstructed evidence (M9)
+
+| Kind | How created | Epistemic status | May alone ALLOW HIGH-risk? |
+|------|-------------|------------------|----------------------------|
+| Explicit lineage | SDK/`record_transformation`, tool I/O labeling, verified envelopes | Often `KNOWN` (if parents complete) | Only if policy + USER grounding / confirmation say so |
+| Reconstructed evidence | Lexical/structural/semantic match → `attach_inferred_link` | Always `INFERRED` | **Never** — raises scrutiny only |
+| Missing instrumentation | `record_gap` | `PARTIAL`/`UNKNOWN` | Fail closed / CONFIRM for HIGH |
+
+**SDK-dependent guarantees:** sealed envelopes, parent_ids on transforms, cross-agent transfer with verified parents.  
+**Estimates only:** reconstruction scores — not P(causation), never auto-promoted to KNOWN by similarity.

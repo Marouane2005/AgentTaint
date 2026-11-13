@@ -32,16 +32,20 @@ No real network, accounts, or host mail.
 
 ## Policies
 
-`policies/stub_policy.yaml` (M2 compatibility):
+**Default (M9+):** `policies/provenance_policy.yaml` via `build_gateway_from_paths()`.
+
+`policies/stub_policy.yaml` (M2 compatibility — load only when path name contains `stub`):
 
 - `allow_by_default: true`
 - `denylist_tools`
 - `blocked_recipients` (e.g. `attacker@example.com`)
 
-`policies/provenance_policy.yaml` (M5):
+`policies/provenance_policy.yaml` (M5 / default):
 
 - Provenance-aware BLOCK/CONFIRM/ALLOW with fail-closed HIGH-risk when registry unavailable
 - See [security_integration.md](security_integration.md)
+
+MCP compatibility boundary: [mcp_compatibility_m9.md](mcp_compatibility_m9.md).
 
 ## Run
 

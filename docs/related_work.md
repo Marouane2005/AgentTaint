@@ -1,6 +1,6 @@
 # Related Work — AgentTaint Literature Review
 
-**Status:** Research assessment (pre-implementation)  
+**Status:** Living — M9 reaffirms no primacy claims without shared protocols  
 **Date:** 2026-11-13  
 **Rule:** Do not claim AgentTaint is the first provenance / taint / IFC system for AI agents. Novelty must be established experimentally.
 
@@ -207,3 +207,7 @@ Transfer evaluation for AgentTaint’s proxy + policy stack. Do not silently alt
 **Hypothesis to test (not claim):** Combining (a) instrumented multi-agent provenance graphs, (b) multi-signal reconstruction with explicit uncertainty, and (c) risk-sensitive online enforcement at an MCP proxy yields better *security–utility–explainability* on transformed and cross-agent attacks than CapLite-style grounding alone, FIDES-style coarse labels alone, or NeuroTaint-style offline audit alone.
 
 **If experiments fail to show this,** document that result. The project remains valuable as a reproducible MCP-native IFC + reconstruction platform.
+
+### M9 update
+
+Custom synthetic results (M6/M7) do **not** establish primacy vs CaMeL/FIDES/CapLite/NeuroTaint. AgentDojo and InjecAgent remain **not evaluated** for full ASR under free/local constraints (`docs/external_benchmarks_feasibility.md`). Any public write-up must keep that separation explicit.

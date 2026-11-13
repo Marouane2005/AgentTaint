@@ -1,6 +1,6 @@
 # Threat Model — AgentTaint
 
-**Status:** Research assessment (pre-implementation)  
+**Status:** Living — updated M9 independent review  
 **Date:** 2026-11-13  
 **Scope:** AI agents using tools via MCP, with optional multi-agent delegation, under AgentTaint SDK + MCP security proxy.
 
@@ -151,3 +151,11 @@ Informal properties (to be refined into Cedar / adapter rules):
 | Information disclosure | Secrets in logs/dashboard | Redaction; hash-by-default |
 | Denial of service | Flood proxy / force CONFIRM | Rate limits (post-MVP); fail closed |
 | Elevation of privilege | Agent self-approval | Human confirmation; no agent policy write |
+
+---
+
+## 9. M9 review notes (implementation-backed)
+
+- **Guarantees that require AgentTaint SDK instrumentation:** authenticated envelopes, parent-span maps on tool args, durable lineage across transforms/agents. Without instrumentation, expect PARTIAL/UNKNOWN and fail-closed/CONFIRM on HIGH-risk sinks.  
+- **Estimates only:** reconstruction (INFERRED) similarity/support — never semantic causation.  
+- **Residual threats confirmed in review:** MCP wire missing confirmation/candidate hooks; process-local nonce stores; optional dashboard local-trust auth. See `docs/m9_independent_review.md`.

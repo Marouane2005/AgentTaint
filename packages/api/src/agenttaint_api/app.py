@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import os
 import re
 from typing import Any
@@ -34,7 +35,8 @@ def _require_local_token(x_agenttaint_token: str | None) -> None:
     expected = os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip()
     if not expected:
         return
-    if not x_agenttaint_token or x_agenttaint_token != expected:
+    provided = x_agenttaint_token or ""
+    if not hmac.compare_digest(provided, expected):
         raise HTTPException(status_code=401, detail="invalid or missing dashboard token")
 
 
@@ -66,10 +68,23 @@ app.add_middleware(
 @app.get("/api/v1/health")
 def health() -> dict[str, Any]:
     state = get_state()
+    registry_ok = False
+    audit_ok = False
+    try:
+        state.registry.store.list_spans()
+        registry_ok = True
+    except Exception:  # noqa: BLE001 - health probe
+        registry_ok = False
+    try:
+        state.audit.list_decisions(limit=1)
+        audit_ok = True
+    except Exception:  # noqa: BLE001 - health probe
+        audit_ok = False
+    status = "ok" if registry_ok and audit_ok else "degraded"
     return {
-        "status": "ok",
-        "registry_ok": True,
-        "audit_ok": True,
+        "status": status,
+        "registry_ok": registry_ok,
+        "audit_ok": audit_ok,
         "session_mode": state.session.mode,
     }
 

@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import Any
 
 from agenttaint_audit.store import AuditStore
-from agenttaint_policy.adapter import StubPolicyAdapter
-from agenttaint_policy.loader import load_stub_policy
+from agenttaint_policy.adapter import PolicyAdapter
+from agenttaint_policy.loader import load_provenance_policy, load_stub_policy
 from agenttaint_provenance.registry import ProvenanceRegistry
 from agenttaint_risk.classifier import RiskClassifier
 from mcp.server.fastmcp import FastMCP
@@ -36,6 +36,17 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[4]
 
 
+def _load_policy(path: Path) -> PolicyAdapter:
+    """Load stub or provenance-aware policy based on filename convention.
+
+    Files named ``*stub*`` use StubPolicyAdapter (M2 compatibility).
+    All other paths use ProvenanceAwarePolicy (default / recommended).
+    """
+    if "stub" in path.name.lower():
+        return load_stub_policy(path)
+    return load_provenance_policy(path)
+
+
 def build_gateway_from_paths(
     *,
     backend: ToolBackend,
@@ -45,7 +56,8 @@ def build_gateway_from_paths(
 ) -> SecurityGateway:
     root = _repo_root()
     trust_path = Path(trust_registry_path or root / "policies" / "trust_registry.yaml")
-    pol_path = Path(policy_path or root / "policies" / "stub_policy.yaml")
+    # Default to provenance-aware policy — stub remains available via explicit path.
+    pol_path = Path(policy_path or root / "policies" / "provenance_policy.yaml")
 
     from agenttaint_provenance.store import ProvenanceStore
     from agenttaint_provenance.trust import load_trust_registry
@@ -56,7 +68,7 @@ def build_gateway_from_paths(
         trust=trust,
     )
     audit = AuditStore(database_url)
-    policy = load_stub_policy(pol_path)
+    policy = _load_policy(pol_path)
     return SecurityGateway(
         backend=backend,
         registry=registry,
@@ -193,7 +205,7 @@ def create_security_proxy(
 
 def create_proxy_with_mock_email(
     *,
-    policy: StubPolicyAdapter | None = None,
+    policy: PolicyAdapter | None = None,
     trust_registry_path: str | Path | None = None,
     policy_path: str | Path | None = None,
     agent_id: str = "agent_default",

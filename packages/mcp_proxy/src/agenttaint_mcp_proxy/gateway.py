@@ -17,7 +17,6 @@ from agenttaint_core.schemas import (
     ArgumentEvidence,
     DecisionOutcome,
     ProvenanceSpan,
-    ProvenanceStatus,
     RiskTier,
     ToolCallDecision,
 )
@@ -35,14 +34,21 @@ def _canonicalize_arguments(arguments: dict[str, Any]) -> str:
     return json.dumps(arguments, sort_keys=True, default=str)
 
 
+def _redact_value(value: Any) -> Any:
+    """Recursively redact sensitive strings in nested argument structures."""
+    if isinstance(value, str):
+        return redact_sensitive(value)
+    if isinstance(value, dict):
+        return {str(k): _redact_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redact_value(v) for v in value]
+    if isinstance(value, tuple):
+        return [_redact_value(v) for v in value]
+    return value
+
+
 def _redact_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
-    redacted: dict[str, Any] = {}
-    for key, value in arguments.items():
-        if isinstance(value, str):
-            redacted[key] = redact_sensitive(value)
-        else:
-            redacted[key] = value
-    return redacted
+    return {str(k): _redact_value(v) for k, v in arguments.items()}
 
 
 class ConfirmationBinder(Protocol):
@@ -282,10 +288,9 @@ class SecurityGateway:
             content=result_text,
             agent_id=agent_id,
         )
-        # Tool result labeling is KNOWN for the result itself; decision retains
-        # pre-call argument provenance status for audit of the authorization.
-        if decision.provenance_status == ProvenanceStatus.UNKNOWN and not decision.evidence:
-            decision.provenance_status = span.provenance_status
+        # Decision.provenance_status must remain the *argument/authorization*
+        # status computed before the call. Never copy KNOWN from the result span —
+        # that would silently upgrade UNKNOWN/INFERRED authorization provenance.
         decision.latency_ms = int((time.perf_counter() - started) * 1000)
         decision.explanation = (
             f"{policy_result.explanation} Provenance span={span.span_id} "

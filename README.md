@@ -6,7 +6,7 @@ AgentTaint is a research-oriented security layer that sits between AI agents and
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Current status:** Milestones **0–8** complete: assessment through Interactive Security Dashboard. Wait for approval before further milestones. See [docs/dashboard.md](docs/dashboard.md) and [docs/benchmark_results_m7.md](docs/benchmark_results_m7.md).
+> **Current status:** Milestones **0–8** on main feature branch; **Milestone 9** (independent review / research readiness) on `m9-research-readiness`. See [docs/m9_independent_review.md](docs/m9_independent_review.md).
 
 ## Quick start
 
@@ -69,6 +69,10 @@ Can we determine whether untrusted information **materially influenced** a dange
 | [docs/reconstruction.md](docs/reconstruction.md) | Reconstruction channels, ablation, limits |
 | [docs/dashboard.md](docs/dashboard.md) | Interactive security dashboard (M8) |
 | [docs/security_review_m8.md](docs/security_review_m8.md) | Control-plane security review + fixes |
+| [docs/m9_independent_review.md](docs/m9_independent_review.md) | M9 independent audit + verdict |
+| [docs/benchmark_validity_m9.md](docs/benchmark_validity_m9.md) | Synthetic result validity |
+| [docs/external_benchmarks_feasibility.md](docs/external_benchmarks_feasibility.md) | AgentDojo / InjecAgent blockers |
+| [docs/mcp_compatibility_m9.md](docs/mcp_compatibility_m9.md) | MCP support boundary |
 | [research_log/](research_log/) | Decisions, failures, experiments |
 
 ---
@@ -92,8 +96,9 @@ Can we determine whether untrusted information **materially influenced** a dange
 5. Cross-agent SDK + policy + confirmation  
 6. Benchmarks  
 7. Benchmark expansion (M7)  
-8. Dashboard (M8) — done; awaiting approval  
-9. Research release  
+8. Dashboard (M8) — done  
+9. Research readiness / independent validation (M9) — review branch  
+10. Research release (deferred)  
 
 ---
 

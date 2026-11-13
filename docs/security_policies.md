@@ -1,7 +1,7 @@
 # Security Policies
 
-**Status:** Milestone 5 implemented (deterministic adapters)  
-**Enforcement:** `StubPolicyAdapter` (M2) + `ProvenanceAwarePolicy` (M5). Cedar deferred.
+**Status:** Milestone 5 implemented; M9 default MCP path uses provenance-aware policy  
+**Enforcement:** `StubPolicyAdapter` (M2 compatibility) + `ProvenanceAwarePolicy` (M5, **default** for `build_gateway_from_paths`). Cedar deferred.
 
 ---
 
@@ -57,3 +57,11 @@ See [security_integration.md](security_integration.md) for guarantees vs SDK req
 
 CLI (`interactive_confirm`): tool, redacted args, risk, policy id, lineage/explanation, args hash, expiry.  
 Approval token is HMAC-bound; consume enforces exact arguments and single use.
+
+---
+
+## M9 notes
+
+- Default MCP server wiring uses `ProvenanceAwarePolicy` (not stub allow-by-default).  
+- Stub policy remains for explicit compatibility tests (`policies/stub_policy.yaml`).  
+- Confirmation binding is enforced when `ConfirmationService` is injected; default FastMCP tool schemas still do **not** accept confirmation tokens — treat confirmation as SDK/gateway API until wired.

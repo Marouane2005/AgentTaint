@@ -151,15 +151,19 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
-## Milestone 9 — Research release (deferred)
+## Milestone 9 — Research readiness & independent validation (complete on branch)
 
 | ID | Task | Acceptance |
 |----|------|------------|
-| 9.1 | `docs/limitations.md` + paper draft | No invented numbers/citations |
-| 9.2 | Docker Compose full stack | Fresh clone demo |
-| 9.3 | Demo recording script | Walkthrough artifact |
-| 9.4 | CONTRIBUTING + LICENSE | Present |
-| 9.5 | Related work update after results | Novelty claim only if supported |
+| 9.1 | Independent architecture audit | `docs/m9_independent_review.md` with severity-rated findings |
+| 9.2 | Adversarial regression suite | `tests/unit/test_m9_adversarial_guarantees.py` (scenarios 1–14) |
+| 9.3 | Benchmark validity reassessment | `docs/benchmark_validity_m9.md` (no overwrite of reports) |
+| 9.4 | External benchmark feasibility | `docs/external_benchmarks_feasibility.md` — AgentDojo/InjecAgent not evaluated |
+| 9.5 | MCP compatibility assessment | `docs/mcp_compatibility_m9.md` |
+| 9.6 | Correctness fixes from audit | Default provenance policy; audit confirmation_id; no provenance rewrite; nested redaction |
+
+**Hold:** Public “production MCP security” claims remain blocked until MCP wire hooks + durable stores + external eval (or explicit not-evaluated labeling) are settled.  
+**Verdict:** See M9 report — **B** (demo/portfolio ready; more engineering for production claims).
 
 ---
 

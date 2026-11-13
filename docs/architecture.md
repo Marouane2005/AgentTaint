@@ -1,6 +1,6 @@
 # Architecture — AgentTaint
 
-**Status:** Research assessment (pre-implementation)  
+**Status:** Living — implementation through M8; M9 audit notes appended  
 **Date:** 2026-11-13
 
 ---
@@ -364,3 +364,13 @@ agenttaint/
 ```
 
 Empty packages will not be created ahead of need; modules appear when implemented.
+
+---
+
+## M9 architecture audit notes
+
+- Default MCP gateway builder now loads **provenance-aware** policy (`policies/provenance_policy.yaml`); stub remains available via `*stub*` policy paths.  
+- `SecurityGateway.invoke` is the single enforcement chokepoint: non-ALLOW never calls `backend.call_tool`.  
+- FastMCP tool wrappers currently pass only tool-native arguments — **not** confirmation tokens / parent maps / reconstruction candidates. Those remain SDK/library parameters.  
+- Dashboard `agenttaint-api` is a local control plane over the same stores; it must not bypass the gateway (demo seed still uses live `SecurityGateway`).  
+- Full detail: `docs/m9_independent_review.md`, `docs/mcp_compatibility_m9.md`.

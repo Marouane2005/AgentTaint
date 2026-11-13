@@ -35,6 +35,7 @@ class DecisionRow(Base):
     provenance_status: Mapped[str] = mapped_column(String(32), nullable=False)
     decision: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     policy_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    confirmation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
     latency_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -53,6 +54,7 @@ def _to_row(decision: ToolCallDecision) -> DecisionRow:
         provenance_status=decision.provenance_status.value,
         decision=decision.decision.value,
         policy_id=decision.policy_id,
+        confirmation_id=decision.confirmation_id,
         explanation=decision.explanation,
         latency_ms=decision.latency_ms,
         created_at=decision.created_at,
@@ -90,6 +92,7 @@ def _from_row(row: DecisionRow) -> ToolCallDecision:
         provenance_status=ProvenanceStatus(row.provenance_status),
         decision=DecisionOutcome(row.decision),
         policy_id=row.policy_id,
+        confirmation_id=row.confirmation_id,
         explanation=row.explanation,
         latency_ms=row.latency_ms,
         created_at=row.created_at,

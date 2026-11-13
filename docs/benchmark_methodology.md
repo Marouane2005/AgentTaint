@@ -1,8 +1,9 @@
 # Benchmark Methodology
 
-**Status:** Implemented (Milestones 6–7)  
+**Status:** Implemented (Milestones 6–7); validity reassessed in M9  
 **Rule:** Never invent results. Empty / missing reports mean “not run.”  
-**Current dataset:** `2026.11.13-m7.1`
+**Current dataset:** `2026.11.13-m7.1`  
+**M9:** See `docs/benchmark_validity_m9.md` — do not overwrite saved `benchmarks/reports/*`.
 
 ---
 

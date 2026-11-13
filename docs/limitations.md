@@ -29,7 +29,12 @@
 23. **No comparative claim** vs CaMeL/FIDES/CapLite/NeuroTaint without a fair shared protocol.  
 24. **M7 hard adaptive splits** can still evade fixture reconstruction (CONFIRM / provenance FN); BGE helps on this corpus but costs latency/memory.  
 25. **Bootstrap multi-seed** quantifies sampling uncertainty on a fixed synthetic set — not stochastic LLM variance.  
-26. **AgentDojo** is installable but full free/local ASR evaluation was not completed (LLM-backed protocol).
+26. **AgentDojo** is installable but full free/local ASR evaluation was not completed (LLM-backed protocol).  
+27. **MCP wire gap (M9):** confirmation IDs, parent span maps, and reconstruction candidates are enforced in `SecurityGateway.invoke` but are **not** exposed on default FastMCP tool signatures — end-to-end MCP demos cannot exercise those paths without SDK/custom wrappers.  
+28. **Envelope/confirmation durability:** in-memory nonce and confirmation stores do not survive process restart or multi-worker deploy.  
+29. **Registry unavailability** is a manual `registry_available` flag, not automatic DB outage detection.  
+30. **External benchmarks:** AgentDojo / InjecAgent full ASR remain **not evaluated** (see `docs/external_benchmarks_feasibility.md`).  
+31. **MCP compatibility** means tested FastMCP list/call/deny paths — not full multi-process protocol conformance (`docs/mcp_compatibility_m9.md`).
 
 ## Operational
 
@@ -40,4 +45,4 @@
 - Dashboard sessions are in-memory by default; restart clears live audit/provenance (benchmark `reports/` on disk persist).  
 - The UI is read-mostly and does not offer operator overrides that weaken the gateway.  
 - Control plane is **local-trust** (loopback by default). Optional `AGENTTAINT_DASHBOARD_TOKEN` gates mutations; do not expose `HOST=0.0.0.0` without a token on untrusted networks.  
-- See [docs/security_review_m8.md](security_review_m8.md).
+- See [docs/security_review_m8.md](security_review_m8.md) and [docs/m9_independent_review.md](m9_independent_review.md).
