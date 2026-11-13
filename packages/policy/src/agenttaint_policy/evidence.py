@@ -183,6 +183,7 @@ def reconstruct_authority_evidence(
     authority_argument_names: set[str],
     agent_id: str | None,
     attach: bool = True,
+    ablation: Any | None = None,
 ) -> list[ArgumentEvidence]:
     """Run reconstruction on authority arguments; return ArgumentEvidence list."""
     evidence: list[ArgumentEvidence] = []
@@ -192,13 +193,16 @@ def reconstruct_authority_evidence(
         value = arguments[name]
         if not isinstance(value, str) or not value.strip():
             continue
-        result = engine.reconstruct_argument(
-            argument_name=name,
-            argument_value=value,
-            candidates=candidates,
-            agent_id=agent_id,
-            attach=attach,
-        )
+        kwargs: dict[str, Any] = {
+            "argument_name": name,
+            "argument_value": value,
+            "candidates": candidates,
+            "agent_id": agent_id,
+            "attach": attach,
+        }
+        if ablation is not None:
+            kwargs["ablation"] = ablation
+        result = engine.reconstruct_argument(**kwargs)
         if result.matches:
             for match in result.matches:
                 evidence.append(match.evidence)

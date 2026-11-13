@@ -1,0 +1,30 @@
+[project]
+name = "agenttaint-benchmark"
+version = "0.1.0"
+description = "Reproducible cross-agent security benchmark for AgentTaint"
+requires-python = ">=3.12"
+dependencies = [
+  "agenttaint-core",
+  "agenttaint-provenance",
+  "agenttaint-risk",
+  "agenttaint-policy",
+  "agenttaint-audit",
+  "agenttaint-reconstruction",
+  "agenttaint-agent-sdk",
+  "agenttaint-mcp-proxy",
+  "agenttaint-mock-email",
+  "pydantic>=2.9.0",
+]
+
+[project.scripts]
+agenttaint-benchmark = "agenttaint_benchmark.__main__:main"
+
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

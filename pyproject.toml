@@ -38,6 +38,7 @@ pythonpath = [
   "packages/mcp_proxy/src",
   "packages/reconstruction/src",
   "packages/agent_sdk/src",
+  "packages/benchmark/src",
   "integrations/mock_email/src",
 ]
 

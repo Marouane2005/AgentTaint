@@ -63,3 +63,13 @@ Append-only notes. Failures welcome.
 **Deferred:** Cedar backend; dashboard; benchmarks (awaiting explicit approval).
 
 **Docs:** `docs/security_integration.md`, updated policies/limitations/plan.
+
+## 2026-11-13 — Milestone 6 landed
+
+**Implemented:** `agenttaint-benchmark` with train/dev/held-out test JSON (seed 2120), challenge probes, baselines (undefended/coarse/explicit/reconstruct/combined), lexical/structural/semantic ablations, JSON+MD reports.
+
+**Measured (held-out test, report `5f381310…`):** undefended ASR=1.0; coarse ASR=0 utility=0.583; explicit/reconstruct/combined ASR=0 utility=1.0 on this synthetic slice. Semantic-only recall=0.143 with high CONFIRM rate. Challenge: reconstruction misses blind-composed recipients (CONFIRM); coarse misses unauthorized USER-only HIGH sends.
+
+**Honesty:** No AgentDojo/InjecAgent; no peer-system bakeoff; perfect synthetic ASR ≠ real-world claim.
+
+**Next:** Dashboard/hardening (M7) only after approval.

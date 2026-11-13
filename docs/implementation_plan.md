@@ -102,17 +102,20 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
-## Milestone 6 — Custom benchmark + baselines (Week 6)
+## Milestone 6 — Custom benchmark + baselines (Week 6) — DONE
 
 | ID | Task | Acceptance |
 |----|------|------------|
-| 6.1 | Scenario schema + generator (separate from eval) | Fixed seeds; no leakage docs |
-| 6.2 | Baselines: undefended, coarse taint, explicit-only, reconstruct-only | Runnable |
-| 6.3 | Metrics writer → `benchmarks/reports/` | JSON schema validated |
-| 6.4 | AgentDojo adapter (best effort) | Document works / partial / blocked |
-| 6.5 | InjecAgent adapter (best effort) | Same honesty |
+| 6.1 | Scenario schema + generator (separate from eval) | Fixed seeds; held-out docs |
+| 6.2 | Baselines: undefended, coarse, explicit, reconstruct, combined | Runnable |
+| 6.3 | Metrics writer → `benchmarks/reports/` | JSON + MD reports |
+| 6.4 | AgentDojo adapter (best effort) | **Not integrated — documented** |
+| 6.5 | InjecAgent adapter (best effort) | **Not integrated — documented** |
 
-**Deliverable:** Reproducible experiments (custom required; externals as available).
+**Also delivered:** channel ablations; challenge probes; `docs/benchmark_results.md` with measured tables.
+
+**Deliverable:** Reproducible custom experiments. Externals unavailable this milestone.  
+**Hold:** Do not start Milestone 7 (dashboard) until explicit approval.
 
 ---
 

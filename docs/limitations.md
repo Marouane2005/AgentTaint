@@ -22,7 +22,11 @@
 16. **Semantic embeddings** are optional; default CI uses a fixture embedder or disables the channel.  
 17. **Envelope HMAC** uses a shared secret among cooperating components — not mutual TLS or per-agent asymmetric identity.  
 18. **Confirmation binding** protects the exact approved argument bytes; it does not prove the human understood semantic risk.  
-19. **Cedar** remains deferred; production policy authors should not assume Cedar semantics yet.
+19. **Cedar** remains deferred; production policy authors should not assume Cedar semantics yet.  
+20. **Custom benchmark ceiling:** held-out scenarios are synthetic and often expose contiguous structural identifiers; near-zero ASR there does not transfer to production agents.  
+21. **Semantic ablation** in CI/benchmark uses a fixture embedder, not a calibrated production model.  
+22. **AgentDojo / InjecAgent** were not run in Milestone 6 — do not cite custom numbers as those benchmarks.  
+23. **No comparative claim** vs CaMeL/FIDES/CapLite/NeuroTaint without a fair shared protocol.
 
 ## Operational
 
