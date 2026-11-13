@@ -5,10 +5,22 @@ export type SessionInfo = {
   notes?: string[];
 };
 
+function authHeaders(): HeadersInit {
+  // Optional shared secret for mutating endpoints when API is token-gated.
+  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_AGENTTAINT_TOKEN) {
+    return { "X-AgentTaint-Token": process.env.NEXT_PUBLIC_AGENTTAINT_TOKEN };
+  }
+  return {};
+}
+
 async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
-    headers: { Accept: "application/json", ...(init?.headers || {}) },
+    headers: {
+      Accept: "application/json",
+      ...authHeaders(),
+      ...(init?.headers || {}),
+    },
     cache: "no-store",
   });
   if (!res.ok) {

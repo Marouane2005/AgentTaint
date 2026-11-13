@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
+import re
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from agenttaint_api.state import (
@@ -15,21 +17,49 @@ from agenttaint_api.state import (
     seed_demo_session,
 )
 
+_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+_DEFAULT_ORIGINS = (
+    "http://127.0.0.1:3000,http://localhost:3000,"
+    "http://127.0.0.1:3001,http://localhost:3001"
+)
+
+
+def _cors_origins() -> list[str]:
+    raw = os.environ.get("AGENTTAINT_CORS_ORIGINS", _DEFAULT_ORIGINS)
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
+
+def _require_local_token(x_agenttaint_token: str | None) -> None:
+    """Optional shared secret for mutating endpoints (local-trust by default)."""
+    expected = os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip()
+    if not expected:
+        return
+    if not x_agenttaint_token or x_agenttaint_token != expected:
+        raise HTTPException(status_code=401, detail="invalid or missing dashboard token")
+
+
+def _validate_id(value: str, label: str) -> str:
+    if not _ID_RE.match(value):
+        raise HTTPException(status_code=400, detail=f"invalid {label}")
+    return value
+
+
 app = FastAPI(
     title="AgentTaint Control Plane",
     version="0.1.0",
     description=(
         "Read-only + demo-seed API over real provenance/audit stores. "
-        "Does not bypass the MCP SecurityGateway."
+        "Does not bypass the MCP SecurityGateway. Local-trust by default; "
+        "set AGENTTAINT_DASHBOARD_TOKEN to require a shared secret on mutations."
     ),
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_cors_origins(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Accept", "Content-Type", "X-AgentTaint-Token"],
 )
 
 
@@ -50,7 +80,9 @@ def metrics_overview() -> dict[str, Any]:
 
 
 @app.get("/api/v1/decisions")
-def list_decisions(limit: int = 100) -> dict[str, Any]:
+def list_decisions(
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict[str, Any]:
     state = get_state()
     rows = state.audit.list_decisions(limit=limit)
     return {
@@ -65,6 +97,7 @@ def list_decisions(limit: int = 100) -> dict[str, Any]:
 
 @app.get("/api/v1/decisions/{call_id}")
 def get_decision(call_id: str) -> dict[str, Any]:
+    _validate_id(call_id, "call_id")
     state = get_state()
     decision = state.audit.get(call_id)
     if decision is None:
@@ -85,6 +118,7 @@ def graph_export() -> dict[str, Any]:
 
 @app.get("/api/v1/spans/{span_id}")
 def get_span(span_id: str) -> dict[str, Any]:
+    _validate_id(span_id, "span_id")
     state = get_state()
     span = state.registry.store.get_span(span_id)
     if span is None:
@@ -100,6 +134,7 @@ def get_span(span_id: str) -> dict[str, Any]:
 
 @app.get("/api/v1/spans/{span_id}/ancestors")
 def span_ancestors(span_id: str) -> dict[str, Any]:
+    _validate_id(span_id, "span_id")
     state = get_state()
     if state.registry.store.get_span(span_id) is None:
         raise HTTPException(status_code=404, detail="span not found")
@@ -113,7 +148,6 @@ def span_ancestors(span_id: str) -> dict[str, Any]:
 @app.get("/api/v1/reconstruction")
 def reconstruction_view() -> dict[str, Any]:
     state = get_state()
-    # Prefer evidence attached to the latest HIGH-risk decision with evidence.
     evidence = list(state.last_reconstruction)
     source = "demo_seed_cache"
     if not evidence:
@@ -147,14 +181,20 @@ def benchmarks() -> dict[str, Any]:
 
 
 @app.post("/api/v1/demo/seed")
-def demo_seed() -> dict[str, Any]:
+def demo_seed(
+    x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
+) -> dict[str, Any]:
     """Run the labeled demo scenario through the real enforcement path."""
+    _require_local_token(x_agenttaint_token)
     return seed_demo_session()
 
 
 @app.post("/api/v1/session/clear")
-def session_clear() -> dict[str, Any]:
+def session_clear(
+    x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
+) -> dict[str, Any]:
     """Reset in-memory demo/live session stores without touching benchmark files."""
+    _require_local_token(x_agenttaint_token)
     state = clear_session()
     return {
         "ok": True,

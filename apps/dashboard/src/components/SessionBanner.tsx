@@ -4,12 +4,18 @@ export function SessionBanner({ session }: { session?: SessionInfo | null }) {
   if (!session) return null;
   const isDemo = session.mode === "demo_seed";
   const isEmpty = session.mode === "empty";
+  const cls = isDemo ? "banner warn" : isEmpty ? "banner" : "banner ok";
+  const title = isDemo
+    ? "Simulated demo session"
+    : isEmpty
+      ? "No active session"
+      : "Live session";
   return (
-    <div className={`banner ${isDemo ? "warn" : ""} ${isEmpty ? "" : ""}`}>
-      <strong>{isDemo ? "Simulated demo session" : "Session"}:</strong>{" "}
-      {session.label}
+    <div className={cls} role="status">
+      <strong>{title}</strong>
+      <div style={{ marginTop: "0.35rem" }}>{session.label}</div>
       {session.notes && session.notes.length > 0 ? (
-        <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.1rem" }}>
+        <ul>
           {session.notes.map((n) => (
             <li key={n}>{n}</li>
           ))}

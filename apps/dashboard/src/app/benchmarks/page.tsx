@@ -17,17 +17,50 @@ function fmt(v: number | null | undefined) {
   return v.toFixed(3);
 }
 
+function BarChart({
+  rows,
+  metric,
+  kind,
+}: {
+  rows: [string, Metrics][];
+  metric: keyof Metrics;
+  kind: "asr" | "utility" | "f1";
+}) {
+  return (
+    <div className="bar-chart">
+      {rows.map(([name, m]) => {
+        const raw = m[metric];
+        const val = typeof raw === "number" ? raw : 0;
+        const width = Math.max(0, Math.min(100, val * 100));
+        return (
+          <div className="bar-row" key={`${name}-${String(metric)}`}>
+            <div className="name" title={name}>
+              {name}
+            </div>
+            <div className="bar-track">
+              <div className={`bar-fill ${kind}`} style={{ width: `${width}%` }} />
+            </div>
+            <div className="bar-val mono">{fmt(typeof raw === "number" ? raw : null)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BenchmarksPage() {
   const [data, setData] = useState<Awaited<ReturnType<typeof fetchBenchmarks>> | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
   const [reportIdx, setReportIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchBenchmarks()
       .then(setData)
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoading(false));
   }, []);
 
   const report = data?.reports?.[reportIdx];
@@ -44,15 +77,19 @@ export default function BenchmarksPage() {
     <>
       <div className="topbar">
         <div>
+          <p className="eyebrow">Evaluation</p>
           <h1>Benchmark Lab</h1>
           <p>
             Measured synthetic results from <code>benchmarks/reports/</code>. Empty
-            means not run — this UI never invents metrics.
+            means not run — this UI never invents metrics or overclaims real-world
+            effectiveness.
           </p>
         </div>
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
       <div className="banner warn">{data?.disclaimer}</div>
+      {loading ? <div className="loading">Loading measured reports…</div> : null}
+
       {!data?.available ? (
         <div className="panel">
           <div className="empty">{data?.message || "No reports available."}</div>
@@ -60,10 +97,21 @@ export default function BenchmarksPage() {
       ) : (
         <>
           <div className="panel">
-            <h2>Report</h2>
-            <label style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-              <span>Select measured report</span>
+            <div className="panel-head">
+              <h2>Measured report</h2>
+              <span className="panel-meta">on-disk artifacts only</span>
+            </div>
+            <label
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <span className="panel-meta">Select report</span>
               <select
+                className="control"
                 value={reportIdx}
                 onChange={(e) => setReportIdx(Number(e.target.value))}
               >
@@ -76,25 +124,48 @@ export default function BenchmarksPage() {
               </select>
             </label>
             {report ? (
-              <div className="legend" style={{ marginTop: "0.85rem" }}>
-                <div>
-                  <strong>Dataset</strong>
-                  <span className="mono">{String(report.dataset_version)}</span>
+              <div className="status-grid" style={{ marginTop: "0.85rem" }}>
+                <div className="status-row">
+                  <span className="k">Dataset</span>
+                  <span className="v mono">{String(report.dataset_version)}</span>
                 </div>
-                <div>
-                  <strong>Seed</strong>
-                  <span className="mono">{String(report.seed)}</span>
+                <div className="status-row">
+                  <span className="k">Seed</span>
+                  <span className="v mono">{String(report.seed)}</span>
                 </div>
-                <div>
-                  <strong>Backend</strong>
-                  <span className="mono">{String(report.semantic_backend)}</span>
+                <div className="status-row">
+                  <span className="k">Backend</span>
+                  <span className="v mono">{String(report.semantic_backend)}</span>
                 </div>
               </div>
             ) : null}
           </div>
 
+          <div className="three-col">
+            <div className="panel">
+              <div className="panel-head">
+                <h2>ASR (lower better)</h2>
+              </div>
+              <BarChart rows={rows} metric="asr" kind="asr" />
+            </div>
+            <div className="panel">
+              <div className="panel-head">
+                <h2>Utility</h2>
+              </div>
+              <BarChart rows={rows} metric="utility" kind="utility" />
+            </div>
+            <div className="panel">
+              <div className="panel-head">
+                <h2>Provenance F1</h2>
+              </div>
+              <BarChart rows={rows} metric="provenance_f1" kind="f1" />
+            </div>
+          </div>
+
           <div className="panel">
-            <h2>Baselines</h2>
+            <div className="panel-head">
+              <h2>Baselines table</h2>
+            </div>
             <div className="table-wrap">
               <table className="data">
                 <thead>
@@ -113,11 +184,11 @@ export default function BenchmarksPage() {
                     <tr key={name}>
                       <td className="mono">{name}</td>
                       <td>{m.n_scenarios ?? "—"}</td>
-                      <td>{fmt(m.asr)}</td>
-                      <td>{fmt(m.utility)}</td>
-                      <td>{fmt(m.fpr_block)}</td>
-                      <td>{fmt(m.provenance_f1)}</td>
-                      <td>{fmt(m.latency_ms_median)}</td>
+                      <td className="mono">{fmt(m.asr)}</td>
+                      <td className="mono">{fmt(m.utility)}</td>
+                      <td className="mono">{fmt(m.fpr_block)}</td>
+                      <td className="mono">{fmt(m.provenance_f1)}</td>
+                      <td className="mono">{fmt(m.latency_ms_median)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -126,7 +197,9 @@ export default function BenchmarksPage() {
           </div>
 
           <div className="panel">
-            <h2>Ablations</h2>
+            <div className="panel-head">
+              <h2>Ablations</h2>
+            </div>
             {!ablations.length ? (
               <div className="empty">No ablation table in this report.</div>
             ) : (
@@ -145,10 +218,10 @@ export default function BenchmarksPage() {
                     {ablations.map(([name, m]) => (
                       <tr key={name}>
                         <td className="mono">{name}</td>
-                        <td>{fmt(m.asr)}</td>
-                        <td>{fmt(m.utility)}</td>
-                        <td>{fmt(m.provenance_f1)}</td>
-                        <td>{fmt(m.latency_ms_median)}</td>
+                        <td className="mono">{fmt(m.asr)}</td>
+                        <td className="mono">{fmt(m.utility)}</td>
+                        <td className="mono">{fmt(m.provenance_f1)}</td>
+                        <td className="mono">{fmt(m.latency_ms_median)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -159,8 +232,10 @@ export default function BenchmarksPage() {
 
           {Array.isArray(report?.limitations) && report.limitations.length ? (
             <div className="panel">
-              <h2>Recorded limitations</h2>
-              <ul>
+              <div className="panel-head">
+                <h2>Recorded limitations</h2>
+              </div>
+              <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "var(--text-secondary)" }}>
                 {(report.limitations as string[]).slice(0, 8).map((item) => (
                   <li key={item}>{item}</li>
                 ))}

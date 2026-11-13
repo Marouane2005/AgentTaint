@@ -101,9 +101,18 @@ make dashboard-lint
 make test-all
 ```
 
+## Security notes (local-trust)
+
+- `make api` binds **127.0.0.1** by default. For containers/Render set `HOST=0.0.0.0`.
+- CORS defaults to localhost dashboard origins (`AGENTTAINT_CORS_ORIGINS` to override).
+- Optional mutation gate: set `AGENTTAINT_DASHBOARD_TOKEN` on the API and
+  `NEXT_PUBLIC_AGENTTAINT_TOKEN` for the Next.js client.
+- See [docs/security_review_m8.md](security_review_m8.md).
+
 ## Limitations
 
 - In-memory session only; process restart clears live audit/provenance (benchmark files on disk persist).
 - Demo seed is a fixed mock-email scenario for UX, not a substitute for MCP proxy integration tests.
 - Graph layout is layered SVG for clarity, not a full graph-database explorer.
 - Dashboard is read-mostly; it does not offer operator overrides that weaken the gateway.
+- Without a dashboard token, anyone who can reach the loopback API can seed/clear the session.

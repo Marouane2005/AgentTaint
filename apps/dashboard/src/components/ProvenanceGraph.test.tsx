@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ProvenanceGraph } from "./ProvenanceGraph";
 
@@ -8,7 +8,7 @@ describe("ProvenanceGraph", () => {
     expect(screen.getByText(/No provenance spans yet/i)).toBeInTheDocument();
   });
 
-  it("renders nodes with provenance status labels", () => {
+  it("renders nodes with provenance status labels and selection", () => {
     render(
       <ProvenanceGraph
         nodes={[
@@ -26,6 +26,13 @@ describe("ProvenanceGraph", () => {
             origin: "UNTRUSTED_TOOL",
             agent_id: "agent_a",
           },
+          {
+            id: "c",
+            kind: "GAP",
+            provenance_status: "UNKNOWN",
+            origin: "UNKNOWN",
+            agent_id: null,
+          },
         ]}
         edges={[
           {
@@ -35,6 +42,16 @@ describe("ProvenanceGraph", () => {
             relationship: "SUMMARIZED_FROM",
             evidence_type: "EXPLICIT",
             inferred: false,
+            legend: "EXPLICIT — instrumented / verified link",
+          },
+          {
+            id: "e2",
+            source: "b",
+            target: "c",
+            relationship: "GAP_FROM",
+            evidence_type: "INFERRED",
+            inferred: true,
+            legend: "INFERRED — reconstruction evidence only",
           },
         ]}
       />,
@@ -42,5 +59,11 @@ describe("ProvenanceGraph", () => {
     expect(screen.getByLabelText(/Provenance graph/i)).toBeInTheDocument();
     expect(screen.getAllByText("KNOWN").length).toBeGreaterThan(0);
     expect(screen.getAllByText("INFERRED").length).toBeGreaterThan(0);
+    expect(screen.getByText(/gaps\/unknown/i)).toBeInTheDocument();
+
+    const node = screen.getByText("TOOL_RESULT");
+    fireEvent.click(node);
+    expect(screen.getByText(/Selection details/i)).toBeInTheDocument();
+    expect(screen.getByText(/UNTRUSTED_TOOL/)).toBeInTheDocument();
   });
 });

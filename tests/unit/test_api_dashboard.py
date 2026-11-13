@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from typing import Any
+
 from agenttaint_api.app import app
 from agenttaint_api.state import reset_state_for_tests
 from fastapi.testclient import TestClient
@@ -36,17 +39,17 @@ def test_demo_seed_produces_real_decisions_and_graph() -> None:
     graph = client.get("/api/v1/graph/export").json()
     assert len(graph["nodes"]) >= 3
     assert "INFERRED" in graph["status_legend"]
-    assert any(
-        "not verified" in (e.get("legend") or "").lower() or e.get("inferred")
-        for e in graph["edges"]
-    ) or True  # inferred edges optional depending on reconstruction hits
+    for node in graph["nodes"]:
+        assert "metadata" in node
+        assert node["metadata"] == {}
+        if node.get("content_redacted"):
+            assert len(str(node["content_redacted"])) <= 281
 
     recon = client.get("/api/v1/reconstruction").json()
     assert "not verified causation" in recon["disclaimer"].lower()
 
     audit = client.get("/api/v1/decisions").json()
     assert len(audit["items"]) >= 2
-    # Redacted args only — ensure structure present
     assert "arguments_hash" in audit["items"][0]
 
 
@@ -71,3 +74,37 @@ def test_session_clear_resets_decisions() -> None:
     cleared = client.post("/api/v1/session/clear")
     assert cleared.status_code == 200
     assert cleared.json()["overview"]["decisions"]["total"] == 0
+
+
+def test_decisions_limit_clamped_and_ids_validated() -> None:
+    reset_state_for_tests()
+    client = TestClient(app)
+    assert client.get("/api/v1/decisions?limit=0").status_code == 422
+    assert client.get("/api/v1/decisions?limit=9999").status_code == 422
+    assert client.get("/api/v1/decisions/bad%20id!").status_code == 400
+    assert client.get("/api/v1/spans/@@@").status_code == 400
+
+
+def test_dashboard_token_guards_mutations(monkeypatch: Any) -> None:
+    reset_state_for_tests()
+    client = TestClient(app)
+    monkeypatch.setenv("AGENTTAINT_DASHBOARD_TOKEN", "test-secret")
+    try:
+        denied = client.post("/api/v1/demo/seed")
+        assert denied.status_code == 401
+        ok = client.post(
+            "/api/v1/demo/seed",
+            headers={"X-AgentTaint-Token": "test-secret"},
+        )
+        assert ok.status_code == 200
+        assert client.post("/api/v1/session/clear").status_code == 401
+        assert (
+            client.post(
+                "/api/v1/session/clear",
+                headers={"X-AgentTaint-Token": "test-secret"},
+            ).status_code
+            == 200
+        )
+    finally:
+        monkeypatch.delenv("AGENTTAINT_DASHBOARD_TOKEN", raising=False)
+        os.environ.pop("AGENTTAINT_DASHBOARD_TOKEN", None)

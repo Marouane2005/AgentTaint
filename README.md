@@ -29,7 +29,7 @@ make api                  # terminal 1 — http://127.0.0.1:8080
 make dashboard            # terminal 2 — http://127.0.0.1:3000
 ```
 
-Use **Seed simulated session** on Overview for a labeled demo that still runs the live SecurityGateway. Benchmark Lab reads `reports/` only — run `make benchmark` first. Details: [docs/dashboard.md](docs/dashboard.md).
+Use **Seed demo session** on Overview for a labeled SIMULATED scenario that still runs the live SecurityGateway. Benchmark Lab reads `benchmarks/reports/` only — run `make benchmark` first. Details: [docs/dashboard.md](docs/dashboard.md), security notes: [docs/security_review_m8.md](docs/security_review_m8.md).
 
 No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-reconstruction`, `agenttaint-agent-sdk`, `agenttaint-benchmark`, `agenttaint-mcp-proxy`, `agenttaint-api`, plus `agenttaint-mock-email`.
 
@@ -68,6 +68,7 @@ Can we determine whether untrusted information **materially influenced** a dange
 | [docs/mcp_proxy.md](docs/mcp_proxy.md) | MCP proxy supported features & limits |
 | [docs/reconstruction.md](docs/reconstruction.md) | Reconstruction channels, ablation, limits |
 | [docs/dashboard.md](docs/dashboard.md) | Interactive security dashboard (M8) |
+| [docs/security_review_m8.md](docs/security_review_m8.md) | Control-plane security review + fixes |
 | [research_log/](research_log/) | Decisions, failures, experiments |
 
 ---

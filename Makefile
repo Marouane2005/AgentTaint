@@ -39,7 +39,7 @@ typecheck:
 		packages/agent_sdk/src packages/mcp_proxy/src integrations/mock_email/src
 
 api:
-	PORT=$(API_PORT) $(PYTHON) -m agenttaint_api
+	HOST=127.0.0.1 PORT=$(API_PORT) $(PYTHON) -m agenttaint_api
 
 dashboard-install:
 	cd apps/dashboard && npm install --legacy-peer-deps

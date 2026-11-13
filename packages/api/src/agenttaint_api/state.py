@@ -315,6 +315,16 @@ def seed_demo_session() -> dict[str, Any]:
     }
 
 
+def _truncate_redacted(value: str | None, limit: int = 280) -> str | None:
+    """Cap redacted preview length for dashboard export (privacy + UX)."""
+    if value is None:
+        return None
+    text = str(value)
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "…"
+
+
 def export_graph(state: AppState) -> dict[str, Any]:
     nodes = []
     for span in state.registry.store.list_spans():
@@ -326,12 +336,13 @@ def export_graph(state: AppState) -> dict[str, Any]:
                 "provenance_status": span.provenance_status.value,
                 "agent_id": span.agent_id,
                 "source": span.source,
-                "content_redacted": span.content_redacted,
+                "content_redacted": _truncate_redacted(span.content_redacted),
                 "content_hash": span.content_hash,
                 "parent_ids": list(span.parent_ids),
                 "confidence": span.confidence,
                 "created_at": span.created_at.isoformat(),
-                "metadata": span.metadata,
+                # Omit raw metadata blobs from graph export — keep inspection lean.
+                "metadata": {},
             }
         )
     edges = []

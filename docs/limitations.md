@@ -38,4 +38,6 @@
 - Dashboard without backend shows empty states — never fabricated metrics.  
 - **M8 demo seed** is a labeled SIMULATED scenario through the real SecurityGateway — not production telemetry.  
 - Dashboard sessions are in-memory by default; restart clears live audit/provenance (benchmark `reports/` on disk persist).  
-- The UI is read-mostly and does not offer operator overrides that weaken the gateway.
+- The UI is read-mostly and does not offer operator overrides that weaken the gateway.  
+- Control plane is **local-trust** (loopback by default). Optional `AGENTTAINT_DASHBOARD_TOKEN` gates mutations; do not expose `HOST=0.0.0.0` without a token on untrusted networks.  
+- See [docs/security_review_m8.md](security_review_m8.md).

@@ -10,6 +10,7 @@ export default function GatewayPage() {
   );
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDecisions()
@@ -19,7 +20,8 @@ export default function GatewayPage() {
           setSelected(String(payload.items[0].call_id));
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoading(false));
   }, []);
 
   const items = data?.items || [];
@@ -29,18 +31,25 @@ export default function GatewayPage() {
     <>
       <div className="topbar">
         <div>
+          <p className="eyebrow">Enforcement</p>
           <h1>Security Gateway</h1>
           <p>
-            Intercepted MCP tool decisions from the audit store — hashes and redacted
-            arguments only. The dashboard never bypasses enforcement.
+            Intercepted MCP tool decisions from the audit store — argument hashes and
+            redacted fields only. This page inspects decisions; it never weakens
+            policy.
           </p>
         </div>
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
       <SessionBanner session={data?.session} />
+      {loading ? <div className="loading">Loading audit trail…</div> : null}
+
       <div className="two-col">
         <div className="panel">
-          <h2>Audit trail</h2>
+          <div className="panel-head">
+            <h2>Decision timeline</h2>
+            <span className="panel-meta">{items.length} records</span>
+          </div>
           {!items.length ? (
             <div className="empty">No decisions yet. Seed the demo session.</div>
           ) : (
@@ -59,12 +68,11 @@ export default function GatewayPage() {
                   {items.map((row) => (
                     <tr
                       key={String(row.call_id)}
+                      className={`clickable ${
+                        selected === String(row.call_id) ? "selected" : ""
+                      }`}
+                      aria-selected={selected === String(row.call_id)}
                       onClick={() => setSelected(String(row.call_id))}
-                      style={{
-                        cursor: "pointer",
-                        background:
-                          selected === String(row.call_id) ? "#eef7f4" : undefined,
-                      }}
                     >
                       <td>
                         <span className={`pill ${String(row.decision)}`}>
@@ -72,7 +80,11 @@ export default function GatewayPage() {
                         </span>
                       </td>
                       <td className="mono">{String(row.tool)}</td>
-                      <td>{String(row.risk_tier)}</td>
+                      <td>
+                        <span className={`pill ${String(row.risk_tier)}`}>
+                          {String(row.risk_tier)}
+                        </span>
+                      </td>
                       <td className="mono">{String(row.policy_id || "—")}</td>
                       <td className="mono">{String(row.agent_id || "—")}</td>
                     </tr>
@@ -82,45 +94,66 @@ export default function GatewayPage() {
             </div>
           )}
         </div>
+
         <div className="panel">
-          <h2>Decision detail</h2>
+          <div className="panel-head">
+            <h2>Inspection</h2>
+          </div>
           {!active ? (
             <div className="empty">Select a decision.</div>
           ) : (
-            <div className="legend">
-              <div>
-                <strong>Call</strong>
-                <span className="mono">{String(active.call_id)}</span>
-              </div>
-              <div>
-                <strong>Args hash</strong>
-                <span className="mono">{String(active.arguments_hash)}</span>
-              </div>
-              <div>
-                <strong>Provenance</strong>
-                <span className={`pill ${String(active.provenance_status)}`}>
-                  {String(active.provenance_status)}
+            <div className="status-grid">
+              <div className="status-row">
+                <span className="k">Call ID</span>
+                <span className="v mono" style={{ fontSize: "0.75rem" }}>
+                  {String(active.call_id)}
                 </span>
               </div>
-              <div>
-                <strong>Latency</strong>
-                <span>{String(active.latency_ms)} ms</span>
-              </div>
-              <div>
-                <strong>Explanation</strong>
-                <span>{String(active.explanation || "—")}</span>
-              </div>
-              <div>
-                <strong>Redacted args</strong>
-                <span className="mono" style={{ fontSize: "0.8rem" }}>
-                  {JSON.stringify(active.arguments_redacted || {}, null, 0)}
+              <div className="status-row">
+                <span className="k">Decision</span>
+                <span className="v">
+                  <span className={`pill ${String(active.decision)}`}>
+                    {String(active.decision)}
+                  </span>
                 </span>
               </div>
-              <div>
-                <strong>Evidence count</strong>
-                <span>
+              <div className="status-row">
+                <span className="k">Args hash</span>
+                <span className="v mono" style={{ fontSize: "0.72rem" }}>
+                  {String(active.arguments_hash)}
+                </span>
+              </div>
+              <div className="status-row">
+                <span className="k">Provenance</span>
+                <span className="v">
+                  <span className={`pill ${String(active.provenance_status)}`}>
+                    {String(active.provenance_status)}
+                  </span>
+                </span>
+              </div>
+              <div className="status-row">
+                <span className="k">Latency</span>
+                <span className="v">{String(active.latency_ms)} ms</span>
+              </div>
+              <div className="status-row">
+                <span className="k">Evidence</span>
+                <span className="v">
                   {Array.isArray(active.evidence) ? active.evidence.length : 0}
                 </span>
+              </div>
+              <div className="status-row">
+                <span className="k">Explanation</span>
+                <span className="v" style={{ textAlign: "left", maxWidth: "18rem" }}>
+                  {String(active.explanation || "—")}
+                </span>
+              </div>
+              <div>
+                <div className="k" style={{ marginTop: "0.75rem" }}>
+                  Redacted arguments
+                </div>
+                <div className="detail-block mono">
+                  {JSON.stringify(active.arguments_redacted || {}, null, 2)}
+                </div>
               </div>
             </div>
           )}
