@@ -35,4 +35,7 @@
 
 - Embedding model download requires network once.  
 - Shell demo requires Docker; otherwise disabled.  
-- Dashboard without backend shows empty states — never fabricated metrics.
+- Dashboard without backend shows empty states — never fabricated metrics.  
+- **M8 demo seed** is a labeled SIMULATED scenario through the real SecurityGateway — not production telemetry.  
+- Dashboard sessions are in-memory by default; restart clears live audit/provenance (benchmark `reports/` on disk persist).  
+- The UI is read-mostly and does not offer operator overrides that weaken the gateway.

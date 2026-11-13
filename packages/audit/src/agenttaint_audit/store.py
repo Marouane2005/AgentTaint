@@ -15,6 +15,7 @@ from agenttaint_core.schemas import (
 )
 from sqlalchemy import JSON, DateTime, Integer, String, Text, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 class Base(DeclarativeBase):
@@ -98,8 +99,15 @@ def _from_row(row: DecisionRow) -> ToolCallDecision:
 
 class AuditStore:
     def __init__(self, database_url: str = "sqlite+pysqlite:///:memory:") -> None:
-        connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-        self.engine = create_engine(database_url, future=True, connect_args=connect_args)
+        connect_args: dict[str, object] = {}
+        engine_kwargs: dict[str, object] = {"future": True}
+        if database_url.startswith("sqlite"):
+            connect_args["check_same_thread"] = False
+            if ":memory:" in database_url:
+                engine_kwargs["poolclass"] = StaticPool
+        self.engine = create_engine(
+            database_url, connect_args=connect_args, **engine_kwargs
+        )
         self._session_factory = sessionmaker(self.engine, expire_on_commit=False, future=True)
         Base.metadata.create_all(self.engine)
 

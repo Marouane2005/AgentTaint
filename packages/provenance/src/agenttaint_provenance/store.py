@@ -28,6 +28,7 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 class Base(DeclarativeBase):
@@ -152,8 +153,17 @@ class ProvenanceStore:
     """Persistent provenance records. Fails loudly on integrity problems."""
 
     def __init__(self, database_url: str = "sqlite+pysqlite:///:memory:") -> None:
-        connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-        self.engine = create_engine(database_url, future=True, connect_args=connect_args)
+        # :memory: is per-connection unless StaticPool shares one connection across threads
+        # (FastAPI TestClient / anyio worker threads otherwise see empty DBs).
+        connect_args: dict[str, object] = {}
+        engine_kwargs: dict[str, object] = {"future": True}
+        if database_url.startswith("sqlite"):
+            connect_args["check_same_thread"] = False
+            if ":memory:" in database_url:
+                engine_kwargs["poolclass"] = StaticPool
+        self.engine = create_engine(
+            database_url, connect_args=connect_args, **engine_kwargs
+        )
         self._session_factory = sessionmaker(self.engine, expire_on_commit=False, future=True)
         Base.metadata.create_all(self.engine)
 

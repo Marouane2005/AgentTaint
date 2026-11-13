@@ -136,17 +136,18 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
-## Milestone 8 — Dashboard + hardening (deferred)
+## Milestone 8 — Interactive Security Dashboard (complete)
 
 | ID | Task | Acceptance |
 |----|------|------------|
-| 8.1 | FastAPI metrics + graph export | Used by UI |
-| 8.2 | Next.js overview + timeline + decision explorer | Live data only |
-| 8.3 | Graph explorer | KNOWN/INFERRED/UNKNOWN visual distinction |
-| 8.4 | Security tests pack | Forgery, replay, bypass attempts |
-| 8.5 | Playwright smoke | Dashboard loads decisions |
+| 8.1 | FastAPI control plane (`agenttaint-api`) | Overview, graph, reconstruction, decisions, benchmarks, demo seed |
+| 8.2 | Next.js dashboard sections | Overview, Provenance, Reconstruction, Gateway, Benchmark Lab |
+| 8.3 | Interactive provenance graph | KNOWN / INFERRED / UNKNOWN / PARTIAL; dashed INFERRED edges |
+| 8.4 | API + frontend tests | `tests/unit/test_api_dashboard.py`, Vitest ProvenanceGraph |
+| 8.5 | Docs | `docs/dashboard.md` + README setup |
 
-**Deliverable:** Developer-facing platform over real engine.
+**Deliverable:** Developer-facing platform over real engine; demo seed labeled SIMULATED; gateway not bypassed.  
+**Hold:** Do not start Milestone 9 until explicit approval.
 
 ---
 

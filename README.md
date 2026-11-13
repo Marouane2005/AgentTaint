@@ -6,7 +6,7 @@ AgentTaint is a research-oriented security layer that sits between AI agents and
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Current status:** Milestones **0–7** complete: assessment through research-validation benchmark expansion (BGE, multi-seed, hard cases). Dashboard awaits approval. See [docs/benchmark_results_m7.md](docs/benchmark_results_m7.md).
+> **Current status:** Milestones **0–8** complete: assessment through Interactive Security Dashboard. Wait for approval before further milestones. See [docs/dashboard.md](docs/dashboard.md) and [docs/benchmark_results_m7.md](docs/benchmark_results_m7.md).
 
 ## Quick start
 
@@ -20,9 +20,20 @@ make benchmark-bge
 make benchmark-experiment
 ```
 
-No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-reconstruction`, `agenttaint-agent-sdk`, `agenttaint-benchmark`, `agenttaint-mcp-proxy`, plus `agenttaint-mock-email`.
+### Dashboard (Milestone 8)
 
-See [docs/mcp_proxy.md](docs/mcp_proxy.md), [docs/reconstruction.md](docs/reconstruction.md), [docs/security_integration.md](docs/security_integration.md), and [docs/benchmark_results.md](docs/benchmark_results.md).
+```bash
+make install              # includes agenttaint-api
+make dashboard-install
+make api                  # terminal 1 — http://127.0.0.1:8080
+make dashboard            # terminal 2 — http://127.0.0.1:3000
+```
+
+Use **Seed simulated session** on Overview for a labeled demo that still runs the live SecurityGateway. Benchmark Lab reads `reports/` only — run `make benchmark` first. Details: [docs/dashboard.md](docs/dashboard.md).
+
+No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-reconstruction`, `agenttaint-agent-sdk`, `agenttaint-benchmark`, `agenttaint-mcp-proxy`, `agenttaint-api`, plus `agenttaint-mock-email`.
+
+See [docs/mcp_proxy.md](docs/mcp_proxy.md), [docs/reconstruction.md](docs/reconstruction.md), [docs/security_integration.md](docs/security_integration.md), [docs/dashboard.md](docs/dashboard.md), and [docs/benchmark_results.md](docs/benchmark_results.md).
 
 ---
 
@@ -56,6 +67,7 @@ Can we determine whether untrusted information **materially influenced** a dange
 | [docs/limitations.md](docs/limitations.md) | Honest limits |
 | [docs/mcp_proxy.md](docs/mcp_proxy.md) | MCP proxy supported features & limits |
 | [docs/reconstruction.md](docs/reconstruction.md) | Reconstruction channels, ablation, limits |
+| [docs/dashboard.md](docs/dashboard.md) | Interactive security dashboard (M8) |
 | [research_log/](research_log/) | Decisions, failures, experiments |
 
 ---
@@ -78,8 +90,9 @@ Can we determine whether untrusted information **materially influenced** a dange
 4. Reconstruction + ablation  
 5. Cross-agent SDK + policy + confirmation  
 6. Benchmarks  
-7. Dashboard  
-8. Research release  
+7. Benchmark expansion (M7)  
+8. Dashboard (M8) — done; awaiting approval  
+9. Research release  
 
 ---
 

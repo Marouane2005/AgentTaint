@@ -1,0 +1,32 @@
+[project]
+name = "agenttaint-api"
+version = "0.1.0"
+description = "FastAPI control plane for the AgentTaint dashboard"
+requires-python = ">=3.12"
+dependencies = [
+  "agenttaint-core",
+  "agenttaint-provenance",
+  "agenttaint-risk",
+  "agenttaint-policy",
+  "agenttaint-audit",
+  "agenttaint-reconstruction",
+  "agenttaint-agent-sdk",
+  "agenttaint-mcp-proxy",
+  "agenttaint-mock-email",
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic>=2.9.0",
+]
+
+[project.scripts]
+agenttaint-api = "agenttaint_api.__main__:main"
+
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
