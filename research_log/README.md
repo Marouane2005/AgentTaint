@@ -53,3 +53,13 @@ Append-only notes. Failures welcome.
 **Honest failures:** split-recipient attacks; ambiguous USER+UNTRUSTED emails; semantic inactive without extras.
 
 **Next:** M5 SDK/policy/confirm; then reproducible benchmarks before any research claims.
+
+## 2026-11-13 — Milestone 5 landed
+
+**Implemented:** `agenttaint-agent-sdk` (AgentTaintContext, HMAC envelopes + nonce replay store, ConfirmationService + CLI confirm); `ProvenanceAwarePolicy` + `PolicyContext` with reconstruction wiring; gateway fail-closed / confirmation consume path; adversarial unit tests.
+
+**Invariants:** INFERRED never ALLOWs HIGH alone; confirmation binds `(tool, args_hash, agent_id)` with expiry + single-use; forged/modified/replayed envelopes rejected.
+
+**Deferred:** Cedar backend; dashboard; benchmarks (awaiting explicit approval).
+
+**Docs:** `docs/security_integration.md`, updated policies/limitations/plan.

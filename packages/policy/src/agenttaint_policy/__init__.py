@@ -1,12 +1,23 @@
 """Policy evaluation adapters for AgentTaint."""
 
-from agenttaint_policy.adapter import PolicyAdapter, PolicyResult, StubPolicyAdapter
-from agenttaint_policy.loader import load_stub_policy
+from agenttaint_policy.adapter import (
+    PolicyAdapter,
+    PolicyResult,
+    ProvenanceAwarePolicy,
+    StubPolicyAdapter,
+)
+from agenttaint_policy.context import PolicyContext
+from agenttaint_policy.evidence import build_policy_context
+from agenttaint_policy.loader import load_provenance_policy, load_stub_policy
 
 __all__ = [
     "PolicyAdapter",
+    "PolicyContext",
     "PolicyResult",
+    "ProvenanceAwarePolicy",
     "StubPolicyAdapter",
+    "build_policy_context",
+    "load_provenance_policy",
     "load_stub_policy",
 ]
 __version__ = "0.1.0"

@@ -173,6 +173,7 @@ class ToolCallDecision(BaseModel):
     provenance_status: ProvenanceStatus = ProvenanceStatus.UNKNOWN
     decision: DecisionOutcome
     policy_id: str | None = None
+    confirmation_id: str | None = None
     created_at: datetime = Field(default_factory=_utcnow)
     latency_ms: int = 0
     explanation: str | None = None

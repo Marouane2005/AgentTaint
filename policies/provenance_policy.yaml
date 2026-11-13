@@ -1,0 +1,6 @@
+# Milestone 5 provenance-aware policy (deterministic, not Cedar).
+denylist_tools: []
+blocked_recipients:
+  - attacker@example.com
+confirm_untrusted_influence: false
+fail_closed_unknown_high: false

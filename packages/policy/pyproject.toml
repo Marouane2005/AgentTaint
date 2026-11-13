@@ -5,6 +5,7 @@ description = "Deterministic policy adapter for AgentTaint (Cedar later)"
 requires-python = ">=3.12"
 dependencies = [
   "agenttaint-core",
+  "agenttaint-provenance",
   "pyyaml>=6.0.2",
 ]
 

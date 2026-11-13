@@ -6,7 +6,7 @@ AgentTaint is a research-oriented security layer that sits between AI agents and
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Current status:** Milestones **0–4** complete: assessment through provenance reconstruction (INFERRED-only). Next: cross-agent SDK + richer policies (M5), then benchmarks. See [docs/implementation_plan.md](docs/implementation_plan.md).
+> **Current status:** Milestones **0–5** complete: assessment through security integration (SDK envelopes, confirmation binding, provenance-aware policy). Benchmarks (M6) await approval. See [docs/implementation_plan.md](docs/implementation_plan.md).
 
 ## Quick start
 
@@ -15,9 +15,9 @@ make install
 make test
 ```
 
-No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-reconstruction`, `agenttaint-mcp-proxy`, plus `agenttaint-mock-email`.
+No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-reconstruction`, `agenttaint-agent-sdk`, `agenttaint-mcp-proxy`, plus `agenttaint-mock-email`.
 
-See [docs/mcp_proxy.md](docs/mcp_proxy.md) and [docs/reconstruction.md](docs/reconstruction.md).
+See [docs/mcp_proxy.md](docs/mcp_proxy.md), [docs/reconstruction.md](docs/reconstruction.md), and [docs/security_integration.md](docs/security_integration.md).
 
 ---
 
@@ -38,7 +38,8 @@ Can we determine whether untrusted information **materially influenced** a dange
 | [docs/feasibility.md](docs/feasibility.md) | What we can guarantee vs estimate |
 | [docs/architecture.md](docs/architecture.md) | Components, schemas, APIs, MCP design |
 | [docs/provenance_model.md](docs/provenance_model.md) | Epistemic model |
-| [docs/security_policies.md](docs/security_policies.md) | Policy principles |
+| [docs/security_policies.md](docs/security_policies.md) | Policy principles + M5 rules |
+| [docs/security_integration.md](docs/security_integration.md) | Guarantees vs SDK requirements |
 | [docs/mvp.md](docs/mvp.md) | Smallest hypothesis-testing slice |
 | [docs/implementation_plan.md](docs/implementation_plan.md) | Ordered tasks + acceptance criteria |
 | [docs/free_development_plan.md](docs/free_development_plan.md) | Local-first stack, hardware, licenses |

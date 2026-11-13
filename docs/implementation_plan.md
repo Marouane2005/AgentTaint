@@ -82,7 +82,7 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
-## Milestone 5 — SDK, cross-agent, policy, confirm (Week 5)
+## Milestone 5 — SDK, cross-agent, policy, confirm (Week 5) — DONE
 
 | ID | Task | Acceptance |
 |----|------|------------|
@@ -90,12 +90,15 @@ Each task is done only when its **acceptance tests** pass.
 | 5.2 | Envelope HMAC / shared-secret verify | Tamper rejected |
 | 5.3 | Memory store with provenance | remember/recall edges |
 | 5.4 | Risk classifier config | email.send=HIGH, email.read=LOW |
-| 5.5 | PolicyAdapter + YAML policies | Scenario demo BLOCK/ALLOW/CONFIRM |
+| 5.5 | ProvenanceAwarePolicy + YAML | BLOCK/ALLOW/CONFIRM scenarios |
 | 5.6 | CLI confirmation | Bound to args hash; replay fails |
-| 5.7 | Fail-closed when store down | HIGH-risk blocked |
-| 5.8 | Cedar backend (stretch) | Same tests via Cedar **or** explicitly deferred |
+| 5.7 | Fail-closed when registry unavailable | HIGH-risk blocked |
+| 5.8 | Cedar backend (stretch) | **Explicitly deferred** |
 
-**Deliverable:** Cross-agent provenance-aware enforcement.
+**Also delivered:** confirmation binding (expiry/replay/arg mutation); reconstruction wired into `PolicyContext`; adversarial tests (forged/replayed envelopes, expired confirmations, post-approval arg change, conflicting provenance); `docs/security_integration.md`.
+
+**Deliverable:** Cross-agent provenance-aware enforcement.  
+**Hold:** Do not start Milestone 6 benchmarks until explicit approval.
 
 ---
 

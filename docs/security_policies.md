@@ -1,7 +1,7 @@
 # Security Policies
 
-**Status:** Design  
-**Enforcement:** Deterministic `PolicyAdapter` for MVP; Cedar planned as alternate backend.
+**Status:** Milestone 5 implemented (deterministic adapters)  
+**Enforcement:** `StubPolicyAdapter` (M2) + `ProvenanceAwarePolicy` (M5). Cedar deferred.
 
 ---
 
@@ -19,26 +19,41 @@
 
 1. Summarize/read does not authorize send/exec.  
 2. Untrusted content cannot independently authorize externalization.  
-3. UNKNOWN/PARTIAL on HIGH-risk → CONFIRM or BLOCK (config).  
+3. UNKNOWN/PARTIAL on HIGH-risk → CONFIRM or BLOCK (`fail_closed_unknown_high`).  
 4. USER-explicit recipients may ALLOW even if also seen in untrusted mail.  
 5. Model text never overrides policy.  
-6. Fail closed if provenance service unavailable for HIGH-risk.
+6. Fail closed if provenance registry unavailable for HIGH-risk.  
+7. **INFERRED evidence never silently becomes KNOWN and never alone ALLOWs HIGH-risk.**  
+8. Bound confirmation is single-use, time-limited, and argument-exact.
 
 ---
 
-## Initial policy set (conceptual)
+## ProvenanceAwarePolicy rule order
 
-1. `allow-low-risk`  
-2. `block-untrusted-external-recipient`  
-3. `confirm-unknown-high-risk`  
-4. `allow-user-authorized-recipient`  
-5. `block-shell-without-user-command` (when shell enabled)
+1. HIGH + registry unavailable → `fail-closed-registry-unavailable` (BLOCK)  
+2. Denylist tool → BLOCK  
+3. Valid consumed confirmation → `confirmation-bound-allow`  
+4. Static blocked recipient (unless USER-authorized value) → BLOCK  
+5. HIGH + authority arg ∈ USER-authorized values → `allow-user-authorized-authority`  
+6. HIGH + untrusted influence (explicit or inferred) without USER auth → BLOCK (or CONFIRM if configured)  
+7. HIGH + UNKNOWN/PARTIAL → CONFIRM (or BLOCK if fail-closed)  
+8. Other HIGH → CONFIRM  
+9. LOW/MEDIUM → ALLOW  
 
-Milestone 2 ships a **stub** adapter (`policies/stub_policy.yaml`) with denylist tools and blocked recipients. Cedar is **not** enforced yet. Full provenance-aware policies land in Milestone 5.
+YAML: `policies/provenance_policy.yaml` via `load_provenance_policy()`.
+
+---
+
+## Reconstruction in policy
+
+Reconstruction may set `has_untrusted_influence` / `influence_inferred_only` and attach `ArgumentEvidence` with `evidence_type=INFERRED`.  
+It must **not** populate `user_authorized_values` and must **not** flip spans to KNOWN.
+
+See [security_integration.md](security_integration.md) for guarantees vs SDK requirements.
 
 ---
 
 ## Confirmation UX (MVP)
 
-CLI shows: tool, redacted args, risk, untrusted source ids, policy id, lineage summary.  
-Approval is single-use and time-limited.
+CLI (`interactive_confirm`): tool, redacted args, risk, policy id, lineage/explanation, args hash, expiry.  
+Approval token is HMAC-bound; consume enforces exact arguments and single use.

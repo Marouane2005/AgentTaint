@@ -1,0 +1,31 @@
+"""Instrumented AgentTaint SDK for cooperating agents."""
+
+from agenttaint_agent_sdk.confirm_cli import format_confirmation_prompt, interactive_confirm
+from agenttaint_agent_sdk.confirmation import (
+    ConfirmationError,
+    ConfirmationRecord,
+    ConfirmationService,
+    ConfirmationStatus,
+)
+from agenttaint_agent_sdk.context import AgentTaintContext
+from agenttaint_agent_sdk.envelope import (
+    EnvelopeError,
+    EnvelopeVerifier,
+    NonceStore,
+    ProvenanceEnvelope,
+)
+
+__all__ = [
+    "AgentTaintContext",
+    "ConfirmationError",
+    "ConfirmationRecord",
+    "ConfirmationService",
+    "ConfirmationStatus",
+    "EnvelopeError",
+    "EnvelopeVerifier",
+    "NonceStore",
+    "ProvenanceEnvelope",
+    "format_confirmation_prompt",
+    "interactive_confirm",
+]
+__version__ = "0.1.0"
