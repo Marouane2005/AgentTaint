@@ -21,3 +21,15 @@ Append-only notes. Failures welcome.
 **Decision:** Refuse INFERRED edges targeting KNOWN spans so reconstruction cannot silently “confirm” lineage.
 
 **Next:** MCP proxy + mock email server (Milestone 2).
+
+## 2026-11-13 — Milestone 2 landed
+
+**Implemented:** mock email backend/MCP server; risk classifier; stub policy adapter + YAML; audit store; `SecurityGateway` enforcement path; FastMCP security proxy with in-memory MCP integration tests.
+
+**Decision:** Keep enforcement MCP-transport-agnostic (`SecurityGateway`) and wrap with FastMCP for protocol compatibility. BLOCK raises `ToolError` and never calls the backend.
+
+**Pinned:** `mcp>=1.23.0,<2` (1.12.x broke on current pydantic).
+
+**Not claimed:** Cedar, multi-process remote MCP fan-out, resources/prompts proxying, dashboard.
+
+**Next:** Milestone 3 transform graph completeness / gap markers (or fold residual graph work into reconstruction prep).

@@ -15,6 +15,7 @@ dev = [
   "ruff>=0.8.0",
   "mypy>=1.13.0",
   "types-PyYAML>=6.0.12",
+  "mcp>=1.23.0,<2",
 ]
 
 [build-system]
@@ -27,9 +28,15 @@ packages = []
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
 pythonpath = [
   "packages/core/src",
   "packages/provenance/src",
+  "packages/risk/src",
+  "packages/policy/src",
+  "packages/audit/src",
+  "packages/mcp_proxy/src",
+  "integrations/mock_email/src",
 ]
 
 [tool.ruff]

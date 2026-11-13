@@ -1,0 +1,23 @@
+[project]
+name = "agenttaint-mcp-proxy"
+version = "0.1.0"
+description = "MCP security proxy enforcement boundary for AgentTaint"
+requires-python = ">=3.12"
+dependencies = [
+  "agenttaint-core",
+  "agenttaint-provenance",
+  "agenttaint-risk",
+  "agenttaint-policy",
+  "agenttaint-audit",
+  "mcp>=1.23.0,<2",
+]
+
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

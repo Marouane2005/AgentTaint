@@ -1,0 +1,19 @@
+[project]
+name = "agenttaint-risk"
+version = "0.1.0"
+description = "Deterministic tool risk classification for AgentTaint"
+requires-python = ">=3.12"
+dependencies = [
+  "agenttaint-core",
+  "agenttaint-provenance",
+]
+
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -37,7 +37,7 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
-## Milestone 2 — MCP proxy + mocks (Week 2)
+## Milestone 2 — MCP proxy + mocks (Week 2) — DONE
 
 | ID | Task | Acceptance |
 |----|------|------------|
@@ -48,7 +48,8 @@ Each task is done only when its **acceptance tests** pass.
 | 2.5 | Stub policy allow-all except denylist | Forced block tool works |
 | 2.6 | Integration tests proxy↔mock | No host email/network required |
 
-**Deliverable:** Functioning MCP security boundary (minimal policy).
+**Deliverable:** Functioning MCP security boundary (minimal policy).  
+**Evidence:** `docs/mcp_proxy.md`; unit + integration tests (gateway never forwards BLOCK).
 
 ---
 

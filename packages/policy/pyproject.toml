@@ -1,0 +1,19 @@
+[project]
+name = "agenttaint-policy"
+version = "0.1.0"
+description = "Deterministic policy adapter for AgentTaint (Cedar later)"
+requires-python = ">=3.12"
+dependencies = [
+  "agenttaint-core",
+  "pyyaml>=6.0.2",
+]
+
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

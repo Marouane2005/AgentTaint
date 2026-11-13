@@ -6,16 +6,18 @@ AgentTaint is a research-oriented security layer that sits between AI agents and
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Current status:** Feasibility assessment complete. **Milestone 1 (provenance registry)** is implemented and unit-tested. Next: MCP proxy + mock tools. See [docs/implementation_plan.md](docs/implementation_plan.md).
+> **Current status:** Milestones **0–2** complete: assessment, provenance registry, and MCP security proxy with mock email. Next: deeper transform graph + reconstruction. See [docs/implementation_plan.md](docs/implementation_plan.md).
 
-## Quick start (Milestone 1)
+## Quick start
 
 ```bash
 make install
 make test
 ```
 
-No API keys required. Core packages: `agenttaint-core`, `agenttaint-provenance`.
+No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-mcp-proxy`, plus `agenttaint-mock-email`.
+
+See [docs/mcp_proxy.md](docs/mcp_proxy.md) for the enforcement boundary.
 
 ---
 
@@ -42,6 +44,7 @@ Can we determine whether untrusted information **materially influenced** a dange
 | [docs/free_development_plan.md](docs/free_development_plan.md) | Local-first stack, hardware, licenses |
 | [docs/benchmark_methodology.md](docs/benchmark_methodology.md) | Evaluation protocol |
 | [docs/limitations.md](docs/limitations.md) | Honest limits |
+| [docs/mcp_proxy.md](docs/mcp_proxy.md) | MCP proxy supported features & limits |
 | [research_log/](research_log/) | Decisions, failures, experiments |
 
 ---

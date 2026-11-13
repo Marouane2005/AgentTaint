@@ -34,7 +34,7 @@
 4. `allow-user-authorized-recipient`  
 5. `block-shell-without-user-command` (when shell enabled)
 
-Exact YAML lives in `policies/` once Milestone 5 lands. Until then, do not claim production policy coverage.
+Milestone 2 ships a **stub** adapter (`policies/stub_policy.yaml`) with denylist tools and blocked recipients. Cedar is **not** enforced yet. Full provenance-aware policies land in Milestone 5.
 
 ---
 
