@@ -6,7 +6,16 @@ AgentTaint is a research-oriented security layer that sits between AI agents and
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Current status:** Feasibility & research assessment complete. Implementation proceeds milestone-by-milestone from a working provenance registry outward. See [docs/implementation_plan.md](docs/implementation_plan.md).
+> **Current status:** Feasibility assessment complete. **Milestone 1 (provenance registry)** is implemented and unit-tested. Next: MCP proxy + mock tools. See [docs/implementation_plan.md](docs/implementation_plan.md).
+
+## Quick start (Milestone 1)
+
+```bash
+make install
+make test
+```
+
+No API keys required. Core packages: `agenttaint-core`, `agenttaint-provenance`.
 
 ---
 

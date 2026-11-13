@@ -1,0 +1,20 @@
+[project]
+name = "agenttaint-provenance"
+version = "0.1.0"
+description = "Provenance registry, graph, and source labeling for AgentTaint"
+requires-python = ">=3.12"
+dependencies = [
+  "agenttaint-core",
+  "sqlalchemy>=2.0.36",
+  "networkx>=3.4.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

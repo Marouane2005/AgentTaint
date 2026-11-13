@@ -13,3 +13,11 @@ Append-only notes. Failures welcome.
 **Hypothesis:** Explicit + structural/lexical (and optional semantic) evidence at proxy can block cross-agent transformed exfiltration while allowing low-risk reads.
 
 **Risk:** Overlap with NeuroTaint may make “novelty” hard to claim; optimize for reproducible platform + honest eval.
+
+## 2026-11-13 — Milestone 1 landed
+
+**Implemented:** `agenttaint-core` schemas/hashing/config; `agenttaint-provenance` SQLite store, NetworkX graph, trust registry, source labeler, registry API; unit tests (15 passing).
+
+**Decision:** Refuse INFERRED edges targeting KNOWN spans so reconstruction cannot silently “confirm” lineage.
+
+**Next:** MCP proxy + mock email server (Milestone 2).

@@ -1,0 +1,50 @@
+# Content trust is assigned at the result level, not merely by server identity.
+# A trusted Gmail integration still yields UNTRUSTED_TOOL email bodies.
+
+version: 1
+
+defaults:
+  result_origin: UNTRUSTED_TOOL
+  default_risk: MEDIUM
+
+tools:
+  email.read:
+    integration_trust: TRUSTED_TOOL_SERVER
+    result_origin: UNTRUSTED_TOOL
+    default_risk: LOW
+    notes: "Integration may be trusted; message content is external/untrusted."
+
+  email.send:
+    integration_trust: TRUSTED_TOOL_SERVER
+    result_origin: INTERNAL
+    default_risk: HIGH
+
+  filesystem.read:
+    integration_trust: TRUSTED_TOOL_SERVER
+    result_origin: UNTRUSTED_TOOL
+    default_risk: LOW
+
+  filesystem.write:
+    integration_trust: TRUSTED_TOOL_SERVER
+    result_origin: INTERNAL
+    default_risk: MEDIUM
+
+  http.get:
+    integration_trust: TRUSTED_TOOL_SERVER
+    result_origin: UNTRUSTED_TOOL
+    default_risk: LOW
+
+  http.post:
+    integration_trust: TRUSTED_TOOL_SERVER
+    result_origin: INTERNAL
+    default_risk: HIGH
+
+  shell.execute:
+    integration_trust: TRUSTED_TOOL_SERVER
+    result_origin: UNTRUSTED_TOOL
+    default_risk: HIGH
+    notes: "Must run only inside Docker sandbox; never host shell."
+
+# Paths that may be labeled INTERNAL when read from the mock workspace allowlist.
+internal_path_prefixes:
+  - "/workspace/.agenttaint/internal/"
