@@ -33,3 +33,13 @@ Append-only notes. Failures welcome.
 **Not claimed:** Cedar, multi-process remote MCP fan-out, resources/prompts proxying, dashboard.
 
 **Next:** Milestone 3 transform graph completeness / gap markers (or fold residual graph work into reconstruction prep).
+
+## 2026-11-13 — Milestone 3 landed
+
+**Implemented:** multi-step transformation chains; `record_gap` (never KNOWN); `transfer_to_agent`; memory store/retrieve; `LineageCompleteness` + `OriginConflict`; `attach_inferred_link` hook; stricter graph validation (parent/edge mismatch, GAP≠KNOWN).
+
+**Invariant preserved:** incomplete parents force PARTIAL on downstream SDK transforms; INFERRED cannot attach to KNOWN.
+
+**Tests:** 45 passing (added transformation graph suite).
+
+**Next:** Milestone 4 reconstruction (lexical/structural/semantic + ablation).

@@ -53,14 +53,16 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
-## Milestone 3 — Graph completeness + transforms (Week 3)
+## Milestone 3 — Graph completeness + transforms (Week 3) — DONE
 
 | ID | Task | Acceptance |
 |----|------|------------|
 | 3.1 | TransformationRecord API | Summarize links parents→child |
 | 3.2 | PARTIAL gap markers | Untracked transform creates gap |
 | 3.3 | Graph integrity validation | Cycle detection / missing parent errors |
-| 3.4 | Audit package for decisions | ToolCallDecision persisted |
+| 3.4 | Audit package for decisions | ToolCallDecision persisted (M2) |
+
+**Also delivered:** multi-agent `transfer_to_agent`, memory store/retrieve, lineage completeness + origin conflict reports, inferred-link hook for reconstruction, tests for gaps/conflicts/chains.
 
 **Deliverable:** Information-flow graph with transforms.
 

@@ -177,3 +177,34 @@ class ToolCallDecision(BaseModel):
     latency_ms: int = 0
     explanation: str | None = None
     schema_version: int = SCHEMA_VERSION
+
+
+class LineageCompleteness(BaseModel):
+    """Report for a span's ancestor cone — never invents verified lineage."""
+
+    span_id: str
+    effective_status: ProvenanceStatus
+    is_complete: bool
+    known_ancestor_ids: list[str] = Field(default_factory=list)
+    partial_ancestor_ids: list[str] = Field(default_factory=list)
+    inferred_ancestor_ids: list[str] = Field(default_factory=list)
+    unknown_ancestor_ids: list[str] = Field(default_factory=list)
+    gap_span_ids: list[str] = Field(default_factory=list)
+    untrusted_source_ids: list[str] = Field(default_factory=list)
+    agent_ids: list[str] = Field(default_factory=list)
+    explicit_edge_count: int = 0
+    inferred_edge_count: int = 0
+    notes: list[str] = Field(default_factory=list)
+    schema_version: int = SCHEMA_VERSION
+
+
+class OriginConflict(BaseModel):
+    """Conflicting trust origins in a span's explicit ancestor cone."""
+
+    span_id: str
+    origins: list[Origin] = Field(default_factory=list)
+    user_span_ids: list[str] = Field(default_factory=list)
+    untrusted_span_ids: list[str] = Field(default_factory=list)
+    has_conflict: bool = False
+    summary: str = ""
+    schema_version: int = SCHEMA_VERSION

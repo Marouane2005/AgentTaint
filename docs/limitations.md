@@ -13,7 +13,9 @@
 7. **Benchmark external validity.** Custom scenarios may not match production agent frameworks.  
 8. **Not CapLite-strong by default.** Request-grounding mode is optional; default mode trades absolute write integrity for utility.  
 9. **Overlap with FIDES/NeuroTaint.** Novelty is not assumed.  
-10. **Cedar:** Not enforced until the Cedar backend is implemented and tested.
+10. **Cedar:** Not enforced until the Cedar backend is implemented and tested.  
+11. **Gap markers are honest, not magical:** an uninstrumented LLM call yields PARTIAL/UNKNOWN lineage; AgentTaint does not reconstruct missing transforms in Milestone 3.  
+12. **Cross-agent transfer** only preserves lineage among AgentTaint-aware callers using `transfer_to_agent` with verified parent ids.
 
 ## Operational
 

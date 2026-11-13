@@ -5,7 +5,13 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 import networkx as nx
-from agenttaint_core.schemas import EvidenceType, ProvenanceEdge, ProvenanceSpan, ProvenanceStatus
+from agenttaint_core.schemas import (
+    EvidenceType,
+    ProvenanceEdge,
+    ProvenanceSpan,
+    ProvenanceStatus,
+    SpanKind,
+)
 
 from agenttaint_provenance.store import ProvenanceStore
 
@@ -42,12 +48,20 @@ class ProvenanceGraph:
             relationship=edge.relationship.value,
         )
 
+    def has_node(self, span_id: str) -> bool:
+        return span_id in self._g
+
+    def get_span(self, span_id: str) -> ProvenanceSpan | None:
+        node = self._g.nodes.get(span_id)
+        if not node:
+            return None
+        return node.get("span")
+
     def ancestors(self, span_id: str) -> list[str]:
         """Backward provenance: all nodes that can reach span_id (excluding self)."""
         if span_id not in self._g:
             return []
-        nodes = nx.ancestors(self._g, span_id)
-        return sorted(nodes)
+        return sorted(nx.ancestors(self._g, span_id))
 
     def descendants(self, span_id: str) -> list[str]:
         if span_id not in self._g:
@@ -59,8 +73,41 @@ class ProvenanceGraph:
             return []
         return sorted(self._g.predecessors(span_id))
 
+    def child_ids(self, span_id: str) -> list[str]:
+        if span_id not in self._g:
+            return []
+        return sorted(self._g.successors(span_id))
+
+    def path_exists(self, src_id: str, dst_id: str) -> bool:
+        if src_id not in self._g or dst_id not in self._g:
+            return False
+        return nx.has_path(self._g, src_id, dst_id)
+
+    def transformation_chain(self, span_id: str) -> list[str]:
+        """Ordered path from root sources to span along explicit edges (one topo path).
+
+        If multiple parents exist, returns a deterministic depth-first chain ending at span_id.
+        """
+        if span_id not in self._g:
+            return []
+        chain: list[str] = []
+        seen: set[str] = set()
+
+        def walk(node: str) -> None:
+            if node in seen:
+                return
+            seen.add(node)
+            for pred in sorted(self._g.predecessors(node)):
+                data = self._g.get_edge_data(pred, node) or {}
+                if data.get("evidence_type") != EvidenceType.EXPLICIT.value:
+                    continue
+                walk(pred)
+            chain.append(node)
+
+        walk(span_id)
+        return chain
+
     def explicit_ancestors(self, span_id: str) -> list[str]:
-        """Ancestors reachable using only EXPLICIT edges."""
         return self._filtered_ancestors(span_id, allowed={EvidenceType.EXPLICIT})
 
     def inferred_path_exists(self, src_id: str, dst_id: str) -> bool:
@@ -70,48 +117,102 @@ class ProvenanceGraph:
         if not nx.has_path(self._g, src_id, dst_id):
             return False
         for path in nx.all_simple_paths(self._g, src_id, dst_id):
-            inferred = False
             for a, b in zip(path, path[1:], strict=False):
                 data = self._g.get_edge_data(a, b) or {}
                 if data.get("evidence_type") == EvidenceType.INFERRED.value:
-                    inferred = True
-                    break
-            if inferred:
-                return True
+                    return True
         return False
 
+    def only_explicit_path_exists(self, src_id: str, dst_id: str) -> bool:
+        """True if there is a path using only EXPLICIT edges."""
+        if src_id not in self._g or dst_id not in self._g:
+            return False
+        explicit_ids = set(self.explicit_ancestors(dst_id))
+        explicit_ids.add(dst_id)
+        return src_id in explicit_ids
+
     def lineage_status(self, span_id: str) -> ProvenanceStatus:
-        """Conservative status: any inferred edge in the ancestor cone → INFERRED."""
-        span = self._g.nodes.get(span_id, {}).get("span")
+        """Conservative effective status for a span's ancestor cone."""
+        span = self.get_span(span_id)
         if span is None:
             return ProvenanceStatus.UNKNOWN
-        if span.provenance_status != ProvenanceStatus.KNOWN:
-            return span.provenance_status
+
+        statuses = {span.provenance_status}
+        for ancestor_id in self.ancestors(span_id):
+            ancestor = self.get_span(ancestor_id)
+            if ancestor is not None:
+                statuses.add(ancestor.provenance_status)
+
+        has_inferred_edge = False
         for node in [span_id, *self.ancestors(span_id)]:
             for pred in self._g.predecessors(node):
                 data = self._g.get_edge_data(pred, node) or {}
                 if data.get("evidence_type") == EvidenceType.INFERRED.value:
-                    return ProvenanceStatus.INFERRED
-        return span.provenance_status
+                    has_inferred_edge = True
+
+        # Precedence: UNKNOWN > PARTIAL > INFERRED > KNOWN for "effective" uncertainty.
+        if ProvenanceStatus.UNKNOWN in statuses:
+            return ProvenanceStatus.UNKNOWN
+        if ProvenanceStatus.PARTIAL in statuses:
+            return ProvenanceStatus.PARTIAL
+        if ProvenanceStatus.INFERRED in statuses or has_inferred_edge:
+            return ProvenanceStatus.INFERRED
+        return ProvenanceStatus.KNOWN
+
+    def gap_span_ids(self, span_id: str) -> list[str]:
+        gaps: list[str] = []
+        for sid in [span_id, *self.ancestors(span_id)]:
+            span = self.get_span(sid)
+            if span is not None and span.kind == SpanKind.GAP:
+                gaps.append(sid)
+        return sorted(gaps)
 
     def validate_integrity(self) -> list[str]:
-        """Return a list of integrity problems (empty if OK)."""
+        """Return integrity problems (empty if OK). Does not mutate the graph."""
         problems: list[str] = []
         if not nx.is_directed_acyclic_graph(self._g):
             problems.append("graph contains cycles")
+
+        for span_id, data in self._g.nodes(data=True):
+            span: ProvenanceSpan | None = data.get("span")
+            if span is None:
+                problems.append(f"node missing span payload: {span_id}")
+                continue
+            for parent_id in span.parent_ids:
+                if parent_id not in self._g:
+                    problems.append(
+                        f"span {span_id} parent_ids references missing span {parent_id}"
+                    )
+                elif parent_id not in set(self._g.predecessors(span_id)):
+                    problems.append(
+                        f"span {span_id} parent_ids missing graph edge from {parent_id}"
+                    )
+
+            if span.provenance_status == ProvenanceStatus.KNOWN and span.kind == SpanKind.GAP:
+                problems.append(f"gap span {span_id} must not be marked KNOWN")
+
+            if span.kind == SpanKind.GAP and span.provenance_status not in {
+                ProvenanceStatus.PARTIAL,
+                ProvenanceStatus.UNKNOWN,
+            }:
+                problems.append(
+                    f"gap span {span_id} has invalid status {span.provenance_status.value}"
+                )
+
         for u, v, data in self._g.edges(data=True):
             if u not in self._g.nodes or v not in self._g.nodes:
                 problems.append(f"edge endpoints missing: {u} -> {v}")
+                continue
             edge: ProvenanceEdge | None = data.get("edge")
-            if edge and edge.evidence_type == EvidenceType.INFERRED:
+            if edge is None:
+                problems.append(f"edge missing payload: {u} -> {v}")
+                continue
+            if edge.evidence_type == EvidenceType.INFERRED:
                 dst_span: ProvenanceSpan | None = self._g.nodes[v].get("span")
                 if dst_span and dst_span.provenance_status == ProvenanceStatus.KNOWN:
-                    # Destination may still be KNOWN from explicit parents; inferred edges
-                    # must not be the sole justification for KNOWN. Flag if ONLY inferred parents.
-                    preds = list(self._g.predecessors(v))
                     explicit_preds = [
                         p
-                        for p in preds
+                        for p in self._g.predecessors(v)
                         if (self._g.get_edge_data(p, v) or {}).get("evidence_type")
                         == EvidenceType.EXPLICIT.value
                     ]
@@ -127,18 +228,6 @@ class ProvenanceGraph:
         allowed_values = {e.value for e in allowed}
         if span_id not in self._g:
             return []
-        seen: set[str] = set()
-        stack = list(self._g.predecessors(span_id))
-        while stack:
-            node = stack.pop()
-            if node in seen:
-                continue
-            # Only walk across allowed edge types into this node from its preds later;
-            # for membership, check edge from node? Wait: we pushed predecessors via edges.
-            # Re-walk carefully:
-            seen.add(node)
-        # Correct BFS using only allowed edges (reverse direction).
-        seen.clear()
         stack = [span_id]
         result: set[str] = set()
         while stack:

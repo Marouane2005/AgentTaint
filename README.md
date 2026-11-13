@@ -6,7 +6,7 @@ AgentTaint is a research-oriented security layer that sits between AI agents and
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Current status:** Milestones **0–2** complete: assessment, provenance registry, and MCP security proxy with mock email. Next: deeper transform graph + reconstruction. See [docs/implementation_plan.md](docs/implementation_plan.md).
+> **Current status:** Milestones **0–3** complete: assessment, provenance registry, MCP proxy + mock email, and transformation graph with gap markers. Next: reconstruction engine. See [docs/implementation_plan.md](docs/implementation_plan.md).
 
 ## Quick start
 
