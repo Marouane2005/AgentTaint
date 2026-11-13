@@ -15,7 +15,11 @@
 9. **Overlap with FIDES/NeuroTaint.** Novelty is not assumed.  
 10. **Cedar:** Not enforced until the Cedar backend is implemented and tested.  
 11. **Gap markers are honest, not magical:** an uninstrumented LLM call yields PARTIAL/UNKNOWN lineage; AgentTaint does not reconstruct missing transforms in Milestone 3.  
-12. **Cross-agent transfer** only preserves lineage among AgentTaint-aware callers using `transfer_to_agent` with verified parent ids.
+12. **Cross-agent transfer** only preserves lineage among AgentTaint-aware callers using `transfer_to_agent` with verified parent ids.  
+13. **Reconstruction is not causation:** lexical/structural/semantic support levels are not calibrated probabilities; attached edges are always INFERRED.  
+14. **Adaptive evasion:** splitting identifiers across messages, novel encodings, and heavy paraphrase can yield UNKNOWN / false negatives.  
+15. **Ambiguous structural values** (same email in USER and UNTRUSTED text) can produce multiple INFERRED matches — policy must still require explicit authorization.  
+16. **Semantic embeddings** are optional; default CI uses a fixture embedder or disables the channel.
 
 ## Operational
 

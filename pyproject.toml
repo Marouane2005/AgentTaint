@@ -36,6 +36,7 @@ pythonpath = [
   "packages/policy/src",
   "packages/audit/src",
   "packages/mcp_proxy/src",
+  "packages/reconstruction/src",
   "integrations/mock_email/src",
 ]
 

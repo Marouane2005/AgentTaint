@@ -6,7 +6,7 @@ AgentTaint is a research-oriented security layer that sits between AI agents and
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Current status:** Milestones **0–3** complete: assessment, provenance registry, MCP proxy + mock email, and transformation graph with gap markers. Next: reconstruction engine. See [docs/implementation_plan.md](docs/implementation_plan.md).
+> **Current status:** Milestones **0–4** complete: assessment through provenance reconstruction (INFERRED-only). Next: cross-agent SDK + richer policies (M5), then benchmarks. See [docs/implementation_plan.md](docs/implementation_plan.md).
 
 ## Quick start
 
@@ -15,9 +15,9 @@ make install
 make test
 ```
 
-No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-mcp-proxy`, plus `agenttaint-mock-email`.
+No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-reconstruction`, `agenttaint-mcp-proxy`, plus `agenttaint-mock-email`.
 
-See [docs/mcp_proxy.md](docs/mcp_proxy.md) for the enforcement boundary.
+See [docs/mcp_proxy.md](docs/mcp_proxy.md) and [docs/reconstruction.md](docs/reconstruction.md).
 
 ---
 
@@ -45,6 +45,7 @@ Can we determine whether untrusted information **materially influenced** a dange
 | [docs/benchmark_methodology.md](docs/benchmark_methodology.md) | Evaluation protocol |
 | [docs/limitations.md](docs/limitations.md) | Honest limits |
 | [docs/mcp_proxy.md](docs/mcp_proxy.md) | MCP proxy supported features & limits |
+| [docs/reconstruction.md](docs/reconstruction.md) | Reconstruction channels, ablation, limits |
 | [research_log/](research_log/) | Decisions, failures, experiments |
 
 ---

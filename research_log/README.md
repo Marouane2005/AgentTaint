@@ -43,3 +43,13 @@ Append-only notes. Failures welcome.
 **Tests:** 45 passing (added transformation graph suite).
 
 **Next:** Milestone 4 reconstruction (lexical/structural/semantic + ablation).
+
+## 2026-11-13 — Milestone 4 landed
+
+**Implemented:** `agenttaint-reconstruction` with lexical, structural (incl. common obfuscation), optional semantic (fixture backend in tests), transparent support aggregation, ablation modes, INFERRED-only attachment via `attach_inferred_link`.
+
+**Decision:** Keep candidate plaintext in a side corpus (`CandidateRecord`) so audit/provenance DB can remain redacted-by-default.
+
+**Honest failures:** split-recipient attacks; ambiguous USER+UNTRUSTED emails; semantic inactive without extras.
+
+**Next:** M5 SDK/policy/confirm; then reproducible benchmarks before any research claims.

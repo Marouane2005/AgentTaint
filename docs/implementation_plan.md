@@ -68,7 +68,7 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
-## Milestone 4 — Reconstruction (Week 4)
+## Milestone 4 — Reconstruction (Week 4) — DONE
 
 | ID | Task | Acceptance |
 |----|------|------------|
@@ -78,7 +78,7 @@ Each task is done only when its **acceptance tests** pass.
 | 4.4 | Evidence aggregation | Per-argument ArgumentEvidence; no silent promotion |
 | 4.5 | Ablation harness | Same scenario runnable under each channel |
 
-**Deliverable:** Reconstruction engine with ablation.
+**Deliverable:** Reconstruction engine with ablation. See `docs/reconstruction.md`.
 
 ---
 

@@ -62,9 +62,14 @@ Integration trust ≠ content trust. Least-trust wins when merging parents.
 
 `store_in_memory` / `retrieve_from_memory` preserve parent lineage through `STORED_IN_MEMORY` / `RETRIEVED_FROM_MEMORY`.
 
-### Reconstruction hook
+### Reconstruction (Milestone 4)
 
-`attach_inferred_link(...)` creates an `INFERRED` span for the future reconstruction engine. It cannot attach inferred edges to `KNOWN` spans.
+`agenttaint_reconstruction.ReconstructionEngine` scores argument values against a candidate text corpus (lexical / structural / optional semantic) and may call `attach_inferred_link(...)`.
+
+- Attached spans are always **`INFERRED`**
+- `confidence` remains **`null`** (uncalibrated)
+- Support levels are ordinal hints, not P(causation)
+- See `docs/reconstruction.md`
 
 ---
 
