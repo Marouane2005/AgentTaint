@@ -208,6 +208,19 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
+## Milestone 15 — Confirmation hardening
+
+| ID | Task | Acceptance |
+|----|------|------------|
+| 15.1 | No self-approval | No approval tool on the agent MCP surface; out-of-band CLI + token-gated API; regression test must BLOCK |
+| 15.2 | Fixed agent identity | Identity from proxy config; caller `agent_id` rejected; context hash server-side |
+| 15.3 | No default secret | Proxy fails closed without `AGENTTAINT_CONFIRM_SECRET`; backend env stripped of secrets |
+| 15.4 | MEDIUM undeclared lineage | Missing lineage = UNKNOWN; session-corpus reconstruction; CONFIRM/BLOCK by policy |
+| 15.5 | Shell sandbox limits | memory/cpus/pids/cap-drop/user/timeout with command-line tests |
+| 15.6 | Docs | Remove overclaims (M10 approve tool, M12 divergence, README sandbox); limitations updated |
+
+---
+
 ## Immediate next coding tasks
 
 1. Stop for merge approval on stacked PRs (M10→M14)  

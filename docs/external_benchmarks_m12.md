@@ -20,8 +20,24 @@ Dataset `2026.11.18-m12.1`:
   **explicit_only** cannot rely on parent spans.
 - Added cross-agent no-lineage attacks where reconstruction must carry detection.
 
-This addresses the review finding that `explicit_only` matched `combined` on
-every metric because parents were always wired.
+**Correction (M15):** this was intended to separate `explicit_only` from
+`combined`, but on the measured test split (68 scenarios, seed 2120, fixture
+embedder) the two still match on every decision metric:
+
+| config | ASR | FNR | FPR_block | FPR_confirm | utility |
+|--------|-----|-----|-----------|-------------|---------|
+| explicit_only | 0.000 | 0.000 | 0.000 | 0.000 | 1.000 |
+| combined | 0.000 | 0.000 | 0.000 | 0.000 | 1.000 |
+| coarse_taint | 0.000 | 0.000 | 0.296 | 0.000 | 0.704 |
+| undefended | 1.000 | 1.000 | 0.000 | 0.000 | 1.000 |
+
+The no-lineage scenarios are stopped by fail-closed handling of UNKNOWN
+provenance (CONFIRM/BLOCK), not by reconstruction. Reconstruction contributes
+inspectable evidence (provenance P=1.000, R=0.976, F1=0.988 for `combined`), but
+**its added decision value over explicit lineage is not demonstrated on the
+current suite.** A suite where reconstruction changes outcomes (for example,
+scenarios where UNKNOWN is allowed by policy and only reconstruction can flag
+influence) is still needed.
 
 ## Fair comparison note
 

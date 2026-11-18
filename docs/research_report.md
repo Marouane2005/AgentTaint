@@ -32,7 +32,7 @@ AgentTaint is an **online MCP-boundary enforcement layer**:
 | Evidence | Artifact | Result (honest) |
 |----------|----------|-----------------|
 | Held-out synthetic suite | `docs/benchmark_results_m13.md` | Provenance defenses ASR=0; undefended ASR=1.0; coarse utility≈0.70 |
-| Channel ablations | same | Lexical/structural strong on this corpus; semantic-only weak under fixture; explicit-only recall 0 without parents |
+| Channel ablations | same | Lexical/structural strong on this corpus; semantic-only weak under fixture; explicit-only recall 0 without parents; decision metrics of explicit_only and combined are identical (ASR 0.000, utility 1.000), so reconstruction's added decision value is not shown on this suite |
 | Adversarial units | `tests/unit/test_m13_adversarial_evaluation.py` (+ M9/M10/M11) | Forgery, races, bypass, homoglyph, missing lineage covered |
 | Latency/memory | M13 report | Combined median ≈6–7 ms; process `ru_maxrss` ≈118–121 MiB (fixture) |
 | External ASR | `docs/external_benchmarks_m12.md` | AgentDojo / InjecAgent **not evaluated** (LLM required) |
@@ -56,13 +56,29 @@ See `docs/limitations.md`. Critical assumptions:
 - Cedar remains deferred (`docs/cedar_deferred.md`).
 - Control plane is local-trust unless `AGENTTAINT_API_AUTH=required`.
 
+## 5b. M15 confirmation hardening
+
+Fixes from the post-M14 security probes:
+
+| Probe | M14 | M15 |
+|-------|-----|-----|
+| Agent approves its own CONFIRM over MCP, then retries | ALLOW (email sent) | No approval tool; retry stays BLOCK until a human approves via CLI/API |
+| Caller-supplied `agent_id` / provenance hash | Trusted | Rejected / ignored |
+| Default confirmation secret | Hard-coded | None; proxy refuses to start |
+| `http.get` exfiltration with no declared parents after an untrusted read | ALLOW | CONFIRM (BLOCK with `fail_closed_unknown_medium`) |
+| Shell container limits | no network, read-only rootfs, no-new-privileges | + memory, CPU, pids, cap-drop ALL, nobody user, kill timeout |
+
+Benchmark numbers on the 68-scenario test split are unchanged (the suite has no
+MEDIUM sinks). See `docs/limitations.md` items 40–46.
+
 ## 6. Completeness verdict
 
 **Demo / research-portfolio ready:** yes — reproducible suite, adversarial tests,
 MCP multi-process proxy, durable security state, dashboard, one-command demo.
 
 **Production MCP security product:** not yet — external ASR unevaluated, Cedar
-deferred, SSE/resources/prompts unsupported, human CONFIRM UX incomplete.
+deferred, SSE/resources/prompts unsupported, human CONFIRM approval is CLI/API
+only (no dashboard screen yet).
 
 Recommended framing (unchanged in substance from M7/M9):
 

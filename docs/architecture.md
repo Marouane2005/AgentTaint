@@ -202,7 +202,8 @@ Base: `http://127.0.0.1:8080/api/v1`
 | POST | `/enforce/preview` | Evaluate tool call without executing |
 | GET | `/decisions` | List audit decisions |
 | GET | `/decisions/{id}` | Decision + evidence |
-| POST | `/confirmations/{id}/resolve` | Human approve/deny |
+| GET | `/api/v1/confirmations` | Pending confirmations (token required, M15) |
+| POST | `/api/v1/confirmations/{id}/approve` / `deny` | Human approve/deny (token required, M15) |
 | GET | `/metrics/overview` | Dashboard counters |
 | GET | `/graph/export` | Nodes/edges for UI |
 | GET | `/health` | Liveness + DB |

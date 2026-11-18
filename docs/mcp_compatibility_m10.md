@@ -19,10 +19,11 @@ SDK version, or optional capability.
 | `tools/list` | Supported / tested | Multi-process + in-process tests |
 | `tools/call` enforcement | Supported / tested | BLOCK/CONFIRM before backend forward |
 | Real backend `inputSchema` forwarded | Supported / tested (protocol proxy) | Augmented with `_agenttaint` |
-| `_agenttaint.confirmation_id` / `approval_token` | Supported / tested | Wire helpers + approve tool |
+| `_agenttaint.confirmation_id` | Supported / tested | Retry after out-of-band approval (M15) |
 | `_agenttaint.argument_parent_span_ids` | Supported / tested | Gateway invoke path |
 | `_agenttaint.candidates` | Supported | Reconstruction corpus on wire |
-| `agenttaint.approve_confirmation` | Supported / tested | Protocol proxy tool |
+| Approval over MCP | **Removed (M15)** | The agent-facing surface has no approval tool; approvals come only from the CLI or the token-gated control plane |
+| Caller-supplied `agent_id` | **Rejected (M15)** | Identity comes from `--agent-id` proxy configuration |
 | `agenttaint.preview` | Supported / tested | Protocol + FastMCP |
 | Result `_agenttaint` meta | Supported / tested | Span/decision metadata |
 | Resources | **Not proxied** | — |
@@ -37,14 +38,43 @@ SDK version, or optional capability.
 ```json
 {
   "confirmation_id": "...",
-  "approval_token": "...",
   "argument_parent_span_ids": {"to": ["span-id"]},
   "candidates": [{"span_id": "...", "text": "...", "origin": "UNTRUSTED_TOOL"}],
-  "agent_id": "agent_a",
-  "session_id": "sess-1",
-  "provenance_context_hash": "optional-override"
+  "session_id": "sess-1"
 }
 ```
+
+Changes in M15:
+
+- `agent_id` is **not** accepted from the caller. The proxy uses the identity it
+  was started with (`--agent-id`); a different caller-supplied value is rejected
+  (and the published input schema does not allow the field).
+- `provenance_context_hash` is always computed server-side from the declared
+  parents and candidates; a caller-supplied value is ignored.
+- `approval_token` is no longer part of the published schema. Tokens stay in the
+  security database; after a human approves out-of-band the agent retries the
+  exact call with only `confirmation_id`.
+
+## Confirmation flow (M15)
+
+1. The agent calls a tool; policy returns CONFIRM with a `confirmation_id`.
+2. A human reviews and approves **outside the agent's reach**:
+   - CLI: `python3 -m agenttaint_agent_sdk.confirm_cli list|show|approve|deny`
+   - Control plane: `GET /api/v1/confirmations`, `POST /api/v1/confirmations/{id}/approve|deny`
+     (always requires `X-AgentTaint-Token`; disabled when no token is configured).
+3. The agent retries the identical call with `_agenttaint.confirmation_id`. The
+   approval is single-use and bound to tool, argument hash, agent identity and
+   provenance context.
+
+The proxy refuses to start unless `AGENTTAINT_CONFIRM_SECRET` is set to a random
+value of at least 32 characters (no built-in default):
+
+```bash
+export AGENTTAINT_CONFIRM_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+```
+
+Proxy secrets (`AGENTTAINT_CONFIRM_SECRET`, dashboard token, database URLs,
+envelope keys) are stripped from the environment passed to downstream servers.
 
 ## Mock downstream servers
 
@@ -53,7 +83,7 @@ SDK version, or optional capability.
 | `agenttaint_mock_email` | `email.read`, `email.send` | Fixtures only |
 | `agenttaint_mock_filesystem` | `filesystem.read`, `filesystem.write` | Temp sandbox root |
 | `agenttaint_mock_http` | `http.get`, `http.post` | No real network |
-| `agenttaint_mock_shell` | `shell.execute` | Docker required; refuses host shell |
+| `agenttaint_mock_shell` | `shell.execute` | Docker required; refuses host shell. Container limits: no network, read-only rootfs, `--cap-drop ALL`, `--user 65534:65534`, 256 MiB memory, 0.5 CPU, 64 pids, 10 s kill timeout (unit-tested command line; not executed in CI, which has no Docker) |
 
 ## Do not claim
 
