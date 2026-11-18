@@ -70,4 +70,4 @@ demo:
 	API_PORT=$(API_PORT) DASH_PORT=$(DASH_PORT) PYTHON=$(PYTHON) bash scripts/demo.sh
 
 demo-compose:
-	docker compose --profile demo up --build
+	docker compose -f deploy/docker-compose.dev.yml --profile demo up --build

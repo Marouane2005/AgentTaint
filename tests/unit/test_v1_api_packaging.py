@@ -52,3 +52,25 @@ def test_demo_seed_refused_when_live(tmp_path: Path, monkeypatch: pytest.MonkeyP
     client = TestClient(app)
     assert client.post("/api/v1/demo/seed").status_code == 409
     assert client.post("/api/v1/session/clear").status_code == 409
+
+
+def test_required_auth_gates_api_but_not_static_ui(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from agenttaint_api import app as appmod
+    from agenttaint_api.app import enforce_api_auth  # noqa: F401  (middleware present)
+    from fastapi import FastAPI
+    from fastapi.staticfiles import StaticFiles
+
+    (tmp_path / "index.html").write_text("<html>AgentTaint</html>")
+    monkeypatch.setenv("AGENTTAINT_API_AUTH", "required")
+    monkeypatch.setenv("AGENTTAINT_DASHBOARD_TOKEN", "t" * 40)
+    monkeypatch.delenv("AGENTTAINT_DATABASE_URL", raising=False)
+    test_app: FastAPI = appmod.app
+    test_app.mount("/ui-test", StaticFiles(directory=tmp_path, html=True), name="ui-test")
+    client = TestClient(test_app)
+    assert client.get("/ui-test/").status_code == 200
+    assert client.get("/api/v1/decisions").status_code == 401
+    ok = client.get("/api/v1/decisions", headers={"X-AgentTaint-Token": "t" * 40})
+    assert ok.status_code == 200
+    assert client.get("/api/v1/health").status_code == 200

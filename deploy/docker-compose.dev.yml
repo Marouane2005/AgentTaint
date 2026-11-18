@@ -1,0 +1,60 @@
+services:
+  postgres:
+    profiles: ["postgres", "demo"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agenttaint
+      POSTGRES_PASSWORD: agenttaint
+      POSTGRES_DB: agenttaint
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agenttaint -d agenttaint"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - agenttaint_pg:/var/lib/postgresql/data
+
+  api:
+    profiles: ["demo"]
+    build:
+      context: ..
+      dockerfile: Dockerfile.api
+    ports:
+      - "8080:8080"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      AGENTTAINT_API_AUTH: "off"
+      # Approval endpoints stay disabled (503) until both of these are set.
+      # Generate: python3 -c "import secrets; print(secrets.token_hex(32))"
+      AGENTTAINT_CONFIRM_SECRET: "${AGENTTAINT_CONFIRM_SECRET:-}"
+      AGENTTAINT_DASHBOARD_TOKEN: "${AGENTTAINT_DASHBOARD_TOKEN:-}"
+      AGENTTAINT_SECURITY_DB_URL: "sqlite+pysqlite:////data/security.db"
+      AGENTTAINT_DATA_DIR: "/data"
+      AGENTTAINT_BENCHMARKS_DIR: "/app/benchmarks/reports"
+      AGENTTAINT_CORS_ORIGINS: "http://127.0.0.1:3000,http://localhost:3000"
+    volumes:
+      - agenttaint_api_data:/data
+      - ../benchmarks/reports:/app/benchmarks/reports:ro
+
+  dashboard:
+    profiles: ["demo"]
+    build:
+      context: ../apps/dashboard
+      dockerfile: Dockerfile
+      args:
+        AGENTTAINT_API_ORIGIN: http://api:8080
+    ports:
+      - "3000:3000"
+    environment:
+      AGENTTAINT_API_ORIGIN: http://api:8080
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      - api
+
+volumes:
+  agenttaint_pg:
+  agenttaint_api_data:

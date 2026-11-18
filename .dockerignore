@@ -1,0 +1,15 @@
+# Keep secrets, local state and bulky artefacts out of the build context.
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+.git
+.venv
+**/__pycache__
+**/node_modules
+apps/dashboard/.next
+apps/dashboard/out
+dist
+docs/media
+research_log

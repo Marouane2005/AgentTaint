@@ -46,7 +46,7 @@ make demo-compose
 # optional: COMPOSE_PROFILES=postgres make demo-compose
 ```
 
-Stop with `docker compose --profile demo down`.
+Stop with `docker compose -f deploy/docker-compose.dev.yml --profile demo down`.
 
 ## Benchmarks
 
