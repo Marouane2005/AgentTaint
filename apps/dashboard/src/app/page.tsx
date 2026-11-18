@@ -1,47 +1,49 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BarList, DECISION_COLORS, DestinationMap, Donut, Gauge, TimelineChart } from "@/components/charts";
+import { DecisionTable } from "@/components/DecisionTable";
 import { SessionBanner } from "@/components/SessionBanner";
 import {
   clearSession,
-  fetchDecisions,
+  fetchAllDecisions,
+  fetchGraph,
   fetchHealth,
   fetchOverview,
   seedDemo,
+  type Decision,
 } from "@/lib/api";
+import { countBy, decisionTimeline, destinationFlows, riskGauges, type SpanEdge } from "@/lib/derive";
 
-function pct(part: number, total: number) {
-  if (!total) return 0;
-  return Math.round((part / total) * 1000) / 10;
-}
+const TIER_COLORS: Record<string, string> = {
+  LOW: "#22d3ee",
+  MEDIUM: "#f2b937",
+  HIGH: "#ff5f6d",
+};
 
 export default function OverviewPage() {
-  const [data, setData] = useState<Awaited<ReturnType<typeof fetchOverview>> | null>(
-    null,
-  );
-  const [events, setEvents] = useState<
-    Awaited<ReturnType<typeof fetchDecisions>>["items"]
-  >([]);
-  const [health, setHealth] = useState<string>("checking…");
+  const [overview, setOverview] = useState<Awaited<ReturnType<typeof fetchOverview>> | null>(null);
+  const [decisions, setDecisions] = useState<Decision[]>([]);
+  const [edges, setEdges] = useState<SpanEdge[]>([]);
+  const [health, setHealth] = useState("checking…");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
       setError(null);
-      const [overview, h, decisions] = await Promise.all([
+      const [o, h, d, g] = await Promise.all([
         fetchOverview(),
         fetchHealth(),
-        fetchDecisions(),
+        fetchAllDecisions(),
+        fetchGraph(),
       ]);
-      setData(overview);
+      setOverview(o);
       setHealth(h.status);
-      setEvents(decisions.items.slice(0, 8));
+      setDecisions(d.items);
+      setEdges(g.edges as SpanEdge[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -49,10 +51,10 @@ export default function OverviewPage() {
     void refresh();
   }, [refresh]);
 
-  async function onSeed() {
+  async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     try {
-      await seedDemo();
+      await fn();
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -61,197 +63,118 @@ export default function OverviewPage() {
     }
   }
 
-  async function onClear() {
-    setBusy(true);
-    try {
-      await clearSession();
-      await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const timeline = useMemo(() => decisionTimeline(decisions), [decisions]);
+  const gauges = useMemo(() => riskGauges(decisions, edges), [decisions, edges]);
+  const flows = useMemo(() => destinationFlows(decisions), [decisions]);
+  const tiers = useMemo(() => countBy(decisions, (d) => d.risk_tier), [decisions]);
+  const policies = useMemo(() => countBy(decisions, (d) => d.policy_id || "—"), [decisions]);
+  const counts = useMemo(() => countBy(decisions, (d) => d.decision), [decisions]);
+  const latencies = decisions.map((d) => Number(d.latency_ms || 0)).sort((a, b) => a - b);
+  const p50 = latencies.length ? latencies[Math.floor(latencies.length / 2)] : 0;
+  const graph = overview?.graph || {};
 
-  const decisions = data?.decisions || { ALLOW: 0, BLOCK: 0, CONFIRM: 0, total: 0 };
-  const graph = data?.graph || { spans: 0, edges: 0, inferred_edges: 0, gap_spans: 0 };
-  const total = Number(decisions.total || 0);
-  const allow = Number(decisions.ALLOW || 0);
-  const block = Number(decisions.BLOCK || 0);
-  const confirm = Number(decisions.CONFIRM || 0);
-
-  const mix = useMemo(
-    () => ({
-      allow: pct(allow, total),
-      block: pct(block, total),
-      confirm: pct(confirm, total),
-    }),
-    [allow, block, confirm, total],
-  );
+  const kpis = [
+    { label: "Gateway decisions", value: decisions.length, tone: "cyan", hint: "audit store" },
+    { label: "Blocked", value: counts.BLOCK || 0, tone: "block", hint: "BLOCK" },
+    { label: "Awaiting human", value: counts.CONFIRM || 0, tone: "confirm", hint: "CONFIRM" },
+    { label: "Allowed", value: counts.ALLOW || 0, tone: "allow", hint: "ALLOW" },
+    { label: "Provenance spans", value: Number(graph.spans || 0), tone: "cyan", hint: `${graph.edges || 0} edges` },
+    { label: "Median latency", value: `${p50} ms`, tone: "cyan", hint: "policy + audit" },
+  ];
 
   return (
-    <>
-      <div className="topbar">
+    <div className="console">
+      <div className="console-head">
         <div>
-          <p className="eyebrow">Security research console</p>
-          <h1>Overview</h1>
-          <p>
-            Live counters from the AgentTaint audit store and provenance registry.
-            Demo seed executes a labeled simulated scenario through the real
-            SecurityGateway — decisions are never invented by the UI. Synthetic
-            evidence only; not a production ASR scoreboard.
+          <p className="eyebrow">Investigative console</p>
+          <h1>Security overview</h1>
+          <p className="sub">
+            Every number below is read from the audit store and provenance registry. The demo
+            seed runs synthetic scenarios through the real SecurityGateway; it is not production
+            telemetry.
           </p>
         </div>
         <div className="actions">
-          <button className="btn secondary" onClick={onClear} disabled={busy}>
+          <span className={`health ${health === "ok" ? "ok" : "err"}`}>API {health}</span>
+          <button className="btn secondary" onClick={() => run(clearSession)} disabled={busy}>
             Clear session
           </button>
-          <button className="btn" onClick={onSeed} disabled={busy}>
+          <button className="btn" onClick={() => run(seedDemo)} disabled={busy}>
             {busy ? "Seeding…" : "Seed demo session"}
           </button>
         </div>
       </div>
-
       {error ? <div className="banner danger">{error}</div> : null}
-      <SessionBanner session={data?.session} />
+      <SessionBanner session={overview?.session} />
 
-      {loading ? <div className="loading">Loading control-plane metrics…</div> : null}
-
-      <div className="grid stats">
-        <div className="stat allow">
-          <div className="label">ALLOW</div>
-          <div className="value">{allow}</div>
-          <div className="hint">{mix.allow}% of events</div>
-        </div>
-        <div className="stat block">
-          <div className="label">BLOCK</div>
-          <div className="value">{block}</div>
-          <div className="hint">{mix.block}% of events</div>
-        </div>
-        <div className="stat confirm">
-          <div className="label">CONFIRM</div>
-          <div className="value">{confirm}</div>
-          <div className="hint">{mix.confirm}% of events</div>
-        </div>
-        <div className="stat info">
-          <div className="label">Events</div>
-          <div className="value">{total}</div>
-          <div className="hint">audit store records</div>
-        </div>
-      </div>
-
-      <div className="panel" style={{ marginTop: "1rem" }}>
-        <div className="panel-head">
-          <h2>Decision mix</h2>
-          <span className="panel-meta">session totals</span>
-        </div>
-        <div className="mix-bar" aria-hidden={!total}>
-          {total ? (
-            <>
-              <span className="allow" style={{ width: `${mix.allow}%` }} />
-              <span className="block" style={{ width: `${mix.block}%` }} />
-              <span className="confirm" style={{ width: `${mix.confirm}%` }} />
-            </>
-          ) : null}
-        </div>
-        <div className="mix-legend">
-          <span>
-            <i style={{ background: "var(--allow)" }} />
-            ALLOW {allow}
-          </span>
-          <span>
-            <i style={{ background: "var(--block)" }} />
-            BLOCK {block}
-          </span>
-          <span>
-            <i style={{ background: "var(--confirm)" }} />
-            CONFIRM {confirm}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid overview">
-        <div className="panel">
-          <div className="panel-head">
-            <h2>Recent security events</h2>
-            <span className="panel-meta">from audit store</span>
+      <div className="kpi-row">
+        {kpis.map((k) => (
+          <div key={k.label} className={`kpi ${k.tone}`}>
+            <div className="kpi-label">{k.label}</div>
+            <div className="kpi-value">{k.value}</div>
+            <div className="kpi-hint">{k.hint}</div>
           </div>
-          {!events.length ? (
-            <div className="empty">
-              No events yet. Seed the simulated demo or connect a live proxy.
-            </div>
-          ) : (
-            <div className="event-list">
-              {events.map((row) => (
-                <div className="event-item" key={String(row.call_id)}>
-                  <span className={`pill ${String(row.decision)}`}>
-                    {String(row.decision)}
-                  </span>
-                  <div>
-                    <div className="title mono">{String(row.tool)}</div>
-                    <div className="sub">
-                      policy={String(row.policy_id || "—")} · agent=
-                      {String(row.agent_id || "—")} · risk=
-                      {String(row.risk_tier)}
-                    </div>
-                  </div>
-                  <div className="when mono">
-                    {String(row.latency_ms ?? "—")} ms
-                  </div>
-                </div>
+        ))}
+      </div>
+
+      <div className="console-grid">
+        <section className="card span-2">
+          <header>
+            <h2>Decision timeline</h2>
+            <div className="legend-inline">
+              {(["ALLOW", "CONFIRM", "BLOCK"] as const).map((k) => (
+                <span key={k}>
+                  <i style={{ background: DECISION_COLORS[k] }} />
+                  {k}
+                </span>
               ))}
             </div>
-          )}
-        </div>
+          </header>
+          <TimelineChart bins={timeline.bins} widthMs={timeline.widthMs} />
+        </section>
+        <section className="card">
+          <header>
+            <h2>Risk gauges</h2>
+          </header>
+          <div className="gauge-grid">
+            <Gauge value={gauges.blockRate} label="Block rate" hint="BLOCK / decisions" color="#ff5f6d" />
+            <Gauge value={gauges.reviewLoad} label="Human review load" hint="CONFIRM / decisions" color="#f2b937" />
+            <Gauge
+              value={gauges.unverifiedProvenance}
+              label="Unverified provenance"
+              hint="decisions not KNOWN"
+              color="#a78bfa"
+            />
+            <Gauge value={gauges.inferredLineage} label="Inferred lineage" hint="inferred / all edges" color="#22d3ee" />
+          </div>
+        </section>
 
-        <div className="panel">
-          <div className="panel-head">
-            <h2>System & provenance</h2>
-          </div>
-          <div className="status-grid">
-            <div className="status-row">
-              <span className="k">API health</span>
-              <span className="v">
-                <span
-                  className={`dot ${health === "ok" ? "ok" : "err"}`}
-                  aria-hidden
-                />
-                <span className="mono">{health}</span>
-              </span>
-            </div>
-            <div className="status-row">
-              <span className="k">Session mode</span>
-              <span className="v mono">{data?.session?.mode || "—"}</span>
-            </div>
-            <div className="status-row">
-              <span className="k">Spans</span>
-              <span className="v">{graph.spans}</span>
-            </div>
-            <div className="status-row">
-              <span className="k">Edges</span>
-              <span className="v">{graph.edges}</span>
-            </div>
-            <div className="status-row">
-              <span className="k">Inferred edges</span>
-              <span className="v" style={{ color: "var(--confirm)" }}>
-                {graph.inferred_edges}
-              </span>
-            </div>
-            <div className="status-row">
-              <span className="k">Gap markers</span>
-              <span className="v" style={{ color: "var(--unknown)" }}>
-                {graph.gap_spans}
-              </span>
-            </div>
-            <div className="status-row">
-              <span className="k">Data path</span>
-              <span className="v mono" style={{ fontSize: "0.75rem" }}>
-                {String(data?.system?.data_dir || "—")}
-              </span>
-            </div>
-          </div>
-        </div>
+        <section className="card span-2">
+          <header>
+            <h2>Destination map</h2>
+            <span className="meta">agents → tools → destination class · redacted addresses</span>
+          </header>
+          <DestinationMap {...flows} />
+        </section>
+        <section className="card">
+          <header>
+            <h2>Risk tiers</h2>
+          </header>
+          <Donut data={tiers} colors={TIER_COLORS} />
+          <header style={{ marginTop: "1rem" }}>
+            <h2>Top policies</h2>
+          </header>
+          <BarList data={policies} />
+        </section>
+
+        <section className="card span-3">
+          <header>
+            <h2>Recent decisions</h2>
+            <span className="meta">latest 12 of {decisions.length}</span>
+          </header>
+          <DecisionTable rows={decisions.slice(0, 12)} />
+        </section>
       </div>
-    </>
+    </div>
   );
 }

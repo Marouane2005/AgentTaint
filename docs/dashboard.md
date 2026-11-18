@@ -19,15 +19,47 @@ Browser (Next.js 15)  --rewrite /api/*-->  FastAPI (agenttaint-api)
 
 ## Sections
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Overview — decision counts, recent events, system status |
-| `/provenance` | Interactive provenance graph (KNOWN / INFERRED / UNKNOWN / PARTIAL) |
-| `/reconstruction` | Lexical / structural / semantic evidence with epistemic labels |
-| `/gateway` | Intercepted MCP-style calls, policy verdicts, confirmations, audit |
-| `/benchmarks` | Baselines, ASR, utility, provenance metrics, latency, ablations |
+Thin top navigation; dark navy/cyan console theme. Every view reads the real
+audit store, provenance registry and trace index; nothing is hand-authored.
 
-Screenshots from the local demo: [docs/screenshots/](screenshots/).
+| Page | Contents |
+| --- | --- |
+| **Overview** (`/`) | KPI tiles, decision timeline (stacked by ALLOW/CONFIRM/BLOCK over the real time range, UTC), four risk gauges (block rate, human review load, unverified provenance, inferred lineage), destination map (agents → tools → destination class), risk-tier donut, top policies, recent decisions |
+| **Provenance** (`/provenance`) | Trace explorer: left sidebar of the session and its traces, left-to-right layered DAG (dagre) with labelled columns, zoom/pan and fit controls, "flows by source" popover, legend of node types and edge kinds, click-to-inspect, right-hand timeline of spans and decisions |
+| **Audit** (`/audit`) | Filterable decision/audit table with redacted arguments, argument hash, evidence and explanation |
+| **Confirmations** (`/confirmations`) | Human-only approval screen for pending CONFIRM decisions (see below) |
+| Reconstruction, Gateway, Benchmarks | Unchanged views, restyled |
+
+Screenshots: [docs/screenshots](screenshots/README.md).
+
+### Node and edge styles (provenance page)
+
+- Grey diamond: source or input (user instruction, tool result that feeds later steps)
+- Green circle: agent message (cross-agent delegation)
+- Magenta rounded square: tool step or memory (summary, extract, rewrite, memory, gap)
+- Yellow square: output or sink (tool argument, result of an executed call)
+- Blue node: final action, one per gateway decision, with its ALLOW/CONFIRM/BLOCK badge
+- Solid blue edge: explicit lineage. Dashed amber: inferred by reconstruction (not
+  verified causation). Cyan: argument evaluated by the gateway. Dotted: tool executed.
+
+Address values are redacted in the audit store, so the destination map groups by
+destination class (email recipient, web endpoint, IP, filesystem, payment), not by
+geography.
+
+### Human-only approvals
+
+- Set `AGENTTAINT_APPROVER_TOKEN` (different from `AGENTTAINT_DASHBOARD_TOKEN`; the
+  API refuses to start approvals if they are equal). The approval routes accept only
+  the approver token, sent as `X-AgentTaint-Approver`. The dashboard read token,
+  which may be bundled into the UI via `NEXT_PUBLIC_AGENTTAINT_TOKEN`, cannot approve.
+- The approval screen asks a person to type the approver token. It lives in memory
+  for that tab only; it is never stored, logged or bundled.
+- Agents cannot reach this channel: the MCP proxy exposes no approval tool (security
+  probe W2), approvals are bound to tool, arguments hash and agent, single-use and
+  time-limited.
+- Without `AGENTTAINT_APPROVER_TOKEN`, the legacy behaviour applies (dashboard token).
+- With `AGENTTAINT_SECURITY_DB_URL` and an approver token configured, the demo seed
+  queues its CONFIRM decisions in the durable confirmation store.
 
 ### Provenance graph semantics
 
@@ -69,8 +101,13 @@ Optional: set `AGENTTAINT_API_ORIGIN` if the API is not on `http://127.0.0.1:808
 On Overview, **Seed simulated session** calls `POST /api/v1/demo/seed`. That:
 
 1. Resets in-memory stores for a fresh demo session.
-2. Runs a short mock email flow through the **real** SecurityGateway.
-3. Labels the session as simulated in the banner and API `session.notes`.
+2. Runs a short mock email flow through the **real** SecurityGateway (multi-agent
+   exfiltration attempt, a granted benign send, and two sends by an uninstrumented
+   agent that end in CONFIRM).
+3. Replays 16 held-out test-split and 4 challenge-split synthetic benchmark
+   scenarios through real gateways (combined defense) into the same stores, one
+   trace per scenario (`AGENTTAINT_SEED_SCENARIOS`, default 16; 0 disables).
+4. Labels the session as simulated in the banner and API `session.notes`.
 
 Clear with **Clear session** (`POST /api/v1/session/clear`).
 
@@ -90,6 +127,9 @@ make benchmark          # writes reports/
 | GET | `/graph/export` | Nodes/edges + status legend |
 | GET | `/reconstruction` | Channel evidence + disclaimer |
 | GET | `/decisions` | Audit trail (redacted args) |
+| GET | `/traces` | Seeded traces: span and decision ids per scenario and per call |
+| GET | `/confirmations` | Pending confirmations (approver token) |
+| POST | `/confirmations/{id}/approve` · `/deny` | Human decision (approver token) |
 | GET | `/benchmarks` | Disk reports + synthetic disclaimer |
 | POST | `/demo/seed` | Simulated scenario via live gateway |
 | POST | `/session/clear` | Empty session |
@@ -98,9 +138,11 @@ make benchmark          # writes reports/
 
 ```bash
 make test              # includes tests/unit/test_api_dashboard.py
-make dashboard-test    # Vitest (ProvenanceGraph)
+make dashboard-test    # Vitest (derive, layout, TraceGraph, approval screen)
 make dashboard-lint
 make test-all
+# Screenshots of every page (needs the API + dashboard running, seeded):
+cd apps/dashboard && AGENTTAINT_APPROVER_TOKEN=... npm run screenshots
 ```
 
 ## Security notes (local-trust)

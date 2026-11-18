@@ -261,11 +261,21 @@ def run_scenario(
     defense: DefenseConfig,
     *,
     embedding_backend: EmbeddingBackend | None | object = ...,
+    registry: ProvenanceRegistry | None = None,
+    audit: AuditStore | None = None,
+    confirmation: Any | None = None,
 ) -> ScenarioRunResult:
+    """Run one scenario through a fresh gateway.
+
+    ``registry`` and ``audit`` default to fresh in-memory stores; the dashboard
+    demo seed passes shared stores (and optionally a durable confirmation
+    service) so real decisions, spans and pending confirmations accumulate.
+    """
     from agenttaint_benchmark.defenses import build_policy
 
     trust = load_trust_registry(TRUST)
-    registry = ProvenanceRegistry.in_memory(TRUST)
+    if registry is None:
+        registry = ProvenanceRegistry.in_memory(TRUST)
     state = PipelineState(registry=registry)
     _execute_pipeline(scenario, state)
     gold_sources = _refine_gold_sources(scenario, state)
@@ -307,7 +317,8 @@ def run_scenario(
         registry=registry,
         risk=RiskClassifier(trust),
         policy=policy,
-        audit=AuditStore(),
+        audit=audit if audit is not None else AuditStore(),
+        confirmation=confirmation,
         reconstruction=reconstruction,
         candidates=list(state.candidates) if defense.use_reconstruction else [],
         user_authorized_values=set(scenario.user_authorized_values),

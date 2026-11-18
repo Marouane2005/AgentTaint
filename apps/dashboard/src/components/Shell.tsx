@@ -4,68 +4,49 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-const GROUPS = [
-  {
-    label: "Operations",
-    links: [
-      { href: "/", label: "Overview" },
-      { href: "/provenance", label: "Provenance Explorer" },
-      { href: "/reconstruction", label: "Reconstruction" },
-      { href: "/gateway", label: "Security Gateway" },
-    ],
-  },
-  {
-    label: "Research",
-    links: [{ href: "/benchmarks", label: "Benchmark Lab" }],
-  },
+const TABS = [
+  { href: "/", label: "Overview" },
+  { href: "/provenance", label: "Provenance" },
+  { href: "/audit", label: "Audit" },
+  { href: "/confirmations", label: "Confirmations" },
+  { href: "/reconstruction", label: "Reconstruction" },
+  { href: "/gateway", label: "Gateway" },
+  { href: "/benchmarks", label: "Benchmarks" },
 ];
 
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">
-            <span className="brand-glyph" aria-hidden>
-              AT
-            </span>
-            <strong>AgentTaint</strong>
-          </div>
-          <span>Evidence-based information-flow security for AI agents &amp; MCP</span>
-        </div>
-        {GROUPS.map((group) => (
-          <div className="nav-group" key={group.label}>
-            <div className="nav-label">{group.label}</div>
-            <nav className="nav" aria-label={group.label}>
-              {group.links.map((link) => {
-                const active =
-                  link.href === "/"
-                    ? pathname === "/"
-                    : pathname.startsWith(link.href);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={active ? "active" : undefined}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        ))}
-        <div className="sidebar-foot">
-          <div className="k">Local control plane</div>
-          <div className="v">Read-only inspection · gateway not bypassed</div>
-          <div className="research-chip" title="Synthetic + adversarial evidence only">
-            Research demo · not production ASR
-          </div>
-        </div>
-      </aside>
-      <main className="main">{children}</main>
+    <div className="app-frame">
+      <header className="topnav">
+        <Link href="/" className="topnav-brand">
+          <span className="brand-glyph" aria-hidden>
+            AT
+          </span>
+          <strong>AgentTaint</strong>
+        </Link>
+        <nav aria-label="Main">
+          {TABS.map((t) => {
+            const active = t.href === "/" ? pathname === "/" : pathname.startsWith(t.href);
+            return (
+              <Link
+                key={t.href}
+                href={t.href}
+                className={active ? "active" : undefined}
+                aria-current={active ? "page" : undefined}
+              >
+                {t.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <span className="research-chip" title="Synthetic + adversarial evidence only">
+          Research demo · not production ASR
+        </span>
+      </header>
+      <main className={pathname.startsWith("/provenance") ? "frame-main full" : "frame-main"}>
+        {children}
+      </main>
     </div>
   );
 }

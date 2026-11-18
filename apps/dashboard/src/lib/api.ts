@@ -87,3 +87,83 @@ export function clearSession() {
 export function fetchHealth() {
   return getJson<{ status: string; session_mode: string }>("/api/v1/health");
 }
+
+export type Decision = {
+  call_id: string;
+  agent_id?: string | null;
+  tool: string;
+  risk_tier: string;
+  arguments_redacted?: Record<string, unknown>;
+  arguments_hash?: string;
+  evidence?: Array<Record<string, unknown>>;
+  provenance_status?: string;
+  decision: "ALLOW" | "BLOCK" | "CONFIRM" | string;
+  policy_id?: string | null;
+  confirmation_id?: string | null;
+  created_at: string;
+  latency_ms?: number | null;
+  explanation?: string;
+};
+
+export type TraceCall = { call_ids: string[]; span_ids: string[] };
+
+export type Trace = {
+  trace_id: string;
+  label: string;
+  kind: string;
+  family: string;
+  source: string;
+  decision?: string;
+  span_ids: string[];
+  call_ids: string[];
+  calls?: TraceCall[];
+};
+
+export function fetchTraces() {
+  return getJson<{ session: SessionInfo; traces: Trace[] }>("/api/v1/traces");
+}
+
+export function fetchAllDecisions() {
+  return getJson<{ session: SessionInfo; items: Decision[] }>(
+    "/api/v1/decisions?limit=500",
+  );
+}
+
+export type PendingConfirmation = {
+  confirmation_id: string;
+  tool: string;
+  agent_id: string;
+  risk_tier: string;
+  policy_id?: string | null;
+  arguments_redacted?: Record<string, unknown>;
+  arguments_hash: string;
+  explanation: string;
+  status: string;
+  expires_at: string;
+};
+
+/**
+ * Human approval channel. The approver token is typed by a person into the
+ * approval screen and kept in component memory only: it is never read from
+ * NEXT_PUBLIC_* env vars, stored, or bundled.
+ */
+function approverHeaders(approverToken: string): HeadersInit {
+  return { "X-AgentTaint-Approver": approverToken };
+}
+
+export function fetchConfirmations(approverToken: string) {
+  return getJson<{ pending: PendingConfirmation[] }>("/api/v1/confirmations", {
+    headers: approverHeaders(approverToken),
+  });
+}
+
+export function decideConfirmation(
+  approverToken: string,
+  confirmationId: string,
+  action: "approve" | "deny",
+) {
+  return getJson<PendingConfirmation>(
+    `/api/v1/confirmations/${encodeURIComponent(confirmationId)}/${action}`,
+    { method: "POST", headers: approverHeaders(approverToken) },
+  );
+}

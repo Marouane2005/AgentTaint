@@ -84,7 +84,7 @@ app.add_middleware(
     allow_origins=_cors_origins(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Accept", "Content-Type", "X-AgentTaint-Token"],
+    allow_headers=["Accept", "Content-Type", "X-AgentTaint-Token", "X-AgentTaint-Approver"],
 )
 
 
@@ -165,6 +165,16 @@ def get_decision(call_id: str) -> dict[str, Any]:
             "label": state.session.label,
         },
         "decision": decision.model_dump(mode="json"),
+    }
+
+
+@app.get("/api/v1/traces")
+def list_traces() -> dict[str, Any]:
+    """Seeded traces (span and decision ids per scenario) for the trace sidebar."""
+    state = get_state()
+    return {
+        "session": {"mode": state.session.mode, "label": state.session.label},
+        "traces": list(state.traces),
     }
 
 
@@ -272,14 +282,37 @@ def session_clear(
 # confirmation secret is configured. The MCP proxy exposes no approval tool.
 
 
-def _require_approval_token(x_agenttaint_token: str | None) -> None:
-    expected = os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip()
-    if not expected:
+def _require_approval_token(
+    x_agenttaint_token: str | None, x_agenttaint_approver: str | None = None
+) -> None:
+    """Human approval channel.
+
+    Preferred: a dedicated ``AGENTTAINT_APPROVER_TOKEN`` sent as
+    ``X-AgentTaint-Approver``. It must differ from the dashboard read token so a
+    token baked into the dashboard bundle (``NEXT_PUBLIC_*``) can never approve.
+    Fallback (legacy): the dashboard token in either header.
+    """
+    approver = os.environ.get("AGENTTAINT_APPROVER_TOKEN", "").strip()
+    dashboard = os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip()
+    if approver:
+        if dashboard and hmac.compare_digest(approver, dashboard):
+            raise HTTPException(
+                status_code=503,
+                detail="AGENTTAINT_APPROVER_TOKEN must differ from AGENTTAINT_DASHBOARD_TOKEN",
+            )
+        if not hmac.compare_digest(x_agenttaint_approver or "", approver):
+            raise HTTPException(status_code=401, detail="invalid or missing approver token")
+        return
+    if not dashboard:
         raise HTTPException(
             status_code=503,
-            detail="confirmation approval disabled: set AGENTTAINT_DASHBOARD_TOKEN",
+            detail=(
+                "confirmation approval disabled: set AGENTTAINT_APPROVER_TOKEN "
+                "(or AGENTTAINT_DASHBOARD_TOKEN)"
+            ),
         )
-    if not hmac.compare_digest(x_agenttaint_token or "", expected):
+    provided = x_agenttaint_approver or x_agenttaint_token or ""
+    if not hmac.compare_digest(provided, dashboard):
         raise HTTPException(status_code=401, detail="invalid or missing dashboard token")
 
 
@@ -320,8 +353,9 @@ def _confirmation_view(record: Any) -> dict[str, Any]:
 @app.get("/api/v1/confirmations")
 def list_confirmations(
     x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
+    x_agenttaint_approver: str | None = Header(default=None, alias="X-AgentTaint-Approver"),
 ) -> dict[str, Any]:
-    _require_approval_token(x_agenttaint_token)
+    _require_approval_token(x_agenttaint_token, x_agenttaint_approver)
     service = _confirmation_service()
     return {"pending": [_confirmation_view(r) for r in service.list_by_status()]}
 
@@ -344,8 +378,9 @@ def _decide(confirmation_id: str, approve: bool) -> dict[str, Any]:
 def approve_confirmation(
     confirmation_id: str,
     x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
+    x_agenttaint_approver: str | None = Header(default=None, alias="X-AgentTaint-Approver"),
 ) -> dict[str, Any]:
-    _require_approval_token(x_agenttaint_token)
+    _require_approval_token(x_agenttaint_token, x_agenttaint_approver)
     return _decide(confirmation_id, approve=True)
 
 
@@ -353,6 +388,7 @@ def approve_confirmation(
 def deny_confirmation(
     confirmation_id: str,
     x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
+    x_agenttaint_approver: str | None = Header(default=None, alias="X-AgentTaint-Approver"),
 ) -> dict[str, Any]:
-    _require_approval_token(x_agenttaint_token)
+    _require_approval_token(x_agenttaint_token, x_agenttaint_approver)
     return _decide(confirmation_id, approve=False)
