@@ -14,12 +14,14 @@ from agenttaint_agent_sdk.envelope import (
     NonceStore,
     ProvenanceEnvelope,
 )
+from agenttaint_agent_sdk.keys import AgentKeyring, KeyringError
 from agenttaint_agent_sdk.persistence import (
     DurableConfirmationService,
     DurableNonceStore,
 )
 
 __all__ = [
+    "AgentKeyring",
     "AgentTaintContext",
     "ConfirmationError",
     "ConfirmationRecord",
@@ -29,6 +31,7 @@ __all__ = [
     "DurableNonceStore",
     "EnvelopeError",
     "EnvelopeVerifier",
+    "KeyringError",
     "NonceStore",
     "ProvenanceEnvelope",
     "format_confirmation_prompt",

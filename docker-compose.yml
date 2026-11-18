@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agenttaint
+      POSTGRES_PASSWORD: agenttaint
+      POSTGRES_DB: agenttaint
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agenttaint -d agenttaint"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - agenttaint_pg:/var/lib/postgresql/data
+
+volumes:
+  agenttaint_pg:

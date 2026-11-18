@@ -94,17 +94,37 @@ class EnvelopeVerifier:
     def __init__(
         self,
         *,
-        secret: str,
+        secret: str | None = None,
         registry: ProvenanceRegistry,
-        nonce_store: NonceStore | None = None,
+        nonce_store: NonceStore | Any | None = None,
         max_age: timedelta = timedelta(minutes=10),
         allowed_agents: set[str] | None = None,
+        keyring: Any | None = None,
     ) -> None:
-        self.secret = secret
+        from agenttaint_agent_sdk.keys import AgentKeyring
+
         self.registry = registry
         self.nonce_store = nonce_store or NonceStore()
         self.max_age = max_age
         self.allowed_agents = allowed_agents
+        if keyring is not None:
+            self.keyring = keyring
+        else:
+            # Backward-compatible single secret becomes the keyring default only.
+            self.keyring = AgentKeyring(default_secret=secret)
+        # Retained for older call sites / tests that read `.secret`.
+        self.secret = (
+            secret if secret is not None else getattr(self.keyring, "default_secret", None)
+        )
+
+    def _secret_for(self, agent_id: str) -> str:
+        try:
+            secret = self.keyring.secret_for(agent_id)
+        except Exception as exc:  # noqa: BLE001
+            raise EnvelopeError(str(exc)) from exc
+        if not isinstance(secret, str) or not secret:
+            raise EnvelopeError(f"invalid envelope secret for agent: {agent_id}")
+        return secret
 
     def create(
         self,
@@ -126,7 +146,7 @@ class EnvelopeVerifier:
             content_hash=content_hash(content),
             parent_span_ids=list(parent_span_ids),
         )
-        return env.sign(self.secret)
+        return env.sign(self._secret_for(sender_agent))
 
     def verify(self, envelope: ProvenanceEnvelope | dict[str, Any]) -> ProvenanceEnvelope:
         env = (
@@ -136,7 +156,10 @@ class EnvelopeVerifier:
         )
         if not env.signature:
             raise EnvelopeError("missing signature")
-        if not hmac_verify(self.secret, env.canonical_payload(), env.signature):
+        # Verify under the *claimed sender's* key — prevents forging sender_agent
+        # with a different agent's secret.
+        sender_secret = self._secret_for(env.sender_agent)
+        if not hmac_verify(sender_secret, env.canonical_payload(), env.signature):
             raise EnvelopeError("invalid envelope signature")
         if content_hash(env.content) != env.content_hash:
             raise EnvelopeError("content tampered (hash mismatch)")
@@ -154,11 +177,13 @@ class EnvelopeVerifier:
         for span_id in env.parent_span_ids:
             if self.registry.store.get_span(span_id) is None:
                 raise EnvelopeError(f"missing parent span in registry: {span_id}")
-        # Claim nonce only after all checks pass (atomic when store supports it).
         claimed = True
         try_remember = getattr(self.nonce_store, "try_remember", None)
         if callable(try_remember):
-            claimed = bool(try_remember(env.nonce))
+            try:
+                claimed = bool(try_remember(env.nonce))
+            except Exception as exc:  # noqa: BLE001 - fail closed on store errors
+                raise EnvelopeError(f"nonce store unavailable: {exc}") from exc
         else:
             if self.nonce_store.seen(env.nonce):
                 claimed = False

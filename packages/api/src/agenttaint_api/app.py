@@ -7,8 +7,9 @@ import os
 import re
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from agenttaint_api.state import (
     clear_session,
@@ -29,10 +30,33 @@ def _cors_origins() -> list[str]:
     return [o.strip() for o in raw.split(",") if o.strip()]
 
 
+def _auth_mode() -> str:
+    """Return off | mutations | required.
+
+    - off: no token checks (local demo default when no token configured)
+    - mutations: token required for POST (legacy)
+    - required: token required for every route except /api/v1/health
+    """
+    explicit = os.environ.get("AGENTTAINT_API_AUTH", "").strip().lower()
+    if explicit in {"off", "mutations", "required"}:
+        return explicit
+    if os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip():
+        return "required"
+    return "off"
+
+
 def _require_local_token(x_agenttaint_token: str | None) -> None:
-    """Optional shared secret for mutating endpoints (local-trust by default)."""
+    """Enforce dashboard token according to AGENTTAINT_API_AUTH."""
+    mode = _auth_mode()
+    if mode == "off":
+        return
     expected = os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip()
     if not expected:
+        if mode == "required":
+            raise HTTPException(
+                status_code=503,
+                detail="AGENTTAINT_DASHBOARD_TOKEN must be set when API auth is required",
+            )
         return
     provided = x_agenttaint_token or ""
     if not hmac.compare_digest(provided, expected):
@@ -64,6 +88,24 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def enforce_api_auth(request: Request, call_next):  # type: ignore[no-untyped-def]
+    """When auth mode is required, gate every route except health."""
+    path = request.url.path
+    if path in {"/api/v1/health", "/docs", "/openapi.json", "/redoc"}:
+        return await call_next(request)
+    mode = _auth_mode()
+    needs_auth = mode == "required" or (
+        mode == "mutations" and request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+    )
+    if needs_auth:
+        try:
+            _require_local_token(request.headers.get("x-agenttaint-token"))
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return await call_next(request)
+
+
 @app.get("/api/v1/health")
 def health() -> dict[str, Any]:
     state = get_state()
@@ -85,6 +127,7 @@ def health() -> dict[str, Any]:
         "registry_ok": registry_ok,
         "audit_ok": audit_ok,
         "session_mode": state.session.mode,
+        "auth_mode": _auth_mode(),
     }
 
 
@@ -199,7 +242,8 @@ def demo_seed(
     x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
 ) -> dict[str, Any]:
     """Run the labeled demo scenario through the real enforcement path."""
-    _require_local_token(x_agenttaint_token)
+    if _auth_mode() == "mutations":
+        _require_local_token(x_agenttaint_token)
     return seed_demo_session()
 
 
@@ -208,7 +252,8 @@ def session_clear(
     x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
 ) -> dict[str, Any]:
     """Reset in-memory demo/live session stores without touching benchmark files."""
-    _require_local_token(x_agenttaint_token)
+    if _auth_mode() == "mutations":
+        _require_local_token(x_agenttaint_token)
     state = clear_session()
     return {
         "ok": True,

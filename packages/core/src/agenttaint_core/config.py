@@ -16,13 +16,17 @@ class Settings(BaseSettings):
     )
 
     database_url: str = "sqlite+pysqlite:///:memory:"
+    security_db_url: str = "sqlite+pysqlite:///:memory:"
     trust_registry_path: Path = Field(
         default=Path("policies/trust_registry.yaml"),
     )
     retain_redacted_content: bool = True
     shared_secret: str = "dev-only-change-me"
-    api_host: str = "0.0.0.0"
+    api_host: str = "127.0.0.1"
     api_port: int = 8080
+    api_auth: str = "off"
+    dashboard_token: str = ""
+    confirm_secret: str = "agenttaint-local-confirm-secret-change-me"
 
 
 def get_settings() -> Settings:

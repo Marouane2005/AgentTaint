@@ -17,3 +17,6 @@ node_modules/
 .DS_Store
 htmlcov/
 .coverage
+# Generated benchmark JSON is large; keep markdown summaries in git.
+benchmarks/reports/*.json
+!benchmarks/reports/.gitkeep

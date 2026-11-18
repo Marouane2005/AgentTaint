@@ -12,6 +12,11 @@ dependencies = [
   "sqlalchemy>=2.0.36",
 ]
 
+[project.optional-dependencies]
+postgres = [
+  "psycopg[binary]>=3.2.0",
+]
+
 [build-system]
 requires = ["setuptools>=75.0.0"]
 build-backend = "setuptools.build_meta"
