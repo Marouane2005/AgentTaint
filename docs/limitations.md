@@ -13,7 +13,7 @@
 7. **Benchmark external validity.** Custom scenarios may not match production agent frameworks.  
 8. **Not CapLite-strong by default.** Request-grounding mode is optional; default mode trades absolute write integrity for utility.  
 9. **Overlap with FIDES/NeuroTaint.** Novelty is not assumed.  
-10. **Cedar:** Not enforced until the Cedar backend is implemented and tested.  
+10. **Cedar** decides ALLOW/CONFIRM/BLOCK from facts computed in Python; the facts themselves (provenance, grants, reconstruction) are not Cedar-verified. See `docs/cedar_policy.md`.  
 11. **Gap markers are honest, not magical:** an uninstrumented LLM call yields PARTIAL/UNKNOWN lineage; AgentTaint does not reconstruct missing transforms in Milestone 3.  
 12. **Cross-agent transfer** only preserves lineage among AgentTaint-aware callers using authenticated envelopes / `transfer_to_agent` with verified parent ids.  
 13. **Reconstruction is not causation:** lexical/structural/semantic support levels are not calibrated probabilities; attached edges are always INFERRED.  
@@ -22,7 +22,7 @@
 16. **Semantic embeddings** are optional; default CI uses a fixture embedder or disables the channel.  
 17. **Envelope HMAC** (M5–M9) used a shared secret; M11 moved to per-agent keys (item 34). It is still symmetric HMAC, not mutual TLS or asymmetric identity.  
 18. **Confirmation binding** protects the exact approved argument bytes; it does not prove the human understood semantic risk.  
-19. **Cedar** remains deferred; production policy authors should not assume Cedar semantics yet.  
+19. **Cedar entities are minimal** (`Agent`, `Tool`); per-tool/agent attributes, templates and hierarchies are not used yet.  
 20. **Custom benchmark ceiling:** held-out scenarios are synthetic and often expose contiguous structural identifiers; near-zero ASR there does not transfer to production agents.  
 21. **Semantic ablation** in CI/benchmark uses a fixture embedder, not a calibrated production model.  
 22. **AgentDojo / InjecAgent** were not run in Milestone 6 — do not cite custom numbers as those benchmarks.  
@@ -39,7 +39,7 @@
 33. **USER authorization** requires structured `(tool, argument, value)` grants scoped by agent/session — free-text USER spans are not scraped into allow-lists.  
 34. **Envelope HMAC** uses **per-agent keys** via `AgentKeyring` for cooperating agents; unknown agents fail closed.  
 35. **Control plane auth** defaults to local-trust; set `AGENTTAINT_API_AUTH=required` with `AGENTTAINT_DASHBOARD_TOKEN` on shared hosts.  
-36. **Cedar** remains deferred (`docs/cedar_deferred.md`).  
+36. **Cedar parity** with the Python reference is exhaustive over the modelled facts and flags (147,456 cases); new facts must be added to both or the parity test fails.  
 37. **M13 zero ASR** on the synthetic suite is not general attack prevention.  
 38. **External ASR** (AgentDojo / InjecAgent) remains not evaluated without an LLM.  
 39. **Demo Compose** is a local research demo, not a hardened production deployment.

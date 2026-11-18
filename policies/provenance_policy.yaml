@@ -1,4 +1,7 @@
-# Milestone 5 provenance-aware policy (deterministic, not Cedar).
+# Provenance-aware policy configuration.
+# engine: cedar  -> decisions come from packages/policy/src/agenttaint_policy/cedar/agenttaint.cedar
+# engine: python -> reference implementation (ProvenanceAwarePolicy); parity is tested exhaustively.
+engine: cedar
 denylist_tools: []
 blocked_recipients:
   - attacker@example.com

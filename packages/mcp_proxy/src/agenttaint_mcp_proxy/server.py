@@ -21,7 +21,7 @@ from agenttaint_audit.store import AuditStore
 from agenttaint_core.config import ConfigurationError, resolve_confirm_secret
 from agenttaint_core.schemas import Origin
 from agenttaint_policy.adapter import PolicyAdapter
-from agenttaint_policy.loader import load_provenance_policy, load_stub_policy
+from agenttaint_policy.loader import load_policy, load_stub_policy
 from agenttaint_provenance.registry import ProvenanceRegistry
 from agenttaint_reconstruction.engine import CandidateRecord, ReconstructionEngine
 from agenttaint_reconstruction.semantic import FixtureEmbeddingBackend
@@ -47,7 +47,7 @@ def _repo_root() -> Path:
 def _load_policy(path: Path) -> PolicyAdapter:
     if "stub" in path.name.lower():
         return load_stub_policy(path)
-    return load_provenance_policy(path)
+    return load_policy(path)
 
 
 def _default_security_db_url() -> str:

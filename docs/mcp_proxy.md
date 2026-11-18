@@ -17,7 +17,7 @@ The AgentTaint MCP proxy is the **enforcement boundary** between agents and tool
 | `agenttaint.audit_summary` | Supported |
 | Resources / prompts | Not proxied yet |
 | Multi-process stdio fan-out to remote MCP servers | Deferred (in-process composition for M2) |
-| Cedar policies | Not claimed — stub + provenance-aware YAML adapters |
+| Cedar policies | Default engine (`engine: cedar`); see `docs/cedar_policy.md` |
 | Confirmation binding | Supported via injected `ConfirmationService` (M5) |
 | Reconstruction at invoke | Optional `ReconstructionEngine` + candidate corpus (M5) |
 

@@ -53,7 +53,7 @@ See `docs/limitations.md`. Critical assumptions:
 - Mock backends are stand-ins; production tools need their own schemas/grants.
 - Synthetic near-zero ASR does **not** transfer to production agents.
 - Fixture embeddings are not calibrated production embeddings.
-- Cedar remains deferred (`docs/cedar_deferred.md`).
+- Cedar is the default policy engine; it decides from Python-computed facts (`docs/cedar_policy.md`).
 - Control plane is local-trust unless `AGENTTAINT_API_AUTH=required`.
 
 ## 5b. M15 confirmation hardening
@@ -76,8 +76,7 @@ MEDIUM sinks). See `docs/limitations.md` items 40–46.
 **Demo / research-portfolio ready:** yes — reproducible suite, adversarial tests,
 MCP multi-process proxy, durable security state, dashboard, one-command demo.
 
-**Production MCP security product:** not yet — external ASR unevaluated, Cedar
-deferred, SSE/resources/prompts unsupported, human CONFIRM approval is CLI/API
+**Production MCP security product:** not yet — external ASR unevaluated, SSE/resources/prompts unsupported, human CONFIRM approval is CLI/API
 only (no dashboard screen yet).
 
 Recommended framing (unchanged in substance from M7/M9):

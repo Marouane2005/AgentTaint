@@ -1,0 +1,176 @@
+{
+  "": {
+    "entityTypes": {
+      "Agent": {},
+      "Tool": {}
+    },
+    "actions": {
+      "execute": {
+        "appliesTo": {
+          "principalTypes": [
+            "Agent"
+          ],
+          "resourceTypes": [
+            "Tool"
+          ],
+          "context": {
+            "type": "Record",
+            "attributes": {
+              "tier": {
+                "type": "String",
+                "required": true
+              },
+              "provenance_status": {
+                "type": "String",
+                "required": true
+              },
+              "registry_available": {
+                "type": "Boolean",
+                "required": true
+              },
+              "denylisted": {
+                "type": "Boolean",
+                "required": true
+              },
+              "confirmation_validated": {
+                "type": "Boolean",
+                "required": true
+              },
+              "granted": {
+                "type": "Boolean",
+                "required": true
+              },
+              "recipient_blocked": {
+                "type": "Boolean",
+                "required": true
+              },
+              "untrusted_influence": {
+                "type": "Boolean",
+                "required": true
+              },
+              "influence_inferred_only": {
+                "type": "Boolean",
+                "required": true
+              },
+              "provenance_unknown_or_partial": {
+                "type": "Boolean",
+                "required": true
+              },
+              "lineage_declared": {
+                "type": "Boolean",
+                "required": true
+              },
+              "session_untrusted_seen": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_confirm_untrusted_influence": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_fail_closed_unknown_high": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_confirm_medium_untrusted": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_scrutinize_medium_undeclared": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_fail_closed_unknown_medium": {
+                "type": "Boolean",
+                "required": true
+              }
+            }
+          }
+        }
+      },
+      "execute_with_confirmation": {
+        "appliesTo": {
+          "principalTypes": [
+            "Agent"
+          ],
+          "resourceTypes": [
+            "Tool"
+          ],
+          "context": {
+            "type": "Record",
+            "attributes": {
+              "tier": {
+                "type": "String",
+                "required": true
+              },
+              "provenance_status": {
+                "type": "String",
+                "required": true
+              },
+              "registry_available": {
+                "type": "Boolean",
+                "required": true
+              },
+              "denylisted": {
+                "type": "Boolean",
+                "required": true
+              },
+              "confirmation_validated": {
+                "type": "Boolean",
+                "required": true
+              },
+              "granted": {
+                "type": "Boolean",
+                "required": true
+              },
+              "recipient_blocked": {
+                "type": "Boolean",
+                "required": true
+              },
+              "untrusted_influence": {
+                "type": "Boolean",
+                "required": true
+              },
+              "influence_inferred_only": {
+                "type": "Boolean",
+                "required": true
+              },
+              "provenance_unknown_or_partial": {
+                "type": "Boolean",
+                "required": true
+              },
+              "lineage_declared": {
+                "type": "Boolean",
+                "required": true
+              },
+              "session_untrusted_seen": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_confirm_untrusted_influence": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_fail_closed_unknown_high": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_confirm_medium_untrusted": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_scrutinize_medium_undeclared": {
+                "type": "Boolean",
+                "required": true
+              },
+              "cfg_fail_closed_unknown_medium": {
+                "type": "Boolean",
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

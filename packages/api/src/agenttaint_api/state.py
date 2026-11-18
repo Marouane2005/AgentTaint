@@ -16,6 +16,7 @@ from agenttaint_mcp_proxy.errors import EnforcementError
 from agenttaint_mcp_proxy.gateway import SecurityGateway
 from agenttaint_mock_email.backend import MockEmailBackend
 from agenttaint_policy.adapter import ProvenanceAwarePolicy
+from agenttaint_policy.cedar_engine import CedarProvenancePolicy
 from agenttaint_provenance.registry import ProvenanceRegistry
 from agenttaint_provenance.store import ProvenanceStore
 from agenttaint_provenance.trust import load_trust_registry
@@ -155,10 +156,12 @@ def seed_demo_session() -> dict[str, Any]:
             ToolSpec(name="email.send", description="send", input_schema={}),
         ],
     )
-    policy = ProvenanceAwarePolicy(
-        denylist_tools=set(),
-        blocked_recipients=set(),
-        confirm_untrusted_influence=False,
+    policy = CedarProvenancePolicy.from_reference(
+        ProvenanceAwarePolicy(
+            denylist_tools=set(),
+            blocked_recipients=set(),
+            confirm_untrusted_influence=False,
+        )
     )
     reconstruction = ReconstructionEngine(
         state.registry, embedding_backend=FixtureEmbeddingBackend()

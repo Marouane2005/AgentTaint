@@ -31,7 +31,7 @@ channel-ablation limits.
 - Superiority without a fair shared protocol against those systems  
 - AgentDojo / InjecAgent competitive scores (not run under free/local constraints)  
 - Calibrated P(causation) from reconstruction scores  
-- Production completeness (Cedar deferred; SSE/resources/prompts unsupported)
+- Production completeness (SSE/resources/prompts unsupported)
 
 ## Recommended paper framing
 

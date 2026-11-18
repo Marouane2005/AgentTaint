@@ -1,7 +1,7 @@
 # Security Policies
 
 **Status:** Milestone 5 implemented; M9 default MCP path uses provenance-aware policy  
-**Enforcement:** `StubPolicyAdapter` (M2 compatibility) + `ProvenanceAwarePolicy` (M5, **default** for `build_gateway_from_paths`). Cedar deferred.
+**Enforcement:** `StubPolicyAdapter` (M2 compatibility) + `ProvenanceAwarePolicy` (M5, **default** for `build_gateway_from_paths`). Since the Cedar change, the default for `build_gateway_from_paths` is `CedarProvenancePolicy` (`engine: cedar`), with `ProvenanceAwarePolicy` kept as the reference (`docs/cedar_policy.md`).
 
 ---
 

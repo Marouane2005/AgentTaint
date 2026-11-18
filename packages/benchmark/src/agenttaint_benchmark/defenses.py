@@ -6,11 +6,13 @@ faithful replications of CaMeL, FIDES, CapLite, or NeuroTaint.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
 from agenttaint_core.schemas import DecisionOutcome, Origin, RiskTier
 from agenttaint_policy.adapter import PolicyResult, ProvenanceAwarePolicy
+from agenttaint_policy.cedar_engine import CedarProvenancePolicy
 from agenttaint_policy.context import PolicyContext
 from agenttaint_reconstruction.engine import AblationMode
 
@@ -108,12 +110,15 @@ def build_policy(config: DefenseConfig) -> Any:
         return CoarseTaintPolicy()
     # Explicit / reconstruction / combined share ProvenanceAwarePolicy;
     # differences are in which evidence the gateway supplies.
-    return ProvenanceAwarePolicy(
+    reference = ProvenanceAwarePolicy(
         denylist_tools=set(),
         blocked_recipients=set(),  # measure provenance, not static denylist
         confirm_untrusted_influence=config.confirm_untrusted_influence,
         fail_closed_unknown_high=config.fail_closed_unknown_high,
     )
+    if os.environ.get("AGENTTAINT_POLICY_ENGINE", "cedar").strip().lower() == "python":
+        return reference
+    return CedarProvenancePolicy.from_reference(reference)
 
 
 def default_defense_matrix() -> list[DefenseConfig]:

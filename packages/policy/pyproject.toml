@@ -1,12 +1,13 @@
 [project]
 name = "agenttaint-policy"
 version = "0.1.0"
-description = "Deterministic policy adapter for AgentTaint (Cedar later)"
+description = "Deterministic Cedar-backed policy engine for AgentTaint"
 requires-python = ">=3.12"
 dependencies = [
   "agenttaint-core",
   "agenttaint-provenance",
   "pyyaml>=6.0.2",
+  "cedarpy>=4.1,<5",
 ]
 
 [build-system]
@@ -18,3 +19,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+agenttaint_policy = ["cedar/*.cedar", "cedar/*.json"]

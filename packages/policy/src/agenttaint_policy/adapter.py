@@ -1,6 +1,7 @@
 """Deterministic policy adapters.
 
-Cedar is deferred — do not claim Cedar enforcement until a real cedarpy backend lands.
+ProvenanceAwarePolicy is the executable reference for the Cedar engine
+(``cedar_engine.CedarProvenancePolicy``); both must stay in exact parity.
 """
 
 from __future__ import annotations

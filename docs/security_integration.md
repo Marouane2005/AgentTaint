@@ -1,7 +1,7 @@
 # Security Integration (Milestone 5)
 
 **Status:** Implemented (local MVP)  
-**Cedar:** Deferred — deterministic `ProvenanceAwarePolicy` only.
+**Cedar:** default engine (`CedarProvenancePolicy`); `ProvenanceAwarePolicy` is the parity-tested reference.
 
 ---
 

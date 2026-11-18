@@ -50,7 +50,7 @@ make benchmark-bge
 
 | Layer | Packages / apps |
 |-------|-----------------|
-| Core | `agenttaint-core`, `provenance`, `risk`, `policy`, `audit`, `reconstruction` |
+| Core | `agenttaint-core`, `provenance`, `risk`, `policy` (Cedar engine via `cedarpy`), `audit`, `reconstruction` |
 | Enforcement | `agenttaint-mcp-proxy`, `agenttaint-agent-sdk` |
 | Mocks | email, filesystem, http, shell (requires Docker; refuses to run without it; resource-limited, no network, unprivileged; limits exercised in the CI `docker-sandbox` job) |
 | Evaluation | `agenttaint-benchmark`, `scripts/run_m13_evaluation.py` |
@@ -73,6 +73,7 @@ and **UNKNOWN** lineage and never silently upgrades inference to fact.
 | [docs/research_contribution.md](docs/research_contribution.md) | Defensible vs unsupported claims |
 | [docs/related_work.md](docs/related_work.md) | CaMeL, FIDES, CapLite, NeuroTaint |
 | [docs/architecture.md](docs/architecture.md) | Components, MCP design, M10–M14 notes |
+| [docs/cedar_policy.md](docs/cedar_policy.md) | Cedar policies, schema, decision procedure, parity test |
 | [docs/threat_model.md](docs/threat_model.md) | Assets, attackers, trust boundaries |
 | [docs/limitations.md](docs/limitations.md) | Honest limits & assumptions |
 | [docs/install.md](docs/install.md) | Install, demo, environment variables |

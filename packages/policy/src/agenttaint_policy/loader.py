@@ -7,7 +7,8 @@ from typing import Any
 
 import yaml
 
-from agenttaint_policy.adapter import ProvenanceAwarePolicy, StubPolicyAdapter
+from agenttaint_policy.adapter import PolicyAdapter, ProvenanceAwarePolicy, StubPolicyAdapter
+from agenttaint_policy.cedar_engine import CedarProvenancePolicy
 
 
 def load_stub_policy(path: str | Path) -> StubPolicyAdapter:
@@ -36,3 +37,22 @@ def load_provenance_policy(path: str | Path) -> ProvenanceAwarePolicy:
         scrutinize_medium_undeclared=bool(raw.get("scrutinize_medium_undeclared", True)),
         fail_closed_unknown_medium=bool(raw.get("fail_closed_unknown_medium", False)),
     )
+
+
+POLICY_ENGINES = ("cedar", "python")
+
+
+def load_policy(path: str | Path) -> PolicyAdapter:
+    """Load the configured provenance policy engine (default: Cedar).
+
+    ``engine: python`` selects the reference implementation. Unknown engines are
+    rejected rather than silently falling back.
+    """
+    raw: dict[str, Any] = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    engine = str(raw.get("engine", "cedar")).strip().lower()
+    if engine not in POLICY_ENGINES:
+        raise ValueError(f"unknown policy engine {engine!r}; expected one of {POLICY_ENGINES}")
+    reference = load_provenance_policy(path)
+    if engine == "python":
+        return reference
+    return CedarProvenancePolicy.from_reference(reference)
