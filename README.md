@@ -9,17 +9,26 @@ decisions at a single gateway.
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Status (M14):** Research / demo release on a free/local stack. Synthetic
-> suite + adversarial tests are reproducible. AgentDojo / InjecAgent ASR are
-> **not evaluated**. Do not treat zero synthetic ASR as production attack
-> prevention. Details: [docs/research_report.md](docs/research_report.md).
+> **Status:** Research / demo release on a free/local stack. Synthetic suite and
+> adversarial tests are reproducible. AgentDojo is evaluated on a sampled subset
+> with a real free-tier model ([results](docs/external_results_agentdojo.md));
+> InjecAgent is not evaluated. Do not treat zero synthetic ASR as production
+> attack prevention. Details: [docs/technical_report.md](docs/technical_report.md).
+
+## Demo video
+
+[docs/media/agenttaint-demo.mp4](docs/media/agenttaint-demo.mp4) (27 s): real MCP
+proxy probe results (untrusted writes blocked, self-approval impossible, replay
+blocked), then the dashboard on a seeded session: console overview, provenance
+trace DAG, audit log and the human-only approval screen. Rebuild with
+`scripts/make_demo_video.sh`. Screenshots: [docs/screenshots](docs/screenshots/README.md).
 
 ## One-command demo
 
 ```bash
 make demo
 # Dashboard → http://127.0.0.1:3000
-# Click “Seed demo session”, then open Provenance / Gateway / Benchmark Lab
+# Click “Seed demo session”, then open Provenance / Audit / Confirmations
 ```
 
 Docker Compose alternative:
