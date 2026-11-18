@@ -69,6 +69,7 @@ make benchmark-bge
 | `AGENTTAINT_CONFIRM_SECRET` | **none (required)** | HMAC secret for confirmations; proxy refuses to start without it (≥32 chars, not a placeholder) |
 | `AGENTTAINT_SECURITY_DB_URL` | in-memory SQLite | Durable confirmation/nonce store; use a file or Postgres URL so the CLI/API can approve from another process |
 | `AGENTTAINT_TEST_POSTGRES_URL` | unset | Postgres reliability tests |
+| `AGENTTAINT_TEST_DOCKER` | unset | Set to `1` to run the Docker sandbox tests (`pytest -m docker`) |
 | `AGENTTAINT_API_ORIGIN` | `http://127.0.0.1:8080` | Dashboard → API rewrite target |
 
 ## Confirmation secret and out-of-band approval
@@ -100,3 +101,16 @@ The agent then retries the identical call with `_agenttaint.confirmation_id`.
 
 Local demos default to `AGENTTAINT_API_AUTH=off`. For any shared host, set a
 dashboard token and `AGENTTAINT_API_AUTH=required`.
+
+## Running the Postgres and Docker suites locally
+
+```bash
+# Postgres (any reachable database)
+python3 -m pip install "psycopg[binary]>=3.2.0"
+AGENTTAINT_TEST_POSTGRES_URL=postgresql+psycopg://user:pass@localhost:5432/agenttaint \
+  python3 -m pytest -m postgres -rs
+
+# Docker sandbox
+docker pull python:3.12-alpine
+AGENTTAINT_TEST_DOCKER=1 python3 -m pytest -m docker -rs
+```

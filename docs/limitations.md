@@ -31,7 +31,7 @@
 25. **Bootstrap multi-seed** quantifies sampling uncertainty on a fixed synthetic set — not stochastic LLM variance.  
 26. **AgentDojo** is installable but full free/local ASR evaluation was not completed (LLM-backed protocol).  
 27. **MCP wire:** confirmation IDs, parent span maps, and candidates travel in `_agenttaint` metadata on the protocol proxy; FastMCP helpers accept an `agenttaint` argument mapped to that object. Resources/prompts/SSE remain unsupported. Since M15 the agent cannot approve confirmations over MCP, cannot assert its own `agent_id`, and cannot override the provenance-context hash.  
-28. **Durable nonce/confirmation stores** default to in-memory SQLite unless `AGENTTAINT_SECURITY_DB_URL` is set; a file or Postgres URL is required for out-of-band approval from another process. Postgres support exists but its test is skipped in CI (no database service). Atomic consume closes the check-then-set race for single-use approvals.  
+28. **Durable nonce/confirmation stores** default to in-memory SQLite unless `AGENTTAINT_SECURITY_DB_URL` is set; a file or Postgres URL is required for out-of-band approval from another process. Postgres persistence (provenance graph, nonces, confirmations, concurrent single-use consume) runs in the CI `postgres` job against a `postgres:16` service container; the default job still uses SQLite. Atomic consume closes the check-then-set race for single-use approvals.  
 29. **Registry availability** is probed with a live `SELECT 1` (manual override remains for tests only).  
 30. **External benchmarks:** AgentDojo / InjecAgent full ASR remain **not evaluated** (see `docs/external_benchmarks_feasibility.md`).  
 31. **MCP compatibility** is stdio multi-process client↔proxy↔backend for mock email/filesystem/http/shell — not full-spec conformance (`docs/mcp_compatibility_m10.md`).  
@@ -48,7 +48,7 @@
 42. **Declared lineage is agent-asserted.** An agent can still declare *wrong* parents (for example a USER span). Missing lineage is now treated as UNKNOWN and, for MEDIUM sinks, triggers CONFIRM once the session has ingested untrusted content; declaring a misleading parent is a residual risk that only reconstruction evidence can partially catch.
 43. **Undeclared-lineage scrutiny is coarse for MEDIUM sinks:** after any untrusted read, every MEDIUM call without declared parents asks for confirmation (or blocks under `fail_closed_unknown_medium`). Agents that declare lineage keep full utility. The proxy only sees content that flows through it; untrusted input reaching the agent through other channels is invisible to this check.
 44. **The synthetic suite does not exercise MEDIUM sinks** (only `email.read`/`email.send`), so the M15 MEDIUM-tier change has no measured effect on the published benchmark numbers; its utility impact is covered only by unit tests.
-45. **Shell sandbox limits** (memory, CPU, pids, capabilities, user, timeout) are verified by command-line tests; CI has no Docker, so the container is not executed there.
+45. **Shell sandbox limits** are executed in the CI `docker-sandbox` job: commands run in a real container and the tests check uid/gid 65534, empty capability sets, no-new-privileges, loopback-only networking, read-only rootfs, noexec `/tmp`, cgroup memory/CPU/pids limits and the kill timeout. Docker is not a VM boundary; kernel escapes are out of scope.
 46. **Reconstruction's added value** over explicit lineage is not demonstrated on the current suite (`explicit_only` and `combined` have identical decision metrics).
 
 ## Operational

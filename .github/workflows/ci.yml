@@ -64,3 +64,67 @@ jobs:
 
       - name: ESLint
         run: npm run lint
+
+  postgres:
+    name: Postgres persistence
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          # Throwaway credentials for an ephemeral CI-only database container.
+          POSTGRES_USER: agenttaint
+          POSTGRES_PASSWORD: agenttaint
+          POSTGRES_DB: agenttaint
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agenttaint"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package workspace (with Postgres driver)
+        run: |
+          make install
+          python3 -m pip install "psycopg[binary]>=3.2.0"
+
+      - name: Postgres tests (must run, not skip)
+        env:
+          AGENTTAINT_TEST_POSTGRES_URL: postgresql+psycopg://agenttaint:agenttaint@localhost:5432/agenttaint
+        run: |
+          set -o pipefail
+          python3 -m pytest -m postgres -q -rs | tee pg.log
+          if grep -q SKIPPED pg.log; then echo "Postgres tests were skipped"; exit 1; fi
+
+  docker-sandbox:
+    name: Docker shell sandbox
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package workspace
+        run: make install
+
+      - name: Pull sandbox image
+        run: docker pull python:3.12-alpine
+
+      - name: Sandbox tests (must run, not skip)
+        env:
+          AGENTTAINT_TEST_DOCKER: "1"
+        run: |
+          set -o pipefail
+          python3 -m pytest -m docker -q -rs | tee docker.log
+          if grep -q SKIPPED docker.log; then echo "Docker tests were skipped"; exit 1; fi

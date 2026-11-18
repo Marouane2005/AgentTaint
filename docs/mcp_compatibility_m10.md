@@ -83,7 +83,7 @@ envelope keys) are stripped from the environment passed to downstream servers.
 | `agenttaint_mock_email` | `email.read`, `email.send` | Fixtures only |
 | `agenttaint_mock_filesystem` | `filesystem.read`, `filesystem.write` | Temp sandbox root |
 | `agenttaint_mock_http` | `http.get`, `http.post` | No real network |
-| `agenttaint_mock_shell` | `shell.execute` | Docker required; refuses host shell. Container limits: no network, read-only rootfs, `--cap-drop ALL`, `--user 65534:65534`, 256 MiB memory, 0.5 CPU, 64 pids, 10 s kill timeout (unit-tested command line; not executed in CI, which has no Docker) |
+| `agenttaint_mock_shell` | `shell.execute` | Docker required; refuses host shell. Container limits: no network, read-only rootfs, `--cap-drop ALL`, `--user 65534:65534`, 256 MiB memory, 0.5 CPU, 64 pids, 10 s kill timeout (command line unit-tested; container behaviour checked in the CI `docker-sandbox` job) |
 
 ## Do not claim
 

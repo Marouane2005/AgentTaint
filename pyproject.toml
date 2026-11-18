@@ -34,6 +34,7 @@ testpaths = ["tests"]
 asyncio_default_fixture_loop_scope = "function"
 markers = [
   "postgres: requires AGENTTAINT_TEST_POSTGRES_URL and psycopg",
+  "docker: requires AGENTTAINT_TEST_DOCKER=1 and a Docker daemon",
 ]
 pythonpath = [
   "packages/core/src",

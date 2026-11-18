@@ -52,7 +52,7 @@ make benchmark-bge
 |-------|-----------------|
 | Core | `agenttaint-core`, `provenance`, `risk`, `policy`, `audit`, `reconstruction` |
 | Enforcement | `agenttaint-mcp-proxy`, `agenttaint-agent-sdk` |
-| Mocks | email, filesystem, http, shell (requires Docker; refuses to run without it; resource-limited, no network, unprivileged — see `docs/mcp_compatibility_m10.md`) |
+| Mocks | email, filesystem, http, shell (requires Docker; refuses to run without it; resource-limited, no network, unprivileged; limits exercised in the CI `docker-sandbox` job) |
 | Evaluation | `agenttaint-benchmark`, `scripts/run_m13_evaluation.py` |
 | Control plane | `agenttaint-api` + Next.js dashboard (`apps/dashboard`) |
 

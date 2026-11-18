@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -150,9 +151,10 @@ def test_postgres_security_store_roundtrip() -> None:
     except ImportError:
         pytest.skip("psycopg not installed")
 
+    nonce = f"pg-nonce-{uuid.uuid4().hex}"  # unique: the database outlives test runs
     nonces = DurableNonceStore(url)
-    assert nonces.try_remember("pg-nonce-1") is True
-    assert nonces.try_remember("pg-nonce-1") is False
+    assert nonces.try_remember(nonce) is True
+    assert nonces.try_remember(nonce) is False
 
     svc = DurableConfirmationService(secret="pg", database_url=url)
     args = {"to": "bob@corp.example"}
