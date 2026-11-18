@@ -114,13 +114,15 @@ def test_cpu_limit_applied(backend: MockShellBackend) -> None:
 def test_pids_limit_applied_and_enforced(backend: MockShellBackend) -> None:
     value = _cgroup_value(backend, "pids.max", "pids/pids.max")
     assert int(value) == 64
+    # Try to start 120 background processes; the pids cgroup (64) must stop the
+    # shell from forking before it finishes the loop.
     out = _run(
         backend,
-        "i=0; fail=0; while [ $i -lt 120 ]; do (sleep 2) 2>/dev/null & "
-        "[ $? -ne 0 ] && fail=1; i=$((i+1)); done 2>/tmp/err; "
-        "grep -qi fork /tmp/err && echo LIMITED || echo UNLIMITED",
+        "i=0; while [ $i -lt 120 ]; do sleep 5 & i=$((i+1)); done; echo ALL_STARTED",
     )
-    assert "LIMITED" in out["stdout"].split(), out
+    assert "ALL_STARTED" not in out["stdout"], out
+    assert out["status"] != "ok", out
+    assert "fork" in out["stderr"].lower() or out["returncode"] != 0, out
 
 
 def test_timeout_kills_long_command() -> None:
