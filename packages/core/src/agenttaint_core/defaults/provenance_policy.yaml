@@ -1,0 +1,14 @@
+# Provenance-aware policy configuration.
+# engine: cedar  -> decisions come from packages/policy/src/agenttaint_policy/cedar/agenttaint.cedar
+# engine: python -> reference implementation (ProvenanceAwarePolicy); parity is tested exhaustively.
+engine: cedar
+denylist_tools: []
+blocked_recipients:
+  - attacker@example.com
+confirm_untrusted_influence: false
+fail_closed_unknown_high: false
+# MEDIUM sinks (external http.get, filesystem.write) with no declared lineage
+# after the session has read untrusted content: CONFIRM, or BLOCK if fail-closed.
+confirm_medium_untrusted: true
+scrutinize_medium_undeclared: true
+fail_closed_unknown_medium: false

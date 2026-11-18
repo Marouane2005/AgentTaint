@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { TokenGate } from "@/components/TokenGate";
 
 const TABS = [
   { href: "/", label: "Overview" },
@@ -45,6 +46,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </span>
       </header>
       <main className={pathname.startsWith("/provenance") ? "frame-main full" : "frame-main"}>
+        <TokenGate />
         {children}
       </main>
     </div>

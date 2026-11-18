@@ -1,6 +1,6 @@
 [project]
 name = "agenttaint-policy"
-version = "0.1.0"
+version = "1.0.0"
 description = "Deterministic Cedar-backed policy engine for AgentTaint"
 requires-python = ">=3.12"
 dependencies = [

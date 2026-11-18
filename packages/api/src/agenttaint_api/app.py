@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import os
 import re
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
@@ -15,6 +16,7 @@ from agenttaint_api.state import (
     clear_session,
     export_graph,
     get_state,
+    live_database_url,
     load_benchmark_summary,
     seed_demo_session,
 )
@@ -71,7 +73,7 @@ def _validate_id(value: str, label: str) -> str:
 
 app = FastAPI(
     title="AgentTaint Control Plane",
-    version="0.1.0",
+    version="1.0.0",
     description=(
         "Read-only + demo-seed API over real provenance/audit stores. "
         "Does not bypass the MCP SecurityGateway. Local-trust by default; "
@@ -86,6 +88,15 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Accept", "Content-Type", "X-AgentTaint-Token", "X-AgentTaint-Approver"],
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    return response
 
 
 @app.middleware("http")
@@ -254,6 +265,11 @@ def demo_seed(
     """Run the labeled demo scenario through the real enforcement path."""
     if _auth_mode() == "mutations":
         _require_local_token(x_agenttaint_token)
+    if live_database_url():
+        raise HTTPException(
+            status_code=409,
+            detail="disabled while connected to a live proxy database (AGENTTAINT_DATABASE_URL)",
+        )
     return seed_demo_session()
 
 
@@ -264,6 +280,11 @@ def session_clear(
     """Reset in-memory demo/live session stores without touching benchmark files."""
     if _auth_mode() == "mutations":
         _require_local_token(x_agenttaint_token)
+    if live_database_url():
+        raise HTTPException(
+            status_code=409,
+            detail="disabled while connected to a live proxy database (AGENTTAINT_DATABASE_URL)",
+        )
     state = clear_session()
     return {
         "ok": True,
@@ -392,3 +413,30 @@ def deny_confirmation(
 ) -> dict[str, Any]:
     _require_approval_token(x_agenttaint_token, x_agenttaint_approver)
     return _decide(confirmation_id, approve=False)
+
+
+# --- Bundled dashboard UI -------------------------------------------------------
+#
+# ``npm run build:static`` in apps/dashboard produces a static bundle. When it is
+# available (AGENTTAINT_UI_DIR, or shipped inside this package as ``ui/``) the
+# control plane serves it at ``/`` so one process and one origin cover API + UI.
+# Static files are public; every /api/v1 route keeps its own auth.
+
+
+def ui_directory() -> Path | None:
+    configured = os.environ.get("AGENTTAINT_UI_DIR", "").strip()
+    candidate = Path(configured) if configured else Path(__file__).resolve().parent / "ui"
+    if (candidate / "index.html").is_file():
+        return candidate
+    return None
+
+
+def _mount_ui() -> None:
+    from fastapi.staticfiles import StaticFiles
+
+    directory = ui_directory()
+    if directory is not None:
+        app.mount("/", StaticFiles(directory=directory, html=True), name="ui")
+
+
+_mount_ui()

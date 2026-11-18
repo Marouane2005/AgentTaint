@@ -19,6 +19,7 @@ install:
 	$(PYTHON) -m pip install -e "./packages/mcp_proxy"
 	$(PYTHON) -m pip install -e "./packages/benchmark"
 	$(PYTHON) -m pip install -e "./packages/api"
+	$(PYTHON) -m pip install -e "./packages/cli"
 	$(PYTHON) -m pip install -e ".[dev]"
 
 test:
@@ -44,7 +45,8 @@ eval-m13:
 typecheck:
 	$(PYTHON) -m mypy packages/core/src packages/provenance/src packages/risk/src \
 		packages/policy/src packages/audit/src packages/reconstruction/src \
-		packages/agent_sdk/src packages/mcp_proxy/src integrations/mock_email/src
+		packages/agent_sdk/src packages/mcp_proxy/src integrations/mock_email/src \
+		packages/cli/src
 
 api:
 	HOST=127.0.0.1 PORT=$(API_PORT) $(PYTHON) -m agenttaint_api

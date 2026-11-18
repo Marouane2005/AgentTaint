@@ -5,8 +5,34 @@ export type SessionInfo = {
   notes?: string[];
 };
 
+const TOKEN_KEY = "agenttaint.dashboardToken";
+
+/** Dashboard read token typed by the operator; kept for this browser tab only. */
+export function getSessionToken(): string {
+  try {
+    return typeof window === "undefined" ? "" : window.sessionStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setSessionToken(value: string) {
+  try {
+    if (value) window.sessionStorage.setItem(TOKEN_KEY, value);
+    else window.sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable: token stays unset */
+  }
+}
+
+export class UnauthorizedError extends Error {}
+
 function authHeaders(): HeadersInit {
-  // Optional shared secret for mutating endpoints when API is token-gated.
+  // Self-hosted deployments run with AGENTTAINT_API_AUTH=required: the operator
+  // types the dashboard token once per tab (never bundled into the build).
+  const typed = getSessionToken();
+  if (typed) return { "X-AgentTaint-Token": typed };
+  // Legacy local-dev option for a build-time token.
   if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_AGENTTAINT_TOKEN) {
     return { "X-AgentTaint-Token": process.env.NEXT_PUBLIC_AGENTTAINT_TOKEN };
   }
@@ -25,6 +51,7 @@ async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text();
+    if (res.status === 401) throw new UnauthorizedError(`401 ${path}: ${text}`);
     throw new Error(`${res.status} ${path}: ${text}`);
   }
   return res.json() as Promise<T>;

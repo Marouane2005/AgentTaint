@@ -11,4 +11,4 @@ __all__ = [
     "build_gateway_from_paths",
     "create_security_proxy",
 ]
-__version__ = "0.1.0"
+__version__ = "1.0.0"

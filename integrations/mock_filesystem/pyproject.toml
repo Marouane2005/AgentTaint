@@ -1,6 +1,6 @@
 [project]
 name = "agenttaint-mock-filesystem"
-version = "0.1.0"
+version = "1.0.0"
 description = "Local mock filesystem MCP server for AgentTaint"
 requires-python = ">=3.12"
 dependencies = [

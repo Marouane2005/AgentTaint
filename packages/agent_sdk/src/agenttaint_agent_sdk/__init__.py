@@ -37,4 +37,4 @@ __all__ = [
     "format_confirmation_prompt",
     "interactive_confirm",
 ]
-__version__ = "0.1.0"
+__version__ = "1.0.0"

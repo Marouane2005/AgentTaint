@@ -1009,3 +1009,17 @@ table.mini td {
     display: none;
   }
 }
+
+.token-gate {
+  display: grid;
+  gap: 8px;
+  max-width: 520px;
+  margin: 0 0 16px;
+}
+.token-gate input {
+  background: #0b1626;
+  border: 1px solid #1f3a55;
+  color: inherit;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
