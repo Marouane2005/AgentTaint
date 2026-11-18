@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { TokenGate } from "@/components/TokenGate";
+import { useDemoMode } from "@/lib/useDemoMode";
 
 const TABS = [
-  { href: "/", label: "Overview" },
+  { href: "/overview", label: "Overview" },
+  { href: "/demo", label: "Run a scenario" },
   { href: "/provenance", label: "Provenance" },
   { href: "/audit", label: "Audit" },
   { href: "/confirmations", label: "Confirmations" },
@@ -15,12 +17,19 @@ const TABS = [
   { href: "/benchmarks", label: "Benchmarks" },
 ];
 
+// Product site pages render without the console frame.
+const SITE_PREFIXES = ["/product", "/limitations", "/admin", "/terms", "/privacy", "/refunds"];
+
 export function Shell({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+  const pathname = usePathname() || "/";
+  const demo = useDemoMode();
+  if (SITE_PREFIXES.some((p) => pathname.startsWith(p))) {
+    return <>{children}</>;
+  }
   return (
     <div className="app-frame">
       <header className="topnav">
-        <Link href="/" className="topnav-brand">
+        <Link href={demo ? "/product" : "/overview"} className="topnav-brand">
           <span className="brand-glyph" aria-hidden>
             AT
           </span>
@@ -28,7 +37,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </Link>
         <nav aria-label="Main">
           {TABS.map((t) => {
-            const active = t.href === "/" ? pathname === "/" : pathname.startsWith(t.href);
+            const active = pathname.startsWith(t.href);
             return (
               <Link
                 key={t.href}
@@ -41,9 +50,15 @@ export function Shell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <span className="research-chip" title="Synthetic + adversarial evidence only">
-          Research demo · not production ASR
-        </span>
+        {demo ? (
+          <span className="research-chip" title="Mock tools and synthetic scenarios only">
+            Public demo · synthetic data · approvals locked
+          </span>
+        ) : (
+          <span className="research-chip" title="Synthetic + adversarial evidence only">
+            AgentTaint 1.0
+          </span>
+        )}
       </header>
       <main className={pathname.startsWith("/provenance") ? "frame-main full" : "frame-main"}>
         <TokenGate />

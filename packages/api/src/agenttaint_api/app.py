@@ -10,8 +10,13 @@ from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field
 
+from agenttaint_api import demo as demo_mod
+from agenttaint_api.ratelimit import SlidingWindowLimiter, client_address, rule_for
+from agenttaint_api.site import router as site_router
+from agenttaint_api.site import site_enabled
 from agenttaint_api.state import (
     clear_session,
     export_graph,
@@ -86,8 +91,38 @@ app.add_middleware(
     allow_origins=_cors_origins(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Accept", "Content-Type", "X-AgentTaint-Token", "X-AgentTaint-Approver"],
+    allow_headers=[
+        "Accept",
+        "Content-Type",
+        "X-AgentTaint-Token",
+        "X-AgentTaint-Approver",
+        "X-AgentTaint-Admin",
+    ],
 )
+
+LIMITER = SlidingWindowLimiter()
+
+
+def _rate_limit_enabled() -> bool:
+    flag = os.environ.get("AGENTTAINT_RATE_LIMIT", "").strip().lower()
+    if flag in {"0", "off", "false"}:
+        return False
+    return demo_mod.demo_mode() or flag in {"1", "on", "true"}
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):  # type: ignore[no-untyped-def]
+    if _rate_limit_enabled():
+        rule = rule_for(request.method.upper(), request.url.path)
+        if rule is not None:
+            wait = LIMITER.check(rule, client_address(request))
+            if wait > 0:
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too many requests. Please slow down."},
+                    headers={"Retry-After": str(max(1, int(wait) + 1))},
+                )
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -141,6 +176,8 @@ def health() -> dict[str, Any]:
         "audit_ok": audit_ok,
         "session_mode": state.session.mode,
         "auth_mode": _auth_mode(),
+        "demo_mode": demo_mod.demo_mode(),
+        "site_enabled": site_enabled(),
     }
 
 
@@ -280,6 +317,8 @@ def session_clear(
     x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
 ) -> dict[str, Any]:
     """Reset in-memory demo/live session stores without touching benchmark files."""
+    if demo_mod.demo_mode():
+        raise HTTPException(status_code=403, detail="disabled in the public demo")
     if _auth_mode() == "mutations":
         _require_local_token(x_agenttaint_token)
     if live_database_url():
@@ -314,7 +353,14 @@ def _require_approval_token(
     ``X-AgentTaint-Approver``. It must differ from the dashboard read token so a
     token baked into the dashboard bundle (``NEXT_PUBLIC_*``) can never approve.
     Fallback (legacy): the dashboard token in either header.
+    The public demo never approves anything, whatever headers are sent.
     """
+    if demo_mod.demo_mode():
+        raise HTTPException(
+            status_code=403,
+            detail="Approvals are disabled in the public demo. In AgentTaint Pro a person "
+            "approves held calls with a separate approver token or the CLI.",
+        )
     approver = os.environ.get("AGENTTAINT_APPROVER_TOKEN", "").strip()
     dashboard = os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip()
     if approver:
@@ -415,6 +461,55 @@ def deny_confirmation(
 ) -> dict[str, Any]:
     _require_approval_token(x_agenttaint_token, x_agenttaint_approver)
     return _decide(confirmation_id, approve=False)
+
+
+# --- Demo scenarios ---------------------------------------------------------------
+
+
+class DemoRun(BaseModel):
+    scenario_id: str = Field(min_length=1, max_length=128)
+
+
+@app.get("/api/v1/demo/scenarios")
+def demo_scenarios() -> dict[str, Any]:
+    """Synthetic scenarios a visitor can replay through the real gateway."""
+    try:
+        return {"demo_mode": demo_mod.demo_mode(), "scenarios": demo_mod.catalog()}
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail="benchmark scenarios not installed") from exc
+
+
+@app.post("/api/v1/demo/run")
+def demo_run(body: DemoRun) -> dict[str, Any]:
+    if live_database_url():
+        raise HTTPException(
+            status_code=409,
+            detail="disabled while connected to a live proxy database (AGENTTAINT_DATABASE_URL)",
+        )
+    _validate_id(body.scenario_id, "scenario_id")
+    try:
+        return demo_mod.run(body.scenario_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="unknown scenario") from exc
+
+
+app.include_router(site_router)
+
+
+@app.on_event("startup")
+def _seed_public_demo() -> None:
+    if demo_mod.demo_mode() and not live_database_url():
+        demo_mod.seed_if_empty()
+
+
+@app.get("/", include_in_schema=False, response_model=None)
+def root() -> RedirectResponse | JSONResponse:
+    """Public demo lands on the product page; self-hosted lands on the console."""
+    if demo_mod.demo_mode():
+        return RedirectResponse(url="/product/", status_code=307)
+    if ui_directory() is not None:
+        return RedirectResponse(url="/overview/", status_code=307)
+    return JSONResponse({"service": "agenttaint", "docs": "/docs"})
 
 
 # --- Bundled dashboard UI -------------------------------------------------------

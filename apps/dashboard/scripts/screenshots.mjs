@@ -33,7 +33,7 @@ async function shot(name) {
 }
 
 // Overview: seed through the real gateway first.
-await page.goto(`${base}/`);
+await page.goto(`${base}/overview`);
 await page.getByRole("button", { name: /Seed demo session/ }).click();
 await page.waitForSelector(".kpi-value");
 await page.waitForFunction(() => document.querySelectorAll(".data-table tbody tr").length > 3);

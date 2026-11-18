@@ -6,9 +6,13 @@ const apiOrigin = process.env.AGENTTAINT_API_ORIGIN || "http://127.0.0.1:8080";
 // plane serves itself (same origin, no Node server needed in production).
 const staticExport = process.env.AGENTTAINT_STATIC_EXPORT === "1";
 
+// Paddle client-side tokens are public by design; map the deploy env var in.
+const env = { NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: process.env.PADDLE_CLIENT_TOKEN || "" };
+
 const nextConfig: NextConfig = staticExport
-  ? { output: "export", trailingSlash: true, images: { unoptimized: true } }
+  ? { env, output: "export", trailingSlash: true, images: { unoptimized: true } }
   : {
+      env,
       async rewrites() {
         return [
           {

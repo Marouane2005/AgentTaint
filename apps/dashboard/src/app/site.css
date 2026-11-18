@@ -1,0 +1,89 @@
+/* Product site (landing, legal, limitations) and demo runner. Dark navy + cyan. */
+.site {
+  --cyan: #22d3ee;
+  --cyan-dim: rgba(34, 211, 238, 0.12);
+  --cyan-border: rgba(34, 211, 238, 0.35);
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 500px at 70% -10%, rgba(34, 211, 238, 0.10), transparent 60%),
+    var(--bg);
+  color: var(--text);
+}
+.site a { color: var(--cyan); text-decoration: none; }
+.site a:hover { text-decoration: underline; }
+.site-header {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 1160px; margin: 0 auto; padding: 18px 24px;
+}
+.site-brand { display: flex; gap: 10px; align-items: center; color: var(--text) !important; }
+.site-header nav { display: flex; gap: 22px; align-items: center; font-size: 0.95rem; }
+.site-header nav a { color: var(--text-secondary); }
+.site-header nav a.site-cta {
+  color: #031318; background: var(--cyan); padding: 7px 14px; border-radius: 8px; font-weight: 600;
+}
+.site main { max-width: 1160px; margin: 0 auto; padding: 0 24px 48px; }
+.site .eyebrow { color: var(--cyan); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.75rem; }
+.hero { padding: 56px 0 24px; text-align: center; }
+.hero h1 { font-size: clamp(2rem, 4.4vw, 3.4rem); line-height: 1.1; margin: 12px auto 18px; max-width: 900px; }
+.hero .accent { color: var(--cyan); }
+.lead { color: var(--text-secondary); font-size: 1.15rem; line-height: 1.6; max-width: 780px; margin: 0 auto; }
+.doc .lead { margin: 0 0 24px; }
+.hero-cta { display: flex; gap: 12px; justify-content: center; margin: 28px 0 10px; }
+.site .btn { background: var(--cyan); color: #031318; border: 1px solid var(--cyan); font-weight: 600; }
+.site .btn.secondary { background: transparent; color: var(--cyan); border-color: var(--cyan-border); }
+.site .btn.big { padding: 12px 22px; font-size: 1rem; }
+.fine { color: var(--text-muted); font-size: 0.85rem; }
+.hero-shot { margin: 36px auto 0; max-width: 1040px; border: 1px solid var(--cyan-border); border-radius: 14px; overflow: hidden; box-shadow: 0 20px 80px rgba(34, 211, 238, 0.12); }
+.hero-shot img, .shots img { display: block; width: 100%; height: auto; }
+.band { padding: 48px 0 8px; }
+.band h2 { font-size: 1.7rem; margin: 0 0 22px; }
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.feature, .plan { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.feature h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--cyan); }
+.feature p, .steps p, .honest li { color: var(--text-secondary); line-height: 1.6; }
+.steps { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.steps li { display: flex; gap: 14px; background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.steps h3 { margin: 0 0 6px; font-size: 1rem; }
+.step-n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--cyan-dim); color: var(--cyan); border: 1px solid var(--cyan-border); font-weight: 700; }
+.code { background: #070b10; border: 1px solid var(--line); border-radius: 10px; padding: 16px; color: #b8f3fb; overflow-x: auto; font-size: 0.85rem; }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 18px; }
+.shots figure { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg-panel); }
+.shots figcaption { padding: 10px 14px; color: var(--text-secondary); font-size: 0.9rem; }
+.honest { padding-left: 20px; }
+.honest li { margin: 6px 0; }
+.pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; max-width: 860px; }
+.plan h3 { margin: 0; }
+.plan.featured { border-color: var(--cyan-border); box-shadow: 0 0 0 1px var(--cyan-border) inset; }
+.price { font-size: 2.2rem; font-weight: 700; margin: 8px 0 12px; }
+.price span { font-size: 1rem; color: var(--text-muted); font-weight: 400; }
+.plan ul { padding-left: 18px; color: var(--text-secondary); line-height: 1.8; margin: 0 0 18px; }
+.waitlist { display: grid; gap: 8px; margin-top: 8px; }
+.waitlist-row { display: flex; gap: 8px; }
+.waitlist input, .doc input { flex: 1; background: #0b1626; border: 1px solid var(--line-strong); color: inherit; padding: 10px 12px; border-radius: 8px; }
+.waitlist .hp { position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }
+.form-msg { color: var(--allow); margin: 0; }
+.form-msg.error { color: var(--block); }
+.doc { max-width: 860px !important; padding-top: 24px !important; }
+.doc h1 { font-size: 2.2rem; margin: 8px 0 12px; }
+.doc h2 { margin-top: 28px; font-size: 1.25rem; }
+.legal p, .legal li { color: var(--text-secondary); line-height: 1.7; }
+.site-footer {
+  max-width: 1160px; margin: 0 auto; padding: 28px 24px 40px; border-top: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; color: var(--text-muted); font-size: 0.88rem;
+}
+
+/* Demo runner (inside the console frame) */
+.demo-grid { display: grid; grid-template-columns: minmax(340px, 1fr) minmax(380px, 1.1fr); gap: 16px; }
+@media (max-width: 1000px) { .demo-grid { grid-template-columns: 1fr; } }
+.scenario-list, .result-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.scenario-item { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-panel-2); }
+.scenario-item p { margin: 6px 0 2px; }
+.result-item { padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-panel-2); display: grid; gap: 8px; }
+.ri-head { display: flex; justify-content: space-between; gap: 10px; }
+.ri-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ri-meta { color: var(--text-muted); }
+.ri-links { display: flex; gap: 16px; }
+.seg { display: flex; gap: 6px; }
+.demo-grid { align-items: start; }
+.demo-grid .scenario-list { max-height: calc(100vh - 260px); overflow-y: auto; padding-right: 4px; }
+.demo-grid > section:last-child { position: sticky; top: 12px; max-height: calc(100vh - 140px); overflow-y: auto; }

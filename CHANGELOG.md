@@ -24,6 +24,14 @@ First commercial release (AgentTaint Pro, self-hosted).
 - Release bundle script (`scripts/build_release.sh`), quickstart, configuration
   reference and operations guide.
 
+- Public demo mode (`AGENTTAINT_DEMO_MODE=1`): runnable synthetic scenarios
+  (undefended vs AgentTaint), approvals and session resets locked, per-client
+  and global rate limits; product site with pricing, limitations, terms,
+  privacy and refund pages; Pro waitlist stored in the database with a
+  token-protected admin view; Paddle overlay checkout when
+  `PADDLE_CLIENT_TOKEN` is set.
+- Console overview moved to `/overview`.
+
 ### Changed
 - All packages versioned 1.0.0. The source workspace project is now
   `agenttaint-workspace`; the name `agenttaint` belongs to the CLI distribution.
