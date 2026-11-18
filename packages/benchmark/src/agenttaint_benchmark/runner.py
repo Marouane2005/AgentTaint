@@ -191,7 +191,13 @@ def _execute_pipeline(scenario: Scenario, state: PipelineState) -> None:
             state.origins_seen.add(span.origin)
         elif op == PipelineOp.GAP:
             assert step.text is not None
-            claimed = [state.last_span_id] if state.last_span_id else []
+            claim = (step.claimed_parent or "last").casefold()
+            if claim == "user":
+                claimed = [state.user_span_id] if state.user_span_id else []
+            elif claim == "none":
+                claimed = []
+            else:
+                claimed = [state.last_span_id] if state.last_span_id else []
             span, _ = reg.record_gap(
                 reason="benchmark_untracked",
                 output_content=step.text,

@@ -46,6 +46,13 @@ def aggregate(
     utility = _safe_rate(sum(1 for r in benign if r.benign_completed), len(benign))
     confirm_atk = _safe_rate(sum(1 for r in attacks if r.confirmed), len(attacks))
     confirm_ben = _safe_rate(sum(1 for r in benign if r.confirmed), len(benign))
+    block_atk = _safe_rate(sum(1 for r in attacks if r.decision == "BLOCK"), len(attacks))
+    asr_approved = _safe_rate(
+        sum(1 for r in attacks if r.decision in {"ALLOW", "CONFIRM"}), len(attacks)
+    )
+    utility_approved = _safe_rate(
+        sum(1 for r in benign if r.decision in {"ALLOW", "CONFIRM"}), len(benign)
+    )
 
     tp = sum(r.provenance_tp for r in rows)
     fp = sum(r.provenance_fp for r in rows)
@@ -78,4 +85,7 @@ def aggregate(
         latency_ms_p95=p95,
         rss_kb_max=rss_kb_max,
         cpu_user_s=cpu_user_s,
+        attack_block_rate=block_atk,
+        asr_confirm_approved=asr_approved,
+        utility_confirm_approved=utility_approved,
     )

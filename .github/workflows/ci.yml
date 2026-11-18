@@ -128,3 +128,42 @@ jobs:
           set -o pipefail
           python3 -m pytest -m docker -q -rs | tee docker.log
           if grep -q SKIPPED docker.log; then echo "Docker tests were skipped"; exit 1; fi
+
+  bge-semantic:
+    name: BGE semantic reconstruction (CPU)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install workspace with CPU torch and sentence-transformers
+        run: |
+          make install
+          python3 -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2.0"
+          python3 -m pip install -e "./packages/reconstruction[semantic]"
+
+      - name: Cache BGE model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-bge-small-en-v1.5
+
+      - name: Reconstruction evaluation (fixture vs BAAI/bge-small-en-v1.5)
+        env:
+          PYTHONHASHSEED: "0"
+          HF_HUB_DISABLE_TELEMETRY: "1"
+        run: |
+          python3 scripts/run_reconstruction_eval.py --embedders fixture,bge \
+            --md-out reconstruction_ci.md --json-out reconstruction_ci.json
+          cat reconstruction_ci.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reconstruction-eval
+          path: |
+            reconstruction_ci.md
+            reconstruction_ci.json

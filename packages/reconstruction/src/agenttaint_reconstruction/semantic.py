@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)
@@ -72,7 +72,7 @@ class SentenceTransformerBackend:
 
     def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5") -> None:
         self._model_name = model_name
-        self._model = None
+        self._model: Any = None
 
     @property
     def model_name(self) -> str:
@@ -81,7 +81,7 @@ class SentenceTransformerBackend:
     def _load(self) -> None:
         if self._model is not None:
             return
-        from sentence_transformers import (  # type: ignore[import-not-found]
+        from sentence_transformers import (  # type: ignore[import-not-found,unused-ignore]
             SentenceTransformer,
         )
 
@@ -98,7 +98,7 @@ def try_create_default_semantic_backend() -> EmbeddingBackend | None:
     """Return SentenceTransformer backend if extras are installed; else None."""
     try:
         import sentence_transformers  # noqa: F401
-        import torch  # type: ignore[import-not-found]  # noqa: F401
+        import torch  # type: ignore[import-not-found,unused-ignore]  # noqa: F401
     except ImportError:
         return None
     return SentenceTransformerBackend()

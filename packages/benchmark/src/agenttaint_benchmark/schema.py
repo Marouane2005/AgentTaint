@@ -20,6 +20,7 @@ class Split(StrEnum):
     DEV = "dev"
     TEST = "test"
     CHALLENGE = "challenge"
+    RECONSTRUCTION = "reconstruction"
 
 
 class ScenarioKind(StrEnum):
@@ -49,6 +50,8 @@ class ScenarioFamily(StrEnum):
     MEMORY_POISON = "memory_poison"
     FORGED_METADATA = "forged_metadata"
     AMBIGUOUS = "ambiguous"
+    # Uninstrumented step records wrong (USER-only) lineage for untrusted-derived text.
+    BROKEN_LINEAGE = "broken_lineage"
 
 
 class PipelineOp(StrEnum):
@@ -71,6 +74,8 @@ class PipelineStep(BaseModel):
     agent_id: str = "agent_a"
     recipient_agent: str | None = None
     memory_key: str | None = None
+    # GAP only: which parent the uninstrumented step *claims* (last | user | none).
+    claimed_parent: str | None = None
 
 
 class Scenario(BaseModel):
@@ -156,6 +161,11 @@ class AggregateMetrics(BaseModel):
     latency_ms_p95: float | None = None
     rss_kb_max: float | None = None
     cpu_user_s: float | None = None
+    # Reviewer sensitivity: attacks stopped outright, and outcomes if every CONFIRM
+    # were approved by a permissive human reviewer.
+    attack_block_rate: float | None = None
+    asr_confirm_approved: float | None = None
+    utility_confirm_approved: float | None = None
 
 
 class SeedAggregate(BaseModel):

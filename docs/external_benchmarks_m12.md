@@ -34,10 +34,12 @@ embedder) the two still match on every decision metric:
 The no-lineage scenarios are stopped by fail-closed handling of UNKNOWN
 provenance (CONFIRM/BLOCK), not by reconstruction. Reconstruction contributes
 inspectable evidence (provenance P=1.000, R=0.976, F1=0.988 for `combined`), but
-**its added decision value over explicit lineage is not demonstrated on the
-current suite.** A suite where reconstruction changes outcomes (for example,
-scenarios where UNKNOWN is allowed by policy and only reconstruction can flag
-influence) is still needed.
+**its added decision value over explicit lineage is not demonstrated by strict
+ASR on this suite.** Follow-up: `docs/benchmark_results_reconstruction.md` adds
+reviewer-sensitivity metrics (attacks BLOCKed outright; ASR if every CONFIRM were
+approved) and a `reconstruction` split with broken USER-only lineage. There,
+explicit lineage BLOCKs 80.5% (test) and 0% (reconstruction split) of attacks,
+versus 100% and 81.2% for combined AgentTaint with the fixture embedder.
 
 ## Fair comparison note
 
