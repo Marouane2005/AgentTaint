@@ -167,3 +167,21 @@ def list_waitlist(
             headers={"Content-Disposition": "attachment; filename=agenttaint-waitlist.csv"},
         )
     return {"count": len(entries), "entries": entries}
+
+
+@router.delete("/api/v1/admin/waitlist/{email}")
+def delete_waitlist_entry(
+    email: str,
+    x_agenttaint_admin: str | None = Header(default=None, alias="X-AgentTaint-Admin"),
+) -> dict[str, Any]:
+    """Remove one signup (e.g. a deletion request under the privacy policy)."""
+    _require_enabled()
+    _require_admin(x_agenttaint_admin)
+    target = email.strip().lower()[:320]
+    with Session(engine()) as session:
+        row = session.scalars(select(WaitlistEntry).where(WaitlistEntry.email == target)).first()
+        if row is None:
+            raise HTTPException(status_code=404, detail="not on the waitlist")
+        session.delete(row)
+        session.commit()
+    return {"ok": True, "deleted": target}

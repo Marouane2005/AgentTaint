@@ -76,6 +76,8 @@ DEMO_RULES: list[tuple[str, str, Rule]] = [
     ("POST", "/api/v1/waitlist", Rule("waitlist", 5, 200, 3600)),
     ("GET", "/api/v1/admin/", Rule("admin", 10, 60, 60)),
     ("POST", "/api/v1/demo/run", Rule("demo_run", 12, 240, 60)),
+    ("POST", "/api/v1/demo/custom", Rule("demo_custom", 8, 160, 60)),
+    ("DELETE", "/api/v1/admin/", Rule("admin_write", 10, 30, 60)),
     ("POST", "/api/v1/demo/seed", Rule("demo_seed", 2, 10, 60)),
     ("GET", "/api/v1/", Rule("api_read", 240, 6000, 60)),
 ]
