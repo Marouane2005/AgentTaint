@@ -255,7 +255,7 @@ evaluation on models that actually follow injections.
 3. E. Debenedetti, J. Zhang, M. Balunović, L. Beurer-Kellner, M. Fischer, F. Tramèr. AgentDojo: A dynamic environment to evaluate prompt injection attacks and defenses for LLM agents. NeurIPS 2024 Datasets and Benchmarks. arXiv:2406.13352.
 4. K. Hines et al. Defending against indirect prompt injection attacks with spotlighting. arXiv:2403.14720, 2024.
 5. S. Chen, J. Piet, C. Sitawarin, D. Wagner. StruQ: Defending against prompt injection with structured queries. USENIX Security 2025. arXiv:2402.06363.
-6. S. Willison. The dual LLM pattern for building AI assistants that can resist prompt injection. Blog post, 2023.
+6. S. Willison. The dual LLM pattern (blog post, simonwillison.net), April 2023.
 7. E. Debenedetti et al. Defeating prompt injections by design. arXiv:2503.18813, 2025.
 8. M. Costa et al. Securing AI agents with information-flow control. arXiv:2505.23643, 2025.
 9. J. Newsome, D. Song. Dynamic taint analysis for automatic detection, analysis, and signature generation of exploits on commodity software. NDSS 2005.
