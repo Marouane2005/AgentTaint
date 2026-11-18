@@ -416,7 +416,6 @@ def _seed_benchmark_traces(state: AppState) -> str:
     try:
         from agenttaint_benchmark.defenses import DefenseConfig
         from agenttaint_benchmark.loader import load_scenarios
-        from agenttaint_benchmark.runner import run_scenario
         from agenttaint_benchmark.schema import AblationModeName, DefenseMode
     except ImportError:
         return "Benchmark package not installed: replay of synthetic scenarios skipped."
@@ -435,33 +434,7 @@ def _seed_benchmark_traces(state: AppState) -> str:
     defense = DefenseConfig(DefenseMode.COMBINED, AblationModeName.COMBINED)
     confirmation = _seed_confirmation_service()
     for scenario in picked:
-        spans_before = {sp.span_id for sp in state.registry.store.list_spans()}
-        calls_before = {d.call_id for d in state.audit.list_decisions(limit=500)}
-        result = run_scenario(
-            scenario,
-            defense,
-            registry=state.registry,
-            audit=state.audit,
-            confirmation=confirmation,
-        )
-        new_spans = [
-            sp.span_id for sp in state.registry.store.list_spans() if sp.span_id not in spans_before
-        ]
-        decisions = state.audit.list_decisions(limit=500)
-        new_calls = [d.call_id for d in decisions if d.call_id not in calls_before]
-        state.traces.append(
-            {
-                "trace_id": scenario.scenario_id,
-                "label": scenario.description or scenario.scenario_id,
-                "kind": scenario.kind.value,
-                "family": scenario.family.value,
-                "source": "benchmark_test_split",
-                "decision": result.decision,
-                "span_ids": new_spans,
-                "call_ids": new_calls,
-                "calls": [{"call_ids": new_calls, "span_ids": new_spans}],
-            }
-        )
+        replay_scenario(state, scenario, defense, confirmation, source="benchmark_test_split")
     note = (
         f"{len(picked)} held-out and challenge synthetic benchmark scenarios replayed through real "
         "gateways (combined defense)."
@@ -469,6 +442,47 @@ def _seed_benchmark_traces(state: AppState) -> str:
     if confirmation is not None:
         note += " CONFIRM decisions are queued for human approval."
     return note
+
+
+def replay_scenario(
+    state: AppState,
+    scenario: Any,
+    defense: Any,
+    confirmation: Any | None,
+    *,
+    source: str,
+    trace_id: str | None = None,
+) -> tuple[Any, dict[str, Any]]:
+    """Run one synthetic scenario through a real gateway into the shared stores."""
+    from agenttaint_benchmark.runner import run_scenario
+
+    spans_before = {sp.span_id for sp in state.registry.store.list_spans()}
+    calls_before = {d.call_id for d in state.audit.list_decisions(limit=5000)}
+    result = run_scenario(
+        scenario,
+        defense,
+        registry=state.registry,
+        audit=state.audit,
+        confirmation=confirmation,
+    )
+    new_spans = [
+        sp.span_id for sp in state.registry.store.list_spans() if sp.span_id not in spans_before
+    ]
+    decisions = state.audit.list_decisions(limit=5000)
+    new_calls = [d.call_id for d in decisions if d.call_id not in calls_before]
+    trace = {
+        "trace_id": trace_id or scenario.scenario_id,
+        "label": scenario.description or scenario.scenario_id,
+        "kind": scenario.kind.value,
+        "family": scenario.family.value,
+        "source": source,
+        "decision": result.decision,
+        "span_ids": new_spans,
+        "call_ids": new_calls,
+        "calls": [{"call_ids": new_calls, "span_ids": new_spans}],
+    }
+    state.traces.append(trace)
+    return result, trace
 
 
 def _seed_confirmation_service() -> Any | None:

@@ -1,0 +1,179 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import {
+  fetchDemoScenarios,
+  runDemoScenario,
+  type DemoRunResult,
+  type DemoScenario,
+} from "@/lib/api";
+
+function outcome(r: DemoRunResult["without_agenttaint"], kind: string): string {
+  if (kind === "attack") {
+    return r.attack_success ? "attack succeeded" : "attack did not succeed";
+  }
+  return r.benign_completed ? "task completed" : "task not completed";
+}
+
+function familyLabel(f: string) {
+  return f.replace(/_/g, " ");
+}
+
+/**
+ * Visitors replay synthetic scenarios through the real gateway and Cedar policy.
+ * Tools are mocks: nothing is sent anywhere. Each run is added to the shared
+ * demo session, so it shows up in Provenance and Audit.
+ */
+export default function DemoPage() {
+  const [scenarios, setScenarios] = useState<DemoScenario[]>([]);
+  const [results, setResults] = useState<DemoRunResult[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "attack" | "benign">("all");
+
+  useEffect(() => {
+    fetchDemoScenarios()
+      .then((r) => setScenarios(r.scenarios))
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  }, []);
+
+  const shown = useMemo(
+    () => scenarios.filter((s) => filter === "all" || s.kind === filter),
+    [scenarios, filter],
+  );
+
+  async function run(id: string) {
+    setBusy(id);
+    setError(null);
+    try {
+      const res = await runDemoScenario(id);
+      setResults((prev) => [res, ...prev].slice(0, 12));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg.startsWith("429") ? "Rate limit reached. Wait a minute and try again." : msg);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="console">
+      <div className="console-head">
+        <div>
+          <p className="eyebrow">Live demo · synthetic scenarios · mock tools</p>
+          <h1>Run an attack scenario</h1>
+          <p className="sub">
+            Each scenario is a scripted agent pipeline: it reads mock email, transforms the text
+            (summaries, paraphrases, other agents) and finally tries <span className="mono">email.send</span>.
+            We run it twice: once with no defense, once through the real AgentTaint gateway and Cedar
+            policy. Nothing leaves this server: every tool is a mock.
+          </p>
+        </div>
+        <div className="actions">
+          <div className="seg" role="tablist" aria-label="Filter scenarios">
+            {(["all", "attack", "benign"] as const).map((f) => (
+              <button
+                key={f}
+                role="tab"
+                aria-selected={filter === f}
+                className={filter === f ? "btn" : "btn secondary"}
+                onClick={() => setFilter(f)}
+              >
+                {f === "all" ? "All" : f === "attack" ? "Attacks" : "Benign"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {error ? <div className="banner danger">{error}</div> : null}
+
+      <div className="demo-grid">
+        <section className="card">
+          <header>
+            <h2>Scenarios</h2>
+            <span className="meta">{shown.length} available</span>
+          </header>
+          <ul className="scenario-list">
+            {shown.map((s) => (
+              <li key={s.scenario_id} className="scenario-item">
+                <div>
+                  <span className={`dec ${s.kind === "attack" ? "BLOCK" : "ALLOW"}`}>
+                    {s.kind}
+                  </span>{" "}
+                  <span className="dim">{familyLabel(s.family)}</span>
+                  {s.difficulty === "hard" ? <span className="dim"> · hard</span> : null}
+                  <p>{s.description}</p>
+                  <span className="mono dim small">{s.scenario_id}</span>
+                </div>
+                <button
+                  className="btn"
+                  disabled={busy !== null}
+                  onClick={() => run(s.scenario_id)}
+                  aria-label={`Run ${s.scenario_id}`}
+                >
+                  {busy === s.scenario_id ? "Running…" : "Run"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="card">
+          <header>
+            <h2>Results</h2>
+            <span className="meta">newest first</span>
+          </header>
+          {!results.length ? (
+            <div className="empty">Pick a scenario and press Run.</div>
+          ) : null}
+          <ul className="result-list">
+            {results.map((r) => (
+              <li key={r.trace_id} className="result-item" data-testid="demo-result">
+                <div className="ri-head">
+                  <strong>{r.scenario.description}</strong>
+                  <span className="mono dim small">{r.trace_id}</span>
+                </div>
+                <div className="ri-compare">
+                  <div>
+                    <span className="eyebrow">Without AgentTaint</span>
+                    <div>
+                      <span className={`dec ${r.without_agenttaint.decision}`}>
+                        {r.without_agenttaint.decision}
+                      </span>{" "}
+                      <span className="dim">{outcome(r.without_agenttaint, r.scenario.kind)}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="eyebrow">With AgentTaint</span>
+                    <div>
+                      <span className={`dec ${r.with_agenttaint.decision}`}>
+                        {r.with_agenttaint.decision}
+                      </span>{" "}
+                      <span className="dim">{outcome(r.with_agenttaint, r.scenario.kind)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="ri-meta mono small">
+                  policy {r.with_agenttaint.policy_id || "—"} · evidence{" "}
+                  {r.with_agenttaint.evidence_statuses.join(", ") || "—"} ·{" "}
+                  {r.with_agenttaint.latency_ms} ms
+                </div>
+                <div className="ri-links">
+                  <Link href={`/provenance?trace=${encodeURIComponent(r.trace_id)}`}>
+                    View provenance
+                  </Link>
+                  <Link href="/audit">Audit log</Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="sub small">
+            CONFIRM means the call is held for a person. In this public demo approvals are locked;
+            see <Link href="/confirmations">Confirmations</Link>.
+          </p>
+        </section>
+      </div>
+    </div>
+  );
+}

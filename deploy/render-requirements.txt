@@ -1,0 +1,13 @@
+# Python dependencies for the hosted public demo (Render native Python runtime).
+# Installs the workspace packages from this checkout; no Docker, no sandbox.
+-e ./packages/core
+-e ./packages/provenance
+-e ./packages/risk
+-e ./packages/policy
+-e ./packages/audit
+-e ./packages/reconstruction
+-e ./packages/agent_sdk[postgres]
+-e ./integrations/mock_email
+-e ./packages/mcp_proxy
+-e ./packages/benchmark
+-e ./packages/api

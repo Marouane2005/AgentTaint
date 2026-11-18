@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { decideConfirmation, fetchConfirmations, type PendingConfirmation } from "@/lib/api";
 import { formatUtcTime, parseTs } from "@/lib/derive";
+import { useDemoMode } from "@/lib/useDemoMode";
 
 /**
  * Human-only approval screen. The approver token is typed by a person and kept
@@ -11,6 +12,7 @@ import { formatUtcTime, parseTs } from "@/lib/derive";
  * approval tool, and the API rejects the dashboard read token for approvals.
  */
 export default function ConfirmationsPage() {
+  const demo = useDemoMode();
   const [token, setToken] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [items, setItems] = useState<PendingConfirmation[]>([]);
@@ -80,7 +82,18 @@ export default function ConfirmationsPage() {
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
 
-      {!unlocked ? (
+      {demo ? (
+        <div className="card approver-gate" role="status">
+          <h2>Approvals are locked in the public demo</h2>
+          <p className="sub">
+            Visitors can trigger CONFIRM decisions but nobody can approve them here: the demo
+            server refuses every approval request, whatever token is sent. In AgentTaint Pro a
+            person approves held calls with a separate approver token on this screen, or with{" "}
+            <span className="mono">agenttaint approve</span> from a terminal the agent cannot
+            reach.
+          </p>
+        </div>
+      ) : !unlocked ? (
         <form className="card approver-gate" onSubmit={onUnlock}>
           <h2>Approver sign-in</h2>
           <p className="sub">

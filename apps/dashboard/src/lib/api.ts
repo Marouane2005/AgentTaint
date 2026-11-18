@@ -194,3 +194,78 @@ export function decideConfirmation(
     { method: "POST", headers: approverHeaders(approverToken) },
   );
 }
+
+// --- Public demo and product site ------------------------------------------------
+
+export type DemoScenario = {
+  scenario_id: string;
+  kind: "attack" | "benign";
+  family: string;
+  split: string;
+  description: string;
+  difficulty: string;
+  send_to?: string | null;
+};
+
+export type DemoRunResult = {
+  scenario: DemoScenario;
+  trace_id: string;
+  call_ids: string[];
+  without_agenttaint: {
+    decision: string;
+    attack_success?: boolean | null;
+    benign_completed?: boolean | null;
+  };
+  with_agenttaint: {
+    decision: string;
+    policy_id?: string | null;
+    attack_success?: boolean | null;
+    benign_completed?: boolean | null;
+    evidence_statuses: string[];
+    latency_ms: number;
+  };
+};
+
+export function fetchDemoScenarios() {
+  return getJson<{ demo_mode: boolean; scenarios: DemoScenario[] }>("/api/v1/demo/scenarios");
+}
+
+export function runDemoScenario(scenarioId: string) {
+  return getJson<DemoRunResult>("/api/v1/demo/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenario_id: scenarioId }),
+  });
+}
+
+export async function joinWaitlist(email: string, website: string, source = "landing") {
+  const res = await fetch("/api/v1/waitlist", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email, website, source }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { message?: string; detail?: unknown };
+  if (!res.ok) {
+    const detail = typeof data.detail === "string" ? data.detail : "Please enter a valid email.";
+    // FastAPI validation errors arrive as a list; keep the message human.
+    throw new Error(res.status === 429 ? "Too many attempts. Try again later." : detail);
+  }
+  return data.message || "Thanks, you're on the list.";
+}
+
+export type WaitlistEntry = { email: string; plan: string; source: string; created_at: string };
+
+/** Admin token is typed by the operator and kept in component memory only. */
+export function fetchWaitlist(adminToken: string) {
+  return getJson<{ count: number; entries: WaitlistEntry[] }>("/api/v1/admin/waitlist", {
+    headers: { "X-AgentTaint-Admin": adminToken },
+  });
+}
+
+export async function downloadWaitlistCsv(adminToken: string) {
+  const res = await fetch("/api/v1/admin/waitlist?format=csv", {
+    headers: { "X-AgentTaint-Admin": adminToken },
+  });
+  if (!res.ok) throw new Error(`${res.status}: could not export`);
+  return res.text();
+}

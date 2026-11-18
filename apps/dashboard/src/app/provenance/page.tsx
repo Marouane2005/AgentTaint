@@ -52,7 +52,12 @@ export default function ProvenancePage() {
         setDecisions(d.items);
         setTraces(t.traces);
         setSession(t.session);
-        setActive(t.traces[0]?.trace_id || ALL);
+        const wanted =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("trace")
+            : null;
+        const match = wanted && t.traces.some((x) => x.trace_id === wanted);
+        setActive(match ? (wanted as string) : t.traces[0]?.trace_id || ALL);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);

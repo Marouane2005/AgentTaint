@@ -28,6 +28,7 @@ agenttaint approve --config ~/agenttaint/agenttaint.yaml list
 * [docs/quickstart.md](docs/quickstart.md): put AgentTaint in front of any MCP server, client configs.
 * [docs/configuration.md](docs/configuration.md): `agenttaint.yaml` and environment reference.
 * [docs/operations.md](docs/operations.md): Docker Compose, backups, key rotation, health checks, upgrades.
+* [docs/public_demo.md](docs/public_demo.md): hosted demo, product site, waitlist and Paddle checkout.
 * [CHANGELOG.md](CHANGELOG.md). Release bundle: `scripts/build_release.sh`.
 
 ## Demo video
@@ -42,7 +43,7 @@ trace DAG, audit log and the human-only approval screen. Rebuild with
 
 ```bash
 make demo
-# Dashboard → http://127.0.0.1:3000
+# Dashboard → http://127.0.0.1:3000/overview
 # Click “Seed demo session”, then open Provenance / Audit / Confirmations
 ```
 

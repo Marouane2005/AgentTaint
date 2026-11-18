@@ -1,0 +1,43 @@
+# Public demo + product site on Render's free plan (reference blueprint).
+# One web service: FastAPI control plane in AGENTTAINT_DEMO_MODE serving the
+# static dashboard/landing build. Mock tools only; approvals locked.
+services:
+  - type: web
+    name: agenttaint-demo
+    runtime: python
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: >-
+      pip install -r deploy/render-requirements.txt &&
+      cd apps/dashboard && npm ci --no-audit --no-fund && npm run build:static
+    startCommand: python -m agenttaint_api
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: HOST
+        value: 0.0.0.0
+      - key: AGENTTAINT_DEMO_MODE
+        value: "1"
+      - key: AGENTTAINT_API_AUTH
+        value: "off"
+      - key: AGENTTAINT_UI_DIR
+        value: apps/dashboard/out
+      - key: AGENTTAINT_CORS_ORIGINS
+        value: ""
+      - key: AGENTTAINT_SITE_DB_URL
+        fromDatabase:
+          name: agenttaint-site-db
+          property: connectionString
+      - key: AGENTTAINT_ADMIN_TOKEN
+        sync: false
+      - key: PADDLE_CLIENT_TOKEN
+        sync: false
+
+databases:
+  - name: agenttaint-site-db
+    plan: free
+    region: frankfurt
