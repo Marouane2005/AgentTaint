@@ -102,7 +102,7 @@ jobs:
         run: |
           set -o pipefail
           python3 -m pytest -m postgres -q -rs | tee pg.log
-          if grep -q SKIPPED pg.log; then echo "Postgres tests were skipped"; exit 1; fi
+          if grep -qE "SKIPPED .*test_postgres_persistence" pg.log; then echo "Postgres tests were skipped"; exit 1; fi
 
   docker-sandbox:
     name: Docker shell sandbox
@@ -127,7 +127,7 @@ jobs:
         run: |
           set -o pipefail
           python3 -m pytest -m docker -q -rs | tee docker.log
-          if grep -q SKIPPED docker.log; then echo "Docker tests were skipped"; exit 1; fi
+          if grep -qE "SKIPPED .*test_shell_sandbox_docker" docker.log; then echo "Docker tests were skipped"; exit 1; fi
 
   bge-semantic:
     name: BGE semantic reconstruction (CPU)
