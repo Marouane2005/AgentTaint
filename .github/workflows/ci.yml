@@ -188,3 +188,54 @@ jobs:
         run: |
           python3 -m pytest -q -rs tests/unit/test_agentdojo_adapter.py | tee adapter.txt
           if grep -q SKIPPED adapter.txt; then echo "adapter tests were skipped"; exit 1; fi
+
+  release-packaging:
+    name: Release packaging (bundle, clean install, Docker stack)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build release bundle
+        run: scripts/build_release.sh
+
+      - name: Install from the bundle only (no package index)
+        run: |
+          python3 -m venv /tmp/rel
+          /tmp/rel/bin/pip install --no-index --find-links dist/agenttaint-1.0.0/wheels \
+            agenttaint "agenttaint-agent-sdk[postgres]"
+          /tmp/rel/bin/agenttaint --version | grep -x "agenttaint 1.0.0"
+          /tmp/rel/bin/python -c "import agenttaint_api.app as a; assert a.ui_directory()"
+
+      - name: CLI end-to-end outside the source tree
+        working-directory: /tmp
+        run: /tmp/rel/bin/python "$GITHUB_WORKSPACE/scripts/smoke_cli_proxy.py"
+
+      - name: Source Dockerfile builds
+        run: docker build -t agenttaint:src .
+
+      - name: Compose stack from the bundle (Postgres + dashboard + proxy)
+        run: |
+          set -euo pipefail
+          STACK=/tmp/stack
+          cp -R dist/agenttaint-1.0.0 "$STACK"
+          cd "$STACK"
+          /tmp/rel/bin/agenttaint init . >/dev/null
+          docker compose up -d --build --wait
+          curl -fsS http://127.0.0.1:8080/api/v1/health | grep '"status":"ok"'
+          curl -fsS http://127.0.0.1:8080/ | grep -q "AgentTaint"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/decisions)" = 401
+          TOKEN="$(grep '^AGENTTAINT_DASHBOARD_TOKEN=' .env | cut -d= -f2-)"
+          echo "::add-mask::$TOKEN"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "X-AgentTaint-Token: $TOKEN" \
+            http://127.0.0.1:8080/api/v1/decisions)" = 200
+          docker compose run --rm -T proxy version | grep "agenttaint 1.0.0"
+          docker compose exec -T dashboard id -u | grep -x 10001
+          docker compose down -v

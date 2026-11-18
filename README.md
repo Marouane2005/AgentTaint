@@ -15,6 +15,21 @@ This is **not** a prompt-injection classifier and **not** a keyword filter.
 > InjecAgent is not evaluated. Do not treat zero synthetic ASR as production
 > attack prevention. Details: [docs/technical_report.md](docs/technical_report.md).
 
+## Install (AgentTaint Pro 1.0, self-hosted)
+
+```bash
+pip install --no-index --find-links wheels agenttaint   # from the release bundle
+agenttaint init ~/agenttaint                             # config, policies, private .env
+agenttaint proxy --config ~/agenttaint/agenttaint.yaml   # what your MCP client launches
+agenttaint dashboard --config ~/agenttaint/agenttaint.yaml
+agenttaint approve --config ~/agenttaint/agenttaint.yaml list
+```
+
+* [docs/quickstart.md](docs/quickstart.md): put AgentTaint in front of any MCP server, client configs.
+* [docs/configuration.md](docs/configuration.md): `agenttaint.yaml` and environment reference.
+* [docs/operations.md](docs/operations.md): Docker Compose, backups, key rotation, health checks, upgrades.
+* [CHANGELOG.md](CHANGELOG.md). Release bundle: `scripts/build_release.sh`.
+
 ## Demo video
 
 [docs/media/agenttaint-demo.mp4](docs/media/agenttaint-demo.mp4) (27 s): real MCP
@@ -105,4 +120,5 @@ and **UNKNOWN** lineage and never silently upgrades inference to fact.
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE).
+Commercial: AgentTaint Commercial License 1.0, see [LICENSE](LICENSE).
+Third-party dependencies keep their own open-source licenses.

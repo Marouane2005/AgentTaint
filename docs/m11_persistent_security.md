@@ -20,7 +20,7 @@
 ## How to run Postgres locally
 
 ```bash
-docker compose up -d postgres
+docker compose -f deploy/docker-compose.dev.yml up -d postgres
 export AGENTTAINT_TEST_POSTGRES_URL=postgresql+psycopg://agenttaint:agenttaint@127.0.0.1:5432/agenttaint
 pytest -m postgres
 ```
