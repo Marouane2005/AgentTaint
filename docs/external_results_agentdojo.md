@@ -13,7 +13,7 @@ are small samples with wide confidence intervals; read them as indicative.
 - **Sample:** per suite, 5 user tasks and 2 injection tasks drawn with seed 2120;
   each user task is run once without injection (utility) and once per injection
   (utility under attack, ASR). 20 benign and 40 attacked runs per defense.
-- **Pipeline:** AgentDojo system message → user query → model (OpenAI-compatible
+- **Pipeline:** AgentDojo system message → user query → model (chat-completions compatible
   endpoint, rate-limited with backoff) → tool loop. AgentTaint replaces the tool
   executor (`AgentTaintToolsExecutor`): every tool call goes through the real
   `SecurityGateway` (risk tier → policy (Cedar) → audit), with tool results

@@ -296,7 +296,7 @@ class RateLimitedElement(BasePipelineElement):
 class ToolCallMetadataRelay:
     """Preserves provider-specific tool-call metadata across turns.
 
-    Gemini's OpenAI-compatible endpoint returns an opaque ``extra_content``
+    Gemini's chat-completions compatible endpoint returns an opaque ``extra_content``
     (thought signature) on each tool call and rejects the next request unless it
     is sent back. AgentDojo's message format drops it, so this wrapper around
     ``client.chat.completions.create`` remembers it by tool-call id and re-attaches
