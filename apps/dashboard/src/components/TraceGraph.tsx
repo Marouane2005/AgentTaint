@@ -122,11 +122,14 @@ export function TraceGraph({
   edges,
   selectedId,
   onSelect,
+  collapsedOverlays = false,
 }: {
   nodes: ViewNode[];
   edges: ViewEdge[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** Start with the legend and flows panel folded (small embedded graphs). */
+  collapsedOverlays?: boolean;
 }) {
   const layout = useMemo(() => layoutDag(nodes, edges), [nodes, edges]);
   const flows = useMemo(() => flowsBySource(nodes, edges), [nodes, edges]);
@@ -145,11 +148,11 @@ export function TraceGraph({
   } | null>(null);
   const [legendOpen, setLegendOpen] = useState(true);
   useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 760) {
+    if (collapsedOverlays || (typeof window !== "undefined" && window.innerWidth < 760)) {
       setLegendOpen(false);
       setShowFlows(false);
     }
-  }, []);
+  }, [collapsedOverlays]);
 
   const fit = useCallback(() => {
     const el = wrapRef.current;

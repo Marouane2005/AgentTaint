@@ -23,7 +23,7 @@
 }
 .site main { max-width: 1160px; margin: 0 auto; padding: 0 24px 48px; }
 .site .eyebrow { color: var(--cyan); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.75rem; }
-.hero { padding: 56px 0 24px; text-align: center; }
+.hero { padding: 36px 0 24px; text-align: center; }
 .hero h1 { font-size: clamp(2rem, 4.4vw, 3.4rem); line-height: 1.1; margin: 12px auto 18px; max-width: 900px; }
 .hero .accent { color: var(--cyan); }
 .lead { color: var(--text-secondary); font-size: 1.15rem; line-height: 1.6; max-width: 780px; margin: 0 auto; }

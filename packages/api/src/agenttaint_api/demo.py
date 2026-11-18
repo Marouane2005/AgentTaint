@@ -167,7 +167,9 @@ def _run_pair(scenario: Any, trace_label: str, scenario_info: dict[str, Any]) ->
             current, scenario, combined_cfg, None, source="visitor_run", trace_id=trace_id
         )
         current.session.notes = [*current.session.notes[-4:], f"Visitor ran {trace_label}."]
+        graph = _run_graph(current, trace)
     return {
+        "graph": graph,
         "scenario": scenario_info,
         "trace_id": trace["trace_id"],
         "call_ids": trace["call_ids"],
@@ -188,6 +190,20 @@ def _run_pair(scenario: Any, trace_label: str, scenario_info: dict[str, Any]) ->
             "explanation": explain(result.decision, result.policy_id),
         },
     }
+
+
+def _run_graph(current: Any, trace: dict[str, Any]) -> dict[str, Any]:
+    """Spans, edges and decisions of one run, so the page can draw its graph directly."""
+    span_ids = set(trace["span_ids"])
+    full = state_mod.export_graph(current)
+    nodes = [n for n in full["nodes"] if n["id"] in span_ids]
+    edges = [e for e in full["edges"] if e["source"] in span_ids and e["target"] in span_ids]
+    decisions = []
+    for call_id in trace["call_ids"]:
+        record = current.audit.get(call_id)
+        if record is not None:
+            decisions.append(record.model_dump(mode="json"))
+    return {"nodes": nodes, "edges": edges, "decisions": decisions}
 
 
 def run(scenario_id: str) -> dict[str, Any]:

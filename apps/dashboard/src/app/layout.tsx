@@ -4,6 +4,7 @@ import "./globals.css";
 import "./console.css";
 import "./site.css";
 import "./responsive.css";
+import "./try.css";
 
 export const metadata: Metadata = {
   title: "AgentTaint Security Dashboard",

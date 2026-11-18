@@ -181,6 +181,9 @@ def test_custom_run_blocks_injected_recipient(demo_client: TestClient) -> None:
     assert body["with_agenttaint"]["decision"] == "BLOCK"
     assert "untrusted" in body["with_agenttaint"]["explanation"]
     assert body["span_ids"] and body["call_ids"]
+    graph = body["graph"]
+    assert {n["id"] for n in graph["nodes"]} == set(body["span_ids"])
+    assert [d["decision"] for d in graph["decisions"]][-1] == "BLOCK"
     traces = demo_client.get("/api/v1/traces").json()["traces"]
     assert any(t["trace_id"] == body["trace_id"] for t in traces)
 
