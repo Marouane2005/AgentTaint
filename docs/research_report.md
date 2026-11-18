@@ -4,6 +4,9 @@
 **Scope:** Milestones 0–14 on the free/local stack  
 **Rule:** Every claim below is tied to in-repo artifacts. Unsupported claims are listed as such.
 
+The full write-up (design, evaluation, related work, references) is
+[technical_report.md](technical_report.md); this page is the short summary.
+
 ---
 
 ## 1. Problem
@@ -32,10 +35,11 @@ AgentTaint is an **online MCP-boundary enforcement layer**:
 | Evidence | Artifact | Result (honest) |
 |----------|----------|-----------------|
 | Held-out synthetic suite | `docs/benchmark_results_m13.md` | Provenance defenses ASR=0; undefended ASR=1.0; coarse utility≈0.70 |
-| Channel ablations | same | Lexical/structural strong on this corpus; semantic-only weak under fixture; explicit-only recall 0 without parents; decision metrics of explicit_only and combined are identical (ASR 0.000, utility 1.000), so reconstruction's added decision value is not shown on this suite |
+| Channel ablations | same | Lexical/structural strong on this corpus; semantic-only weak under fixture; explicit-only recall 0 without parents |
+| Reconstruction value | `docs/benchmark_results_reconstruction.md` | Broken-lineage split: explicit lineage BLOCKs 0/16 attacks, combined 13/16 (fixture, 0 benign false blocks) or 16/16 (BGE, 3/8 benign false blocks) |
 | Adversarial units | `tests/unit/test_m13_adversarial_evaluation.py` (+ M9/M10/M11) | Forgery, races, bypass, homoglyph, missing lineage covered |
 | Latency/memory | M13 report | Combined median ≈6–7 ms; process `ru_maxrss` ≈118–121 MiB (fixture) |
-| External ASR | `docs/external_benchmarks_m12.md` | AgentDojo / InjecAgent **not evaluated** (LLM required) |
+| External ASR | `docs/external_results_agentdojo.md` | AgentDojo sampled subset, `mercury-3`: tool-action ASR 0 with and without AgentTaint (model resisted); utility 0.85 → 0.35 (strict) / 0.50 (approve). InjecAgent not run |
 
 ## 4. Related systems
 
@@ -76,8 +80,10 @@ MEDIUM sinks). See `docs/limitations.md` items 40–46.
 **Demo / research-portfolio ready:** yes — reproducible suite, adversarial tests,
 MCP multi-process proxy, durable security state, dashboard, one-command demo.
 
-**Production MCP security product:** not yet — external ASR unevaluated, SSE/resources/prompts unsupported, human CONFIRM approval is CLI/API
-only (no dashboard screen yet).
+**Production MCP security product:** not yet — external evaluation is a small
+sampled subset, utility cost on data-dependent tasks is high, SSE/resources/prompts
+are unsupported. Human CONFIRM approval is available via CLI, API and the
+dashboard approval screen (dedicated approver token).
 
 Recommended framing (unchanged in substance from M7/M9):
 

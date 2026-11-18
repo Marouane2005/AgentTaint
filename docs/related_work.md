@@ -4,6 +4,9 @@
 **Date:** 2026-11-18  
 **Rule:** Do not claim AgentTaint is the first provenance / taint / IFC system for AI agents. Novelty must be established experimentally.
 
+Benchmarks (AgentDojo, InjecAgent), classic taint tracking and IFC foundations
+are covered with references in [technical_report.md](technical_report.md) §4.
+
 ---
 
 ## Summary comparison

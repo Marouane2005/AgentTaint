@@ -81,6 +81,7 @@ and **UNKNOWN** lineage and never silently upgrades inference to fact.
 | [docs/m13_security_performance.md](docs/m13_security_performance.md) | M13 adversarial + ablation scope |
 | [docs/external_benchmarks_m12.md](docs/external_benchmarks_m12.md) | External ASR not evaluated |
 | [docs/dashboard.md](docs/dashboard.md) | Dashboard usage |
+| [docs/technical_report.md](docs/technical_report.md) | Technical report: design, evaluation, related work, limitations |
 | [docs/external_results_agentdojo.md](docs/external_results_agentdojo.md) | AgentDojo with real free-tier LLMs (sampled subset) |
 | [docs/mcp_compatibility_m10.md](docs/mcp_compatibility_m10.md) | MCP support boundary |
 | [research_log/](research_log/) | Decisions and experiments |
