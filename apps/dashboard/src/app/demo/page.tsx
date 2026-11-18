@@ -9,6 +9,7 @@ import {
   type DemoScenario,
 } from "@/lib/api";
 import { PageHint } from "@/components/PageHint";
+import { TryIt } from "@/components/try/TryIt";
 
 function outcome(r: DemoRunResult["without_agenttaint"], kind: string): string {
   if (kind === "attack") {
@@ -61,14 +62,22 @@ export default function DemoPage() {
   return (
     <div className="console">
       <PageHint id="demo" title="How to use this page">
-        Pick an example and press Run. Each run goes through the real AgentTaint gateway with mocked
-        tools. The right column compares what an unprotected agent would do with what AgentTaint
-        decides.
+        Start with &quot;Try your own text&quot;: pick an example or type an instruction and an email,
+        then press Run. Below it you can replay benchmark scenarios, which include harder cases
+        (summaries, paraphrases, several agents). Every run goes through the real AgentTaint
+        gateway with mocked tools and shows up in Provenance and Audit.
       </PageHint>
       <div className="console-head">
         <div>
-          <p className="eyebrow">Live demo · synthetic scenarios · mock tools</p>
-          <h1>Run an attack scenario</h1>
+          <p className="eyebrow">Live demo · mock tools</p>
+          <h1>Try your own text</h1>
+        </div>
+      </div>
+      <TryIt compact />
+      <div className="console-head" style={{ marginTop: "2rem" }}>
+        <div>
+          <p className="eyebrow">Benchmark scenarios · synthetic</p>
+          <h2 className="try-section-title">Or replay a scripted scenario</h2>
           <p className="sub">
             Each scenario is a scripted agent pipeline: it reads mock email, transforms the text
             (summaries, paraphrases, other agents) and finally tries{" "}

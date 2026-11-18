@@ -208,9 +208,17 @@ export type DemoScenario = {
 };
 
 export type DemoRunResult = {
-  scenario: DemoScenario;
+  scenario: Omit<DemoScenario, "kind"> & { kind: string };
   trace_id: string;
   call_ids: string[];
+  span_ids?: string[];
+  agent_call?: { tool: string; arguments: Record<string, string> } | null;
+  agent_reason?: string;
+  graph?: {
+    nodes: Array<Record<string, unknown>>;
+    edges: Array<Record<string, unknown>>;
+    decisions: Decision[];
+  };
   without_agenttaint: {
     decision: string;
     attack_success?: boolean | null;
@@ -223,6 +231,7 @@ export type DemoRunResult = {
     benign_completed?: boolean | null;
     evidence_statuses: string[];
     latency_ms: number;
+    explanation?: string;
   };
 };
 
@@ -235,6 +244,14 @@ export function runDemoScenario(scenarioId: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ scenario_id: scenarioId }),
+  });
+}
+
+export function runDemoCustom(instruction: string, content: string) {
+  return getJson<DemoRunResult>("/api/v1/demo/custom", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ instruction, content }),
   });
 }
 

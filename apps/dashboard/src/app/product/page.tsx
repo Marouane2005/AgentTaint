@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
 import { PaddleCheckout } from "@/components/site/PaddleCheckout";
+import { TryIt } from "@/components/try/TryIt";
 import { CHECKOUT_URL, PADDLE_CLIENT_TOKEN, PRO_PRICE, SUPPORT_EMAIL } from "@/lib/site";
 
 const FEATURES = [
@@ -55,25 +56,18 @@ export default function ProductPage() {
             A provenance firewall for <span className="accent">MCP tool calls</span>
           </h1>
           <p className="lead">
-            AgentTaint sits between your agent and its MCP servers. It records where every tool
-            argument came from, and blocks, or holds for a person, high-risk calls whose arguments
-            trace back to untrusted content, such as a recipient address lifted from an inbound
-            email.
+            AgentTaint sits between your agent and its tools and stops calls driven by untrusted
+            content. <b>Try it right here:</b> give the agent an email with a hidden instruction and
+            see what happens with and without AgentTaint.
           </p>
+          <TryIt />
           <div className="hero-cta">
-            <Link className="btn big" href="/demo">
-              Try the live demo
+            <Link className="btn big secondary" href="/demo">
+              More attack scenarios
             </Link>
             <Link className="btn big secondary" href="#pricing">
               Pricing
             </Link>
-          </div>
-          <p className="fine">
-            The demo runs synthetic scenarios against mock tools. Nothing you do there sends
-            anything anywhere.
-          </p>
-          <div className="hero-shot">
-            <img src="/screens/03-provenance-selected-action.png" alt="AgentTaint provenance graph" />
           </div>
         </section>
 
