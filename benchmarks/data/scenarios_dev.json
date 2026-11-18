@@ -1,5 +1,5 @@
 {
-  "dataset_version": "2026.11.13-m7.1",
+  "dataset_version": "2026.11.18-m12.1",
   "seed": 2120,
   "generator": "scripts/generate_benchmark_scenarios.py + scripts/m7_scenario_bank.py",
   "notes": [
