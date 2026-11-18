@@ -3,6 +3,7 @@ import { Shell } from "@/components/Shell";
 import "./globals.css";
 import "./console.css";
 import "./site.css";
+import "./responsive.css";
 
 export const metadata: Metadata = {
   title: "AgentTaint Security Dashboard",

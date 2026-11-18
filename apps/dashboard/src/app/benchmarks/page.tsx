@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchBenchmarks } from "@/lib/api";
+import { PageHint } from "@/components/PageHint";
 
 type Metrics = {
   asr?: number | null;
@@ -49,9 +50,7 @@ function BarChart({
 }
 
 export default function BenchmarksPage() {
-  const [data, setData] = useState<Awaited<ReturnType<typeof fetchBenchmarks>> | null>(
-    null,
-  );
+  const [data, setData] = useState<Awaited<ReturnType<typeof fetchBenchmarks>> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reportIdx, setReportIdx] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -75,14 +74,18 @@ export default function BenchmarksPage() {
 
   return (
     <>
+      <PageHint id="benchmarks" title="Benchmark lab">
+        Results of the synthetic benchmark: how often attacks succeed with and without AgentTaint,
+        and how many legitimate tasks still complete. Use it to judge the trade-off, keeping in mind
+        the data is synthetic.
+      </PageHint>
       <div className="topbar">
         <div>
           <p className="eyebrow">Evaluation</p>
           <h1>Benchmark Lab</h1>
           <p>
-            Measured synthetic results from <code>benchmarks/reports/</code>. Empty
-            means not run — this UI never invents metrics or overclaims real-world
-            effectiveness.
+            Measured synthetic results from <code>benchmarks/reports/</code>. Empty means not run —
+            this UI never invents metrics or overclaims real-world effectiveness.
           </p>
         </div>
       </div>
@@ -235,7 +238,13 @@ export default function BenchmarksPage() {
               <div className="panel-head">
                 <h2>Recorded limitations</h2>
               </div>
-              <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "var(--text-secondary)" }}>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "1.1rem",
+                  color: "var(--text-secondary)",
+                }}
+              >
                 {(report.limitations as string[]).slice(0, 8).map((item) => (
                   <li key={item}>{item}</li>
                 ))}

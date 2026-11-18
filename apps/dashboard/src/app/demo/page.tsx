@@ -8,6 +8,7 @@ import {
   type DemoRunResult,
   type DemoScenario,
 } from "@/lib/api";
+import { PageHint } from "@/components/PageHint";
 
 function outcome(r: DemoRunResult["without_agenttaint"], kind: string): string {
   if (kind === "attack") {
@@ -59,15 +60,21 @@ export default function DemoPage() {
 
   return (
     <div className="console">
+      <PageHint id="demo" title="How to use this page">
+        Pick an example and press Run. Each run goes through the real AgentTaint gateway with mocked
+        tools. The right column compares what an unprotected agent would do with what AgentTaint
+        decides.
+      </PageHint>
       <div className="console-head">
         <div>
           <p className="eyebrow">Live demo · synthetic scenarios · mock tools</p>
           <h1>Run an attack scenario</h1>
           <p className="sub">
             Each scenario is a scripted agent pipeline: it reads mock email, transforms the text
-            (summaries, paraphrases, other agents) and finally tries <span className="mono">email.send</span>.
-            We run it twice: once with no defense, once through the real AgentTaint gateway and Cedar
-            policy. Nothing leaves this server: every tool is a mock.
+            (summaries, paraphrases, other agents) and finally tries{" "}
+            <span className="mono">email.send</span>. We run it twice: once with no defense, once
+            through the real AgentTaint gateway and Cedar policy. Nothing leaves this server: every
+            tool is a mock.
           </p>
         </div>
         <div className="actions">
@@ -98,9 +105,7 @@ export default function DemoPage() {
             {shown.map((s) => (
               <li key={s.scenario_id} className="scenario-item">
                 <div>
-                  <span className={`dec ${s.kind === "attack" ? "BLOCK" : "ALLOW"}`}>
-                    {s.kind}
-                  </span>{" "}
+                  <span className={`dec ${s.kind === "attack" ? "BLOCK" : "ALLOW"}`}>{s.kind}</span>{" "}
                   <span className="dim">{familyLabel(s.family)}</span>
                   {s.difficulty === "hard" ? <span className="dim"> · hard</span> : null}
                   <p>{s.description}</p>
@@ -124,9 +129,7 @@ export default function DemoPage() {
             <h2>Results</h2>
             <span className="meta">newest first</span>
           </header>
-          {!results.length ? (
-            <div className="empty">Pick a scenario and press Run.</div>
-          ) : null}
+          {!results.length ? <div className="empty">Pick a scenario and press Run.</div> : null}
           <ul className="result-list">
             {results.map((r) => (
               <li key={r.trace_id} className="result-item" data-testid="demo-result">

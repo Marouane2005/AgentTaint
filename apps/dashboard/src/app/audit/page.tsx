@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DecisionTable } from "@/components/DecisionTable";
 import { fetchAllDecisions, type Decision } from "@/lib/api";
 import { formatUtcTime, parseTs } from "@/lib/derive";
+import { PageHint } from "@/components/PageHint";
 
 export default function AuditPage() {
   const [rows, setRows] = useState<Decision[]>([]);
@@ -29,13 +30,20 @@ export default function AuditPage() {
           (decision === "ALL" || r.decision === decision) &&
           (tier === "ALL" || r.risk_tier === tier) &&
           (!q ||
-            `${r.tool} ${r.agent_id} ${r.policy_id} ${r.call_id}`.toLowerCase().includes(q.toLowerCase())),
+            `${r.tool} ${r.agent_id} ${r.policy_id} ${r.call_id}`
+              .toLowerCase()
+              .includes(q.toLowerCase())),
       ),
     [rows, decision, tier, q],
   );
 
   return (
     <div className="console">
+      <PageHint id="audit" title="Decisions and audit log">
+        Every row is one tool call the agent tried. ALLOW ran, CONFIRM was held for a person, BLOCK
+        never reached the tool. Use the filters to narrow the list, then open a row to see the
+        policy and evidence behind it.
+      </PageHint>
       <div className="console-head">
         <div>
           <p className="eyebrow">Audit trail</p>

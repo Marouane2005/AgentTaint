@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { PageHint } from "@/components/PageHint";
 import { TraceGraph } from "@/components/TraceGraph";
 import {
   fetchAllDecisions,
@@ -87,7 +89,9 @@ export default function ProvenancePage() {
         <div className="ts-section">
           <div className="ts-title">Session</div>
           <div className="ts-session">
-            <span className={`ts-mode ${session?.mode || "empty"}`}>{session?.mode || "empty"}</span>
+            <span className={`ts-mode ${session?.mode || "empty"}`}>
+              {session?.mode || "empty"}
+            </span>
             <p>{session?.label || "No session loaded."}</p>
           </div>
         </div>
@@ -114,7 +118,9 @@ export default function ProvenancePage() {
                   }}
                 >
                   <span className="ts-id">All traces</span>
-                  <span className="ts-meta">{spans.length} spans · {decisions.length} decisions</span>
+                  <span className="ts-meta">
+                    {spans.length} spans · {decisions.length} decisions
+                  </span>
                 </button>
               </li>
             ) : null}
@@ -160,11 +166,40 @@ export default function ProvenancePage() {
             </p>
           </div>
           <div className="trace-head-note">
-            Spans and decisions come from the live registry and audit store. Inferred
-            edges are reconstruction evidence, never verified causation.
+            Spans and decisions come from the live registry and audit store. Inferred edges are
+            reconstruction evidence, never verified causation.
           </div>
         </div>
+        <label className="trace-picker">
+          <span>Trace</span>
+          <select
+            value={active}
+            onChange={(e) => {
+              setActive(e.target.value);
+              setSelected(null);
+            }}
+          >
+            {traces.length ? <option value={ALL}>All traces</option> : null}
+            {traces.map((t) => (
+              <option key={t.trace_id} value={t.trace_id}>
+                {t.trace_id} · {t.decision || "mixed"}
+              </option>
+            ))}
+          </select>
+        </label>
+        <PageHint id="provenance" title="How to read the provenance graph">
+          Each box is something the agent read, wrote or did; arrows show where data came from. The
+          blue box on the right is the tool call the gateway judged, with its verdict. Drag to pan,
+          pinch or use + and − to zoom, and tap a box for details. Pick another run from the trace
+          list.
+        </PageHint>
         {error ? <div className="banner danger">{error}</div> : null}
+        {!traces.length && !error ? (
+          <div className="empty-guide">
+            No runs yet. <Link href="/demo">Run a scenario</Link> or try your own text, then come
+            back here to see its graph.
+          </div>
+        ) : null}
         <TraceGraph
           nodes={graph.nodes}
           edges={graph.edges}
@@ -183,7 +218,9 @@ export default function ProvenancePage() {
             {selectedNode.call ? (
               <dl>
                 <dt>Decision</dt>
-                <dd className={`dec ${selectedNode.call.decision}`}>{selectedNode.call.decision}</dd>
+                <dd className={`dec ${selectedNode.call.decision}`}>
+                  {selectedNode.call.decision}
+                </dd>
                 <dt>Policy</dt>
                 <dd className="mono">{selectedNode.call.policy_id || "—"}</dd>
                 <dt>Provenance</dt>

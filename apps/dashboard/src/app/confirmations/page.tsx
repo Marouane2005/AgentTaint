@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { decideConfirmation, fetchConfirmations, type PendingConfirmation } from "@/lib/api";
 import { formatUtcTime, parseTs } from "@/lib/derive";
 import { useDemoMode } from "@/lib/useDemoMode";
+import { PageHint } from "@/components/PageHint";
 
 /**
  * Human-only approval screen. The approver token is typed by a person and kept
@@ -59,14 +60,19 @@ export default function ConfirmationsPage() {
 
   return (
     <div className="console">
+      <PageHint id="confirmations" title="Pending confirmations">
+        Calls that policy held for a human decision appear here. In the public demo approving is
+        switched off; in AgentTaint Pro an operator approves or denies with a separate approver
+        token or the CLI.
+      </PageHint>
       <div className="console-head">
         <div>
           <p className="eyebrow">Human approval channel</p>
           <h1>Pending confirmations</h1>
           <p className="sub">
-            CONFIRM decisions wait here for a person. Approval is bound to the exact tool,
-            arguments hash and agent, single-use, and expires. Agents cannot reach this screen:
-            the MCP proxy has no approval tool and the API requires a separate approver token.
+            CONFIRM decisions wait here for a person. Approval is bound to the exact tool, arguments
+            hash and agent, single-use, and expires. Agents cannot reach this screen: the MCP proxy
+            has no approval tool and the API requires a separate approver token.
           </p>
         </div>
         {unlocked ? (
@@ -86,11 +92,10 @@ export default function ConfirmationsPage() {
         <div className="card approver-gate" role="status">
           <h2>Approvals are locked in the public demo</h2>
           <p className="sub">
-            Visitors can trigger CONFIRM decisions but nobody can approve them here: the demo
-            server refuses every approval request, whatever token is sent. In AgentTaint Pro a
-            person approves held calls with a separate approver token on this screen, or with{" "}
-            <span className="mono">agenttaint approve</span> from a terminal the agent cannot
-            reach.
+            Visitors can trigger CONFIRM decisions but nobody can approve them here: the demo server
+            refuses every approval request, whatever token is sent. In AgentTaint Pro a person
+            approves held calls with a separate approver token on this screen, or with{" "}
+            <span className="mono">agenttaint approve</span> from a terminal the agent cannot reach.
           </p>
         </div>
       ) : !unlocked ? (

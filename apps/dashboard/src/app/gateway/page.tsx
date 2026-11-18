@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { SessionBanner } from "@/components/SessionBanner";
 import { fetchDecisions } from "@/lib/api";
+import { PageHint } from "@/components/PageHint";
 
 export default function GatewayPage() {
-  const [data, setData] = useState<Awaited<ReturnType<typeof fetchDecisions>> | null>(
-    null,
-  );
+  const [data, setData] = useState<Awaited<ReturnType<typeof fetchDecisions>> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,14 +28,18 @@ export default function GatewayPage() {
 
   return (
     <>
+      <PageHint id="gateway" title="Security gateway">
+        The gateway sits between the agent and its tools. This page shows its configuration and live
+        status: which tools are high risk, which policy is loaded and whether the provenance
+        registry and audit store are healthy.
+      </PageHint>
       <div className="topbar">
         <div>
           <p className="eyebrow">Enforcement</p>
           <h1>Security Gateway</h1>
           <p>
-            Intercepted MCP tool decisions from the audit store — argument hashes and
-            redacted fields only. This page inspects decisions; it never weakens
-            policy.
+            Intercepted MCP tool decisions from the audit store — argument hashes and redacted
+            fields only. This page inspects decisions; it never weakens policy.
           </p>
         </div>
       </div>
@@ -68,9 +71,7 @@ export default function GatewayPage() {
                   {items.map((row) => (
                     <tr
                       key={String(row.call_id)}
-                      className={`clickable ${
-                        selected === String(row.call_id) ? "selected" : ""
-                      }`}
+                      className={`clickable ${selected === String(row.call_id) ? "selected" : ""}`}
                       aria-selected={selected === String(row.call_id)}
                       onClick={() => setSelected(String(row.call_id))}
                     >
