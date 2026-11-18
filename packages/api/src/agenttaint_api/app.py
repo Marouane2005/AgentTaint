@@ -103,7 +103,9 @@ async def security_headers(request: Request, call_next):  # type: ignore[no-unty
 async def enforce_api_auth(request: Request, call_next):  # type: ignore[no-untyped-def]
     """When auth mode is required, gate every route except health."""
     path = request.url.path
-    if path in {"/api/v1/health", "/docs", "/openapi.json", "/redoc"}:
+    # Only the API is gated: the bundled static UI is public and asks for the
+    # token itself (it holds no data until the API answers).
+    if not path.startswith("/api/") or path == "/api/v1/health":
         return await call_next(request)
     mode = _auth_mode()
     needs_auth = mode == "required" or (
