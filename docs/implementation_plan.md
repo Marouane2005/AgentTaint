@@ -182,9 +182,20 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
+## Milestone 13 — Security & performance evaluation
+
+| ID | Task | Acceptance |
+|----|------|------------|
+| 13.1 | Adversarial suite | Forgery, races, bypass, normalization, missing lineage, conflict, FP, exhaustion, latency |
+| 13.2 | Channel ablations | lexical / structural / semantic / lexical_structural / explicit (+ combined) |
+| 13.3 | Measured reports | `docs/benchmark_results_m13.md` additive; raw JSON gitignored under `benchmarks/reports/` |
+| 13.4 | Repro harness | `scripts/run_m13_evaluation.py` |
+
+**Hold:** Do not treat zero synthetic ASR as general attack prevention. External ASR still not evaluated.
+
+---
+
 ## Immediate next coding tasks
 
-1. M11 persistent security state (Postgres optional path, race suite)  
-2. M12 external benchmark feasibility/adapters  
-3. M13 adversarial + ablation evaluation  
-4. M14 public release packaging
+1. M14 public release packaging (docs, demo compose, README, dashboard polish)  
+2. Stop for merge approval before landing stacked PRs

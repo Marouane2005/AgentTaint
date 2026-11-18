@@ -130,11 +130,13 @@ def ablation_matrix() -> list[DefenseConfig]:
     """Reconstruction-channel ablations under reconstruction_only defense.
 
     Excludes COMBINED (already covered in the primary defense matrix).
+    Includes EXPLICIT so M13 can isolate lineage-only reconstruction evidence.
     """
     modes = [
         AblationModeName.LEXICAL,
         AblationModeName.STRUCTURAL,
         AblationModeName.SEMANTIC,
         AblationModeName.LEXICAL_STRUCTURAL,
+        AblationModeName.EXPLICIT,
     ]
     return [DefenseConfig(DefenseMode.RECONSTRUCTION_ONLY, ablation=m) for m in modes]
