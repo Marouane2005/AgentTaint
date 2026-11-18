@@ -76,9 +76,7 @@ def _from_row(row: DecisionRow) -> ToolCallDecision:
                 matched_source_ids=list(item.get("matched_source_ids") or []),
                 evidence_type=EvidenceType(item.get("evidence_type", "INFERRED")),
                 confidence=item.get("confidence"),
-                provenance_status=ProvenanceStatus(
-                    item.get("provenance_status", "UNKNOWN")
-                ),
+                provenance_status=ProvenanceStatus(item.get("provenance_status", "UNKNOWN")),
             )
         )
     return ToolCallDecision(
@@ -108,9 +106,7 @@ class AuditStore:
             connect_args["check_same_thread"] = False
             if ":memory:" in database_url:
                 engine_kwargs["poolclass"] = StaticPool
-        self.engine = create_engine(
-            database_url, connect_args=connect_args, **engine_kwargs
-        )
+        self.engine = create_engine(database_url, connect_args=connect_args, **engine_kwargs)
         self._session_factory = sessionmaker(self.engine, expire_on_commit=False, future=True)
         Base.metadata.create_all(self.engine)
 

@@ -30,11 +30,16 @@
 24. **M7 hard adaptive splits** can still evade fixture reconstruction (CONFIRM / provenance FN); BGE helps on this corpus but costs latency/memory.  
 25. **Bootstrap multi-seed** quantifies sampling uncertainty on a fixed synthetic set — not stochastic LLM variance.  
 26. **AgentDojo** is installable but full free/local ASR evaluation was not completed (LLM-backed protocol).  
-27. **MCP wire gap (M9):** confirmation IDs, parent span maps, and reconstruction candidates are enforced in `SecurityGateway.invoke` but are **not** exposed on default FastMCP tool signatures — end-to-end MCP demos cannot exercise those paths without SDK/custom wrappers.  
-28. **Envelope/confirmation durability:** in-memory nonce and confirmation stores do not survive process restart or multi-worker deploy.  
-29. **Registry unavailability** is a manual `registry_available` flag, not automatic DB outage detection.  
+27. **MCP wire (M10):** confirmation IDs, approval tokens, parent span maps, and candidates travel in `_agenttaint` metadata on the protocol proxy; FastMCP helpers accept an `agenttaint` argument mapped to that object. Resources/prompts/SSE remain unsupported.  
+28. **Durable nonce/confirmation stores** default to SQLite; Postgres needs a driver and compose service (planned follow-up). Atomic consume closes the check-then-set race for single-use approvals.  
+29. **Registry availability** is probed with a live `SELECT 1` (manual override remains for tests only).  
 30. **External benchmarks:** AgentDojo / InjecAgent full ASR remain **not evaluated** (see `docs/external_benchmarks_feasibility.md`).  
-31. **MCP compatibility** means tested FastMCP list/call/deny paths — not full multi-process protocol conformance (`docs/mcp_compatibility_m9.md`).
+31. **MCP compatibility** is stdio multi-process client↔proxy↔backend for mock email/filesystem/http/shell — not full-spec conformance (`docs/mcp_compatibility_m10.md`).  
+32. **Cancellation** is cooperative pre-forward only; an in-flight backend `tools/call` may still complete.  
+33. **USER authorization** requires structured `(tool, argument, value)` grants scoped by agent/session — free-text USER spans are not scraped into allow-lists.  
+34. **Envelope HMAC** still uses a shared secret (per-agent keys planned).  
+35. **Control plane auth** remains local-trust / optional token.  
+36. **Cedar** remains deferred.
 
 ## Operational
 

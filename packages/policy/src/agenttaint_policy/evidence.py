@@ -1,6 +1,7 @@
 """Build PolicyContext from registry lineage + reconstruction evidence.
 
 INFERRED reconstruction never upgrades to KNOWN and never alone authorizes.
+USER authorization must be supplied as structured grants — USER free text is not scraped.
 """
 
 from __future__ import annotations
@@ -18,7 +19,12 @@ from agenttaint_core.schemas import (
 )
 from agenttaint_provenance.registry import ProvenanceRegistry
 
-from agenttaint_policy.context import PolicyContext
+from agenttaint_policy.context import (
+    DEFAULT_AUTHORITY_ARGUMENTS,
+    DEFAULT_CONTENT_ARGUMENTS,
+    PolicyContext,
+)
+from agenttaint_policy.grants import AuthorizationGrant
 
 
 def _origins_untrusted(origins: Iterable[Origin]) -> bool:
@@ -46,21 +52,35 @@ def collect_user_authorized_values(
     *,
     extra: Iterable[str] | None = None,
 ) -> set[str]:
-    """Values grounded in USER instruction spans (redacted text when available)."""
-    values: set[str] = {str(v).strip() for v in (extra or []) if str(v).strip()}
-    for span in registry.store.list_spans():
-        if span.origin != Origin.USER:
-            continue
-        text = (span.content_redacted or "").strip()
-        if text:
-            values.add(text)
-            # Also split common separators so a multi-line instruction can authorize
-            # a single recipient token.
-            for token in text.replace(",", " ").replace("\n", " ").split():
-                token = token.strip().strip(".;:")
-                if "@" in token or token.startswith("http") or "/" in token:
-                    values.add(token)
-    return values
+    """Deprecated: returns only explicit extras.
+
+    Free-text USER spans are intentionally NOT scraped. Callers must pass
+    structured AuthorizationGrant objects instead.
+    """
+    _ = registry  # retained for call-site compatibility
+    return {str(v).strip() for v in (extra or []) if str(v).strip()}
+
+
+def grants_from_legacy_values(
+    values: Iterable[str],
+    *,
+    tool: str = "*",
+    argument: str = "*",
+    agent_id: str | None = None,
+    session_id: str | None = None,
+) -> list[AuthorizationGrant]:
+    """Compatibility helper for benchmarks that still list bare authorized values."""
+    return [
+        AuthorizationGrant(
+            tool=tool,
+            argument=argument,
+            value=str(v),
+            agent_id=agent_id,
+            session_id=session_id,
+        )
+        for v in values
+        if str(v).strip()
+    ]
 
 
 def build_policy_context(
@@ -70,28 +90,40 @@ def build_policy_context(
     registry_available: bool = True,
     argument_evidence: list[ArgumentEvidence] | None = None,
     argument_parent_span_ids: dict[str, list[str]] | None = None,
+    authorization_grants: Iterable[AuthorizationGrant] | None = None,
     user_authorized_values: Iterable[str] | None = None,
     authority_argument_names: set[str] | None = None,
+    content_argument_names: set[str] | None = None,
     confirmation_id: str | None = None,
     confirmation_validated: bool = False,
+    agent_id: str | None = None,
+    session_id: str | None = None,
+    tool_name: str | None = None,
 ) -> PolicyContext:
     """Assemble policy inputs. Reconstruction evidence may only raise scrutiny."""
-    authority = authority_argument_names or {
-        "to",
-        "recipient",
-        "url",
-        "path",
-        "command",
-    }
+    authority = set(authority_argument_names or DEFAULT_AUTHORITY_ARGUMENTS)
+    content_names = set(content_argument_names or DEFAULT_CONTENT_ARGUMENTS)
     evidence = list(argument_evidence or [])
     parents = dict(argument_parent_span_ids or {})
+
+    grants = list(authorization_grants or [])
+    # Legacy bare values become wildcard grants only when explicitly supplied —
+    # never auto-mined from USER spans in the registry.
+    if user_authorized_values:
+        grants.extend(
+            grants_from_legacy_values(
+                user_authorized_values,
+                agent_id=agent_id,
+                session_id=session_id,
+            )
+        )
 
     has_explicit_untrusted = False
     has_inferred_untrusted = False
     statuses: list[ProvenanceStatus] = []
 
     if registry is not None and registry_available:
-        for _arg, span_ids in parents.items():
+        for _arg_name, span_ids in parents.items():
             if not span_ids:
                 continue
             origins = explicit_argument_origins(registry, span_ids)
@@ -105,17 +137,10 @@ def build_policy_context(
                 if report.inferred_ancestor_ids or report.inferred_edge_count:
                     has_inferred_untrusted = True
 
-        authorized = collect_user_authorized_values(
-            registry, extra=user_authorized_values
-        )
-    else:
-        authorized = {str(v).strip() for v in (user_authorized_values or []) if str(v).strip()}
-
     for ev in evidence:
         statuses.append(ev.provenance_status)
         if not ev.matched_source_ids:
             continue
-        # Reconstruction / INFERRED evidence can flag influence but never authorize.
         if ev.evidence_type == EvidenceType.INFERRED or (
             ev.provenance_status == ProvenanceStatus.INFERRED
         ):
@@ -128,10 +153,8 @@ def build_policy_context(
                     }:
                         has_inferred_untrusted = True
                         break
-                    # Matched USER-only sources do not count as untrusted influence.
                     if src.origin == Origin.USER:
                         continue
-                    # Walk ancestors of matched candidate
                     if any(
                         a.origin in {Origin.UNTRUSTED_TOOL, Origin.UNKNOWN}
                         for a in registry.ancestors(sid)
@@ -157,7 +180,6 @@ def build_policy_context(
     else:
         overall = ProvenanceStatus.KNOWN
 
-    # No argument lineage at all on HIGH-risk → UNKNOWN (fail-closed path).
     if risk_tier == RiskTier.HIGH and not parents and not evidence:
         overall = ProvenanceStatus.UNKNOWN
 
@@ -165,13 +187,18 @@ def build_policy_context(
         provenance_status=overall,
         has_untrusted_influence=has_untrusted,
         influence_inferred_only=influence_inferred_only,
-        user_authorized_values=authorized,
+        authorization_grants=grants,
+        user_authorized_values={g.value for g in grants},
         authority_argument_names=authority,
+        content_argument_names=content_names,
         argument_evidence=evidence,
         registry_available=registry_available,
         confirmation_id=confirmation_id,
         confirmation_validated=confirmation_validated,
         risk_tier=risk_tier,
+        agent_id=agent_id,
+        session_id=session_id,
+        tool_name=tool_name,
     )
 
 
@@ -184,10 +211,12 @@ def reconstruct_authority_evidence(
     agent_id: str | None,
     attach: bool = True,
     ablation: Any | None = None,
+    content_argument_names: set[str] | None = None,
 ) -> list[ArgumentEvidence]:
-    """Run reconstruction on authority arguments; return ArgumentEvidence list."""
+    """Run reconstruction on authority and content arguments."""
     evidence: list[ArgumentEvidence] = []
-    for name in authority_argument_names:
+    names = set(authority_argument_names) | set(content_argument_names or ())
+    for name in names:
         if name not in arguments:
             continue
         value = arguments[name]

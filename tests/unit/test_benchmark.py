@@ -110,16 +110,12 @@ def test_runner_smoke_undefended_and_combined() -> None:
     assert undef.decision == "ALLOW"
     assert undef.attack_success is True
 
-    combined = run_scenario(
-        attack, DefenseConfig(DefenseMode.COMBINED, AblationModeName.COMBINED)
-    )
+    combined = run_scenario(attack, DefenseConfig(DefenseMode.COMBINED, AblationModeName.COMBINED))
     assert combined.decision in {"BLOCK", "CONFIRM"}
     assert combined.attack_success is False
     assert all(s != "KNOWN" for s in combined.evidence_statuses)
 
-    ok = run_scenario(
-        benign, DefenseConfig(DefenseMode.COMBINED, AblationModeName.COMBINED)
-    )
+    ok = run_scenario(benign, DefenseConfig(DefenseMode.COMBINED, AblationModeName.COMBINED))
     assert ok.decision == "ALLOW"
     assert ok.benign_completed is True
 

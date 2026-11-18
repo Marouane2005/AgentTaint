@@ -14,6 +14,10 @@ from agenttaint_agent_sdk.envelope import (
     NonceStore,
     ProvenanceEnvelope,
 )
+from agenttaint_agent_sdk.persistence import (
+    DurableConfirmationService,
+    DurableNonceStore,
+)
 
 __all__ = [
     "AgentTaintContext",
@@ -21,6 +25,8 @@ __all__ = [
     "ConfirmationRecord",
     "ConfirmationService",
     "ConfirmationStatus",
+    "DurableConfirmationService",
+    "DurableNonceStore",
     "EnvelopeError",
     "EnvelopeVerifier",
     "NonceStore",

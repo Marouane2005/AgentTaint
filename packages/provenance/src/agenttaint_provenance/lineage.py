@@ -86,9 +86,7 @@ def analyze_completeness(
     if gaps:
         notes.append(f"{len(gaps)} gap marker(s) in ancestor cone")
     if inferred_edges:
-        notes.append(
-            f"{inferred_edges} inferred edge(s) present — not verified causation"
-        )
+        notes.append(f"{inferred_edges} inferred edge(s) present — not verified causation")
 
     return LineageCompleteness(
         span_id=span_id,

@@ -1,6 +1,6 @@
 """Deterministic policy adapters.
 
-Cedar is deferred — do not claim Cedar enforcement.
+Cedar is deferred — do not claim Cedar enforcement until a real cedarpy backend lands.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from typing import Any, Protocol
 from agenttaint_core.schemas import DecisionOutcome, ProvenanceStatus, RiskTier
 
 from agenttaint_policy.context import PolicyContext
+from agenttaint_policy.grants import grants_cover_authority_arguments
 
 
 @dataclass(frozen=True)
@@ -92,24 +93,26 @@ class StubPolicyAdapter:
 
 @dataclass
 class ProvenanceAwarePolicy:
-    """Milestone-5 policy: reconstruction evidence informs scrutiny, never silent trust.
+    """Provenance-aware enforcement with structured authorization grants.
 
     Rules (ordered):
     1. Fail closed if HIGH risk and provenance registry unavailable.
     2. Denylist tools → BLOCK.
     3. Valid bound confirmation → ALLOW.
-    4. HIGH + authority arg matching USER-authorized value → ALLOW.
-    5. HIGH + untrusted influence (KNOWN or INFERRED) without USER auth → BLOCK
-       (or CONFIRM if confirm_untrusted_influence=True).
-    6. HIGH + UNKNOWN/PARTIAL without confirmation → CONFIRM (or BLOCK if fail_closed_unknown).
-    7. INFERRED-only influence never alone ALLOWs HIGH risk.
-    8. LOW/MEDIUM defaults to ALLOW unless denylist matched.
+    4. Blocked recipients (email.send) unless covered by structured grants.
+    5. HIGH + structured grants covering every authority argument → ALLOW.
+    6. HIGH/MEDIUM + untrusted influence → BLOCK (or CONFIRM if configured).
+    7. HIGH + UNKNOWN/PARTIAL without confirmation → CONFIRM (or BLOCK).
+    8. HIGH otherwise → CONFIRM.
+    9. LOW defaults to ALLOW unless denylist matched.
     """
 
     denylist_tools: set[str]
     confirm_untrusted_influence: bool = False
     fail_closed_unknown_high: bool = False
     blocked_recipients: set[str] | None = None
+    # MEDIUM sinks with untrusted influence default to CONFIRM (safer than ALLOW).
+    confirm_medium_untrusted: bool = True
 
     def evaluate(
         self,
@@ -121,14 +124,14 @@ class ProvenanceAwarePolicy:
         context: PolicyContext | None = None,
     ) -> PolicyResult:
         ctx = context or PolicyContext()
+        effective_agent = agent_id or ctx.agent_id
 
         if risk_tier == RiskTier.HIGH and not ctx.registry_available:
             return PolicyResult(
                 decision=DecisionOutcome.BLOCK,
                 policy_id="fail-closed-registry-unavailable",
                 explanation=(
-                    "High-risk operation blocked: provenance registry unavailable "
-                    "(fail closed)."
+                    "High-risk operation blocked: provenance registry unavailable (fail closed)."
                 ),
             )
 
@@ -146,66 +149,32 @@ class ProvenanceAwarePolicy:
                 explanation="Bound user confirmation validated for this exact action.",
             )
 
+        granted = self._authority_fully_granted(tool_name, arguments, ctx, agent_id=effective_agent)
+
         if self.blocked_recipients and tool_name == "email.send":
             recipient = str(arguments.get("to", "")).strip().lower()
-            if recipient in self.blocked_recipients:
-                # Still allow if explicitly user-authorized below.
-                if recipient not in {v.lower() for v in ctx.user_authorized_values}:
-                    return PolicyResult(
-                        decision=DecisionOutcome.BLOCK,
-                        policy_id="blocked-recipient",
-                        explanation=f"Recipient '{recipient}' is blocked by policy.",
-                    )
+            if recipient in self.blocked_recipients and not granted:
+                return PolicyResult(
+                    decision=DecisionOutcome.BLOCK,
+                    policy_id="blocked-recipient",
+                    explanation=f"Recipient '{recipient}' is blocked by policy.",
+                )
 
         if risk_tier == RiskTier.HIGH:
-            # USER grounding for authority arguments.
-            if self._authority_user_authorized(arguments, ctx):
+            # Structured grants may allow only when every authority argument is covered.
+            if granted:
                 return PolicyResult(
                     decision=DecisionOutcome.ALLOW,
                     policy_id="allow-user-authorized-authority",
                     explanation=(
-                        "High-risk authority argument matches an explicit USER span value."
+                        "High-risk authority arguments are covered by structured "
+                        "session/agent authorization grants."
                     ),
                 )
 
-            if ctx.has_untrusted_influence:
-                # INFERRED or KNOWN untrusted influence without USER auth.
-                if ctx.influence_inferred_only:
-                    # Never silently promote / authorize on inference alone.
-                    if self.confirm_untrusted_influence:
-                        return PolicyResult(
-                            decision=DecisionOutcome.CONFIRM,
-                            policy_id="confirm-inferred-untrusted-influence",
-                            explanation=(
-                                "INFERRED untrusted influence on a high-risk action; "
-                                "requires bound confirmation (inference ≠ authorization)."
-                            ),
-                        )
-                    return PolicyResult(
-                        decision=DecisionOutcome.BLOCK,
-                        policy_id="block-inferred-untrusted-influence",
-                        explanation=(
-                            "Blocked: INFERRED untrusted influence cannot authorize "
-                            "high-risk actions."
-                        ),
-                    )
-                if self.confirm_untrusted_influence:
-                    return PolicyResult(
-                        decision=DecisionOutcome.CONFIRM,
-                        policy_id="confirm-untrusted-influence",
-                        explanation=(
-                            "Untrusted provenance influenced a high-risk authority "
-                            "argument; confirmation required."
-                        ),
-                    )
-                return PolicyResult(
-                    decision=DecisionOutcome.BLOCK,
-                    policy_id="block-untrusted-influence",
-                    explanation=(
-                        "Blocked: untrusted information influenced a high-risk action "
-                        "without explicit USER authorization."
-                    ),
-                )
+            untrusted = self._untrusted_decision(ctx, tier_label="high-risk")
+            if untrusted is not None:
+                return untrusted
 
             if ctx.provenance_status in {
                 ProvenanceStatus.UNKNOWN,
@@ -229,13 +198,50 @@ class ProvenanceAwarePolicy:
                     ),
                 )
 
-            # HIGH with no untrusted influence and KNOWN/clean → still confirm by default
-            # for irreversible sinks unless authority was user-authorized (handled above).
             return PolicyResult(
                 decision=DecisionOutcome.CONFIRM,
                 policy_id="confirm-high-risk",
                 explanation="High-risk operation requires explicit bound confirmation.",
             )
+
+        if risk_tier == RiskTier.MEDIUM:
+            # Untrusted influence on destinations, paths, or content must not silently ALLOW.
+            if ctx.has_untrusted_influence:
+                if granted and not ctx.influence_inferred_only:
+                    # Explicit grants can still authorize MEDIUM destinations.
+                    return PolicyResult(
+                        decision=DecisionOutcome.ALLOW,
+                        policy_id="allow-user-authorized-authority",
+                        explanation=(
+                            "Medium-risk authority arguments covered by structured grants."
+                        ),
+                    )
+                if self.confirm_medium_untrusted or self.confirm_untrusted_influence:
+                    if ctx.influence_inferred_only:
+                        return PolicyResult(
+                            decision=DecisionOutcome.CONFIRM,
+                            policy_id="confirm-medium-inferred-untrusted",
+                            explanation=(
+                                "MEDIUM sink with INFERRED untrusted influence on "
+                                "destination/path/content; confirmation required."
+                            ),
+                        )
+                    return PolicyResult(
+                        decision=DecisionOutcome.CONFIRM,
+                        policy_id="confirm-medium-untrusted-influence",
+                        explanation=(
+                            "MEDIUM sink with untrusted influence on destination, "
+                            "path, or content; confirmation required."
+                        ),
+                    )
+                return PolicyResult(
+                    decision=DecisionOutcome.BLOCK,
+                    policy_id="block-medium-untrusted-influence",
+                    explanation=(
+                        "Blocked: untrusted information influenced a MEDIUM sink "
+                        "without structured authorization."
+                    ),
+                )
 
         return PolicyResult(
             decision=DecisionOutcome.ALLOW,
@@ -243,16 +249,59 @@ class ProvenanceAwarePolicy:
             explanation="Non-high-risk operation allowed under provenance-aware policy.",
         )
 
-    def _authority_user_authorized(
-        self, arguments: dict[str, Any], ctx: PolicyContext
+    def _authority_fully_granted(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        ctx: PolicyContext,
+        *,
+        agent_id: str | None,
     ) -> bool:
-        if not ctx.user_authorized_values:
+        if not ctx.authorization_grants:
             return False
-        authorized = {v.strip().casefold() for v in ctx.user_authorized_values}
-        for name in ctx.authority_argument_names:
-            if name not in arguments:
-                continue
-            value = str(arguments.get(name, "")).strip().casefold()
-            if value and value in authorized:
-                return True
-        return False
+        return grants_cover_authority_arguments(
+            grants=ctx.authorization_grants,
+            tool_name=tool_name,
+            arguments=arguments,
+            authority_argument_names=ctx.authority_argument_names,
+            agent_id=agent_id,
+            session_id=ctx.session_id,
+        )
+
+    def _untrusted_decision(self, ctx: PolicyContext, *, tier_label: str) -> PolicyResult | None:
+        if not ctx.has_untrusted_influence:
+            return None
+        if ctx.influence_inferred_only:
+            if self.confirm_untrusted_influence:
+                return PolicyResult(
+                    decision=DecisionOutcome.CONFIRM,
+                    policy_id="confirm-inferred-untrusted-influence",
+                    explanation=(
+                        f"INFERRED untrusted influence on a {tier_label} action; "
+                        "requires bound confirmation (inference ≠ authorization)."
+                    ),
+                )
+            return PolicyResult(
+                decision=DecisionOutcome.BLOCK,
+                policy_id="block-inferred-untrusted-influence",
+                explanation=(
+                    f"Blocked: INFERRED untrusted influence cannot authorize {tier_label} actions."
+                ),
+            )
+        if self.confirm_untrusted_influence:
+            return PolicyResult(
+                decision=DecisionOutcome.CONFIRM,
+                policy_id="confirm-untrusted-influence",
+                explanation=(
+                    f"Untrusted provenance influenced a {tier_label} authority "
+                    "or content argument; confirmation required."
+                ),
+            )
+        return PolicyResult(
+            decision=DecisionOutcome.BLOCK,
+            policy_id="block-untrusted-influence",
+            explanation=(
+                f"Blocked: untrusted information influenced a {tier_label} action "
+                "without explicit structured USER authorization."
+            ),
+        )

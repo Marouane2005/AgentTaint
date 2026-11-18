@@ -25,12 +25,8 @@ from agenttaint_risk.classifier import RiskClassifier
 
 ROOT = Path(__file__).resolve().parents[4]
 TRUST = ROOT / "policies" / "trust_registry.yaml"
-DEFAULT_DATA = Path(
-    os.environ.get("AGENTTAINT_DATA_DIR", str(ROOT / ".agenttaint" / "dashboard"))
-)
-BENCHMARKS = Path(
-    os.environ.get("AGENTTAINT_BENCHMARKS_DIR", str(ROOT / "benchmarks" / "reports"))
-)
+DEFAULT_DATA = Path(os.environ.get("AGENTTAINT_DATA_DIR", str(ROOT / ".agenttaint" / "dashboard")))
+BENCHMARKS = Path(os.environ.get("AGENTTAINT_BENCHMARKS_DIR", str(ROOT / "benchmarks" / "reports")))
 
 
 @dataclass
@@ -175,6 +171,7 @@ def seed_demo_session() -> dict[str, Any]:
         audit=state.audit,
         reconstruction=reconstruction,
         user_authorized_values={"finance-ops@partner-alpha.test"},
+        authorization_grants=[],
         attach_reconstruction=True,
     )
 
@@ -251,9 +248,7 @@ def seed_demo_session() -> dict[str, Any]:
     except EnforcementError as exc:
         attack_decision = exc.decision
 
-    state.last_reconstruction = [
-        e.model_dump(mode="json") for e in attack_decision.evidence
-    ]
+    state.last_reconstruction = [e.model_dump(mode="json") for e in attack_decision.evidence]
 
     user = state.registry.record_user_instruction(
         content="You may email finance-ops@partner-alpha.test about invoices.",
@@ -296,10 +291,8 @@ def seed_demo_session() -> dict[str, Any]:
         notes=[
             "SIMULATED SCENARIO — engines and policy decisions are real.",
             "Not a claim of real-world production telemetry.",
-            f"Attack decision={attack_decision.decision.value} "
-            f"policy={attack_decision.policy_id}",
-            f"Benign decision={benign.decision.decision.value} "
-            f"policy={benign.decision.policy_id}",
+            f"Attack decision={attack_decision.decision.value} policy={attack_decision.policy_id}",
+            f"Benign decision={benign.decision.decision.value} policy={benign.decision.policy_id}",
         ],
     )
     return {

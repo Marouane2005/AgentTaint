@@ -93,7 +93,7 @@ class ProvenanceRegistry:
         dst_span_id: str,
         relationship: EdgeRelationship,
         evidence_type: EvidenceType = EvidenceType.EXPLICIT,
-        metadata: dict | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> ProvenanceEdge:
         if self.store.get_span(src_span_id) is None:
             raise ValueError(f"missing src span: {src_span_id}")
@@ -176,7 +176,7 @@ class ProvenanceRegistry:
         kind: SpanKind | None = None,
         relationship: EdgeRelationship | None = None,
         instrumentation: str = "SDK",
-        metadata: dict | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> tuple[ProvenanceSpan, TransformationRecord]:
         """Record an instrumented transformation with explicit parent links.
 
@@ -190,17 +190,13 @@ class ProvenanceRegistry:
         if operation == TransformationOperation.UNTRACKED:
             raise ValueError("use record_gap() for untracked transformations")
 
-        status = (
-            ProvenanceStatus.KNOWN if instrumentation == "SDK" else ProvenanceStatus.PARTIAL
-        )
+        status = ProvenanceStatus.KNOWN if instrumentation == "SDK" else ProvenanceStatus.PARTIAL
         if self._parents_incomplete(input_span_ids) and status == ProvenanceStatus.KNOWN:
             status = ProvenanceStatus.PARTIAL
 
         least_trust = self._least_trust_origin(input_span_ids)
         out_kind = kind or _OP_TO_KIND.get(operation, SpanKind.SUMMARY)
-        out_rel = relationship or _OP_TO_RELATIONSHIP.get(
-            operation, EdgeRelationship.DERIVED_FROM
-        )
+        out_rel = relationship or _OP_TO_RELATIONSHIP.get(operation, EdgeRelationship.DERIVED_FROM)
         meta = {
             "operation": operation.value,
             "instrumentation": instrumentation,

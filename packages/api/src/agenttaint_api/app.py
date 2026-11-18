@@ -20,8 +20,7 @@ from agenttaint_api.state import (
 
 _ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _DEFAULT_ORIGINS = (
-    "http://127.0.0.1:3000,http://localhost:3000,"
-    "http://127.0.0.1:3001,http://localhost:3001"
+    "http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:3001,http://localhost:3001"
 )
 
 

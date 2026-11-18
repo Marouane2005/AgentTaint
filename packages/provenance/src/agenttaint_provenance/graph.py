@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Any
 
 import networkx as nx
 from agenttaint_core.schemas import (
@@ -21,7 +22,7 @@ class ProvenanceGraph:
 
     def __init__(self, store: ProvenanceStore) -> None:
         self.store = store
-        self._g = nx.DiGraph()
+        self._g: Any = nx.DiGraph()
 
     def rebuild(self) -> None:
         self._g.clear()
@@ -55,7 +56,8 @@ class ProvenanceGraph:
         node = self._g.nodes.get(span_id)
         if not node:
             return None
-        return node.get("span")
+        span = node.get("span")
+        return span if isinstance(span, ProvenanceSpan) else None
 
     def ancestors(self, span_id: str) -> list[str]:
         """Backward provenance: all nodes that can reach span_id (excluding self)."""
@@ -81,7 +83,7 @@ class ProvenanceGraph:
     def path_exists(self, src_id: str, dst_id: str) -> bool:
         if src_id not in self._g or dst_id not in self._g:
             return False
-        return nx.has_path(self._g, src_id, dst_id)
+        return bool(nx.has_path(self._g, src_id, dst_id))
 
     def transformation_chain(self, span_id: str) -> list[str]:
         """Ordered path from root sources to span along explicit edges (one topo path).
@@ -217,14 +219,10 @@ class ProvenanceGraph:
                         == EvidenceType.EXPLICIT.value
                     ]
                     if not explicit_preds:
-                        problems.append(
-                            f"span {v} marked KNOWN but has only INFERRED parents"
-                        )
+                        problems.append(f"span {v} marked KNOWN but has only INFERRED parents")
         return problems
 
-    def _filtered_ancestors(
-        self, span_id: str, allowed: Iterable[EvidenceType]
-    ) -> list[str]:
+    def _filtered_ancestors(self, span_id: str, allowed: Iterable[EvidenceType]) -> list[str]:
         allowed_values = {e.value for e in allowed}
         if span_id not in self._g:
             return []
@@ -243,8 +241,8 @@ class ProvenanceGraph:
 
     @property
     def node_count(self) -> int:
-        return self._g.number_of_nodes()
+        return int(self._g.number_of_nodes())
 
     @property
     def edge_count(self) -> int:
-        return self._g.number_of_edges()
+        return int(self._g.number_of_edges())

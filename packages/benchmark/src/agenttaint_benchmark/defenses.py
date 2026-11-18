@@ -137,6 +137,4 @@ def ablation_matrix() -> list[DefenseConfig]:
         AblationModeName.SEMANTIC,
         AblationModeName.LEXICAL_STRUCTURAL,
     ]
-    return [
-        DefenseConfig(DefenseMode.RECONSTRUCTION_ONLY, ablation=m) for m in modes
-    ]
+    return [DefenseConfig(DefenseMode.RECONSTRUCTION_ONLY, ablation=m) for m in modes]

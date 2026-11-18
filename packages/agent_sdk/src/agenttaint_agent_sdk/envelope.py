@@ -64,17 +64,30 @@ class NonceStore:
     """In-memory nonce replay cache with optional TTL pruning."""
 
     def __init__(self) -> None:
+        import threading
+
         self._seen: dict[str, datetime] = {}
+        self._lock = threading.Lock()
 
     def seen(self, nonce: str) -> bool:
-        return nonce in self._seen
+        with self._lock:
+            return nonce in self._seen
 
     def remember(self, nonce: str, *, when: datetime | None = None) -> None:
-        self._seen[nonce] = when or _utcnow()
+        if not self.try_remember(nonce, when=when):
+            raise ValueError("replayed envelope nonce")
+
+    def try_remember(self, nonce: str, *, when: datetime | None = None) -> bool:
+        with self._lock:
+            if nonce in self._seen:
+                return False
+            self._seen[nonce] = when or _utcnow()
+            return True
 
     def prune(self, older_than: timedelta) -> None:
         cutoff = _utcnow() - older_than
-        self._seen = {n: t for n, t in self._seen.items() if t >= cutoff}
+        with self._lock:
+            self._seen = {n: t for n, t in self._seen.items() if t >= cutoff}
 
 
 class EnvelopeVerifier:
@@ -133,8 +146,6 @@ class EnvelopeVerifier:
         age = _utcnow() - created.astimezone(UTC)
         if age > self.max_age or age < timedelta(seconds=-30):
             raise EnvelopeError("envelope expired or timestamp skew too large")
-        if self.nonce_store.seen(env.nonce):
-            raise EnvelopeError("replayed envelope nonce")
         if self.allowed_agents is not None:
             if env.sender_agent not in self.allowed_agents:
                 raise EnvelopeError(f"unknown sender agent: {env.sender_agent}")
@@ -143,8 +154,18 @@ class EnvelopeVerifier:
         for span_id in env.parent_span_ids:
             if self.registry.store.get_span(span_id) is None:
                 raise EnvelopeError(f"missing parent span in registry: {span_id}")
-        # Mark nonce only after all checks pass.
-        self.nonce_store.remember(env.nonce)
+        # Claim nonce only after all checks pass (atomic when store supports it).
+        claimed = True
+        try_remember = getattr(self.nonce_store, "try_remember", None)
+        if callable(try_remember):
+            claimed = bool(try_remember(env.nonce))
+        else:
+            if self.nonce_store.seen(env.nonce):
+                claimed = False
+            else:
+                self.nonce_store.remember(env.nonce)
+        if not claimed:
+            raise EnvelopeError("replayed envelope nonce")
         return env
 
     def accept(
@@ -157,8 +178,7 @@ class EnvelopeVerifier:
         env = self.verify(envelope)
         if env.recipient_agent != expected_recipient:
             raise EnvelopeError(
-                f"recipient mismatch: envelope={env.recipient_agent} "
-                f"expected={expected_recipient}"
+                f"recipient mismatch: envelope={env.recipient_agent} expected={expected_recipient}"
             )
         if not env.parent_span_ids:
             gap, _ = self.registry.record_gap(

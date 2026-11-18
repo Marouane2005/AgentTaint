@@ -167,11 +167,24 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
-## Immediate next coding tasks (after this assessment merges/lands)
+## Milestone 10 — MCP protocol & enforcement hardening (this branch)
 
-1. Create `packages/core` + `packages/provenance`  
-2. SQLite registry + unit tests  
-3. Trust registry + source labeler  
-4. Research log entry for first implementation decisions  
+| ID | Task | Acceptance |
+|----|------|------------|
+| 10.1 | CI + determinism | GitHub Actions pytest/ruff/mypy/dashboard; FixtureEmbeddingBackend sha256 |
+| 10.2 | Structured authorization grants | No USER free-text scraping; session/agent/tool/arg scoped |
+| 10.3 | MEDIUM sink untrusted influence | http.get / filesystem.write CONFIRM|BLOCK under untrusted parents/content |
+| 10.4 | MCP `_agenttaint` wire | confirmation / parents / candidates; approve tool |
+| 10.5 | Multi-process protocol proxy | Official MCP client+server over stdio; mock fs/http/shell |
+| 10.6 | Durable nonce/confirmation + registry probe | Atomic consume; health `SELECT 1` |
 
-Order is strict: **registry before proxy before reconstruction before dashboard**.
+**Hold:** Do not merge without review. Per-agent envelope keys, control-plane auth, Cedar, Postgres driver, and external ASR remain later milestones.
+
+---
+
+## Immediate next coding tasks
+
+1. M11 persistent security state (Postgres optional path, race suite)  
+2. M12 external benchmark feasibility/adapters  
+3. M13 adversarial + ablation evaluation  
+4. M14 public release packaging

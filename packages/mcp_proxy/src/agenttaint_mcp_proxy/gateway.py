@@ -21,13 +21,19 @@ from agenttaint_core.schemas import (
     ToolCallDecision,
 )
 from agenttaint_policy.adapter import PolicyAdapter
-from agenttaint_policy.context import PolicyContext
+from agenttaint_policy.context import (
+    DEFAULT_AUTHORITY_ARGUMENTS,
+    DEFAULT_CONTENT_ARGUMENTS,
+    PolicyContext,
+)
 from agenttaint_policy.evidence import build_policy_context, reconstruct_authority_evidence
+from agenttaint_policy.grants import AuthorizationGrant
 from agenttaint_provenance.registry import ProvenanceRegistry
 from agenttaint_risk.classifier import RiskClassifier
 
 from agenttaint_mcp_proxy.backends import ToolBackend, ToolSpec
 from agenttaint_mcp_proxy.errors import EnforcementError
+from agenttaint_mcp_proxy.registry_health import probe_registry_available
 
 
 def _canonicalize_arguments(arguments: dict[str, Any]) -> str:
@@ -49,6 +55,22 @@ def _redact_value(value: Any) -> Any:
 
 def _redact_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
     return {str(k): _redact_value(v) for k, v in arguments.items()}
+
+
+def provenance_context_hash(
+    *,
+    argument_parent_span_ids: dict[str, list[str]] | None,
+    candidate_span_ids: list[str] | None = None,
+) -> str:
+    """Stable hash of provenance references bound into confirmations."""
+    payload = {
+        "parents": {
+            str(k): sorted(str(x) for x in (v or []))
+            for k, v in sorted((argument_parent_span_ids or {}).items())
+        },
+        "candidates": sorted(str(x) for x in (candidate_span_ids or [])),
+    }
+    return content_hash(json.dumps(payload, sort_keys=True, separators=(",", ":")))
 
 
 class ConfirmationBinder(Protocol):
@@ -77,15 +99,25 @@ class SecurityGateway:
     confirmation: ConfirmationBinder | None = None
     reconstruction: Any | None = None
     candidates: list[Any] = field(default_factory=list)
+    authorization_grants: list[AuthorizationGrant] = field(default_factory=list)
+    # Deprecated: converted to wildcard grants when non-empty.
     user_authorized_values: set[str] = field(default_factory=set)
     authority_argument_names: set[str] = field(
-        default_factory=lambda: {"to", "recipient", "url", "path", "command"}
+        default_factory=lambda: set(DEFAULT_AUTHORITY_ARGUMENTS)
     )
-    registry_available: bool = True
+    content_argument_names: set[str] = field(default_factory=lambda: set(DEFAULT_CONTENT_ARGUMENTS))
+    # None → probe the registry on every evaluate; bool overrides for tests.
+    registry_available: bool | None = None
     attach_reconstruction: bool = True
+    session_id: str | None = None
 
     def list_tools(self) -> list[ToolSpec]:
         return self.backend.list_tools()
+
+    def check_registry_available(self) -> bool:
+        if self.registry_available is not None:
+            return self.registry_available
+        return probe_registry_available(self.registry)
 
     def _try_consume_confirmation(
         self,
@@ -95,6 +127,7 @@ class SecurityGateway:
         agent_id: str | None,
         confirmation_id: str | None,
         approval_token: str | None,
+        provenance_context_hash_value: str | None,
     ) -> tuple[bool, str | None, str | None]:
         """Return (validated, confirmation_id, error_explanation)."""
         if not confirmation_id:
@@ -108,8 +141,22 @@ class SecurityGateway:
                 arguments=arguments,
                 agent_id=agent_id or "",
                 approval_token=approval_token,
+                provenance_context_hash=provenance_context_hash_value,
             )
             return True, confirmation_id, None
+        except TypeError:
+            # Older binders without provenance binding kwarg.
+            try:
+                self.confirmation.consume(
+                    confirmation_id=confirmation_id,
+                    tool=tool_name,
+                    arguments=arguments,
+                    agent_id=agent_id or "",
+                    approval_token=approval_token,
+                )
+                return True, confirmation_id, None
+            except Exception as exc:  # noqa: BLE001
+                return False, confirmation_id, f"confirmation rejected: {exc}"
         except Exception as exc:  # noqa: BLE001 - map to fail-closed policy input
             return False, confirmation_id, f"confirmation rejected: {exc}"
 
@@ -122,9 +169,10 @@ class SecurityGateway:
         risk_tier: RiskTier,
         candidates: list[Any] | None,
     ) -> list[ArgumentEvidence]:
+        _ = tool_name
         if self.reconstruction is None:
             return []
-        if risk_tier != RiskTier.HIGH:
+        if risk_tier == RiskTier.LOW:
             return []
         corpus = list(candidates if candidates is not None else self.candidates)
         if not corpus:
@@ -134,6 +182,7 @@ class SecurityGateway:
             arguments=arguments,
             candidates=corpus,
             authority_argument_names=self.authority_argument_names,
+            content_argument_names=self.content_argument_names,
             agent_id=agent_id,
             attach=self.attach_reconstruction,
         )
@@ -148,8 +197,23 @@ class SecurityGateway:
         approval_token: str | None,
         argument_parent_span_ids: dict[str, list[str]] | None,
         candidates: list[Any] | None,
-    ) -> tuple[Any, PolicyContext, ToolCallDecision]:
+        session_id: str | None = None,
+        provenance_context_hash_value: str | None = None,
+    ) -> tuple[Any, PolicyContext, ToolCallDecision, str]:
         risk_tier = self.risk.classify(tool_name, arguments)
+        registry_ok = self.check_registry_available()
+
+        cand_ids: list[str] = []
+        for c in candidates or []:
+            sid = getattr(c, "span_id", None)
+            if sid is None and isinstance(c, dict):
+                sid = c.get("span_id")
+            if sid:
+                cand_ids.append(str(sid))
+        ctx_hash = provenance_context_hash_value or provenance_context_hash(
+            argument_parent_span_ids=argument_parent_span_ids,
+            candidate_span_ids=cand_ids,
+        )
 
         validated, cid, confirm_err = self._try_consume_confirmation(
             tool_name=tool_name,
@@ -157,6 +221,7 @@ class SecurityGateway:
             agent_id=agent_id,
             confirmation_id=confirmation_id,
             approval_token=approval_token,
+            provenance_context_hash_value=ctx_hash,
         )
 
         evidence = self._gather_evidence(
@@ -169,17 +234,21 @@ class SecurityGateway:
 
         ctx = build_policy_context(
             risk_tier=risk_tier,
-            registry=self.registry if self.registry_available else None,
-            registry_available=self.registry_available,
+            registry=self.registry if registry_ok else None,
+            registry_available=registry_ok,
             argument_evidence=evidence,
             argument_parent_span_ids=argument_parent_span_ids,
+            authorization_grants=self.authorization_grants,
             user_authorized_values=self.user_authorized_values,
             authority_argument_names=self.authority_argument_names,
+            content_argument_names=self.content_argument_names,
             confirmation_id=cid,
             confirmation_validated=validated,
+            agent_id=agent_id,
+            session_id=session_id or self.session_id,
+            tool_name=tool_name,
         )
 
-        # Invalid confirmation attempt fails closed before policy soft-paths.
         if confirmation_id and not validated:
             from agenttaint_policy.adapter import PolicyResult
 
@@ -211,7 +280,7 @@ class SecurityGateway:
             explanation=policy_result.explanation,
             latency_ms=0,
         )
-        return policy_result, ctx, decision
+        return policy_result, ctx, decision, ctx_hash
 
     def invoke(
         self,
@@ -224,10 +293,13 @@ class SecurityGateway:
         approval_token: str | None = None,
         argument_parent_span_ids: dict[str, list[str]] | None = None,
         candidates: list[Any] | None = None,
+        session_id: str | None = None,
+        provenance_context_hash_value: str | None = None,
+        execute: bool = True,
     ) -> EnforcementResult:
         started = time.perf_counter()
         args = dict(arguments or {})
-        policy_result, _ctx, decision = self._evaluate(
+        policy_result, _ctx, decision, ctx_hash = self._evaluate(
             tool_name=tool_name,
             arguments=args,
             agent_id=agent_id,
@@ -235,23 +307,36 @@ class SecurityGateway:
             approval_token=approval_token,
             argument_parent_span_ids=argument_parent_span_ids,
             candidates=candidates,
+            session_id=session_id,
+            provenance_context_hash_value=provenance_context_hash_value,
         )
 
         confirmation_record = None
         if policy_result.decision == DecisionOutcome.CONFIRM and self.confirmation is not None:
-            confirmation_record = self.confirmation.request(
-                tool=tool_name,
-                arguments=args,
-                agent_id=agent_id or "",
-                risk_tier=decision.risk_tier,
-                explanation=policy_result.explanation,
-                arguments_redacted=_redact_arguments(args),
-                policy_id=policy_result.policy_id,
-            )
+            try:
+                confirmation_record = self.confirmation.request(
+                    tool=tool_name,
+                    arguments=args,
+                    agent_id=agent_id or "",
+                    risk_tier=decision.risk_tier,
+                    explanation=policy_result.explanation,
+                    arguments_redacted=_redact_arguments(args),
+                    policy_id=policy_result.policy_id,
+                    provenance_context_hash=ctx_hash,
+                )
+            except TypeError:
+                confirmation_record = self.confirmation.request(
+                    tool=tool_name,
+                    arguments=args,
+                    agent_id=agent_id or "",
+                    risk_tier=decision.risk_tier,
+                    explanation=policy_result.explanation,
+                    arguments_redacted=_redact_arguments(args),
+                    policy_id=policy_result.policy_id,
+                )
             decision.confirmation_id = confirmation_record.confirmation_id
             decision.explanation = (
-                f"{policy_result.explanation} "
-                f"confirmation_id={confirmation_record.confirmation_id}"
+                f"{policy_result.explanation} confirmation_id={confirmation_record.confirmation_id}"
             )
 
         if policy_result.decision != DecisionOutcome.ALLOW:
@@ -263,11 +348,12 @@ class SecurityGateway:
                     f"(call_id={decision.call_id}, policy={policy_result.policy_id})",
                     decision=decision,
                 )
-            return EnforcementResult(
-                decision=decision, confirmation=confirmation_record
-            )
+            return EnforcementResult(decision=decision, confirmation=confirmation_record)
 
-        # Never skip labeling or audit after a successful policy allow.
+        if not execute:
+            decision.latency_ms = int((time.perf_counter() - started) * 1000)
+            return EnforcementResult(decision=decision, confirmation=confirmation_record)
+
         try:
             raw_result = self.backend.call_tool(tool_name, args)
         except Exception as exc:  # noqa: BLE001 - record then re-raise
@@ -288,9 +374,6 @@ class SecurityGateway:
             content=result_text,
             agent_id=agent_id,
         )
-        # Decision.provenance_status must remain the *argument/authorization*
-        # status computed before the call. Never copy KNOWN from the result span —
-        # that would silently upgrade UNKNOWN/INFERRED authorization provenance.
         decision.latency_ms = int((time.perf_counter() - started) * 1000)
         decision.explanation = (
             f"{policy_result.explanation} Provenance span={span.span_id} "
@@ -307,10 +390,11 @@ class SecurityGateway:
         agent_id: str | None = None,
         argument_parent_span_ids: dict[str, list[str]] | None = None,
         candidates: list[Any] | None = None,
+        session_id: str | None = None,
     ) -> ToolCallDecision:
         """Evaluate policy without executing the tool or consuming confirmations."""
         args = dict(arguments or {})
-        _policy_result, _ctx, decision = self._evaluate(
+        _policy_result, _ctx, decision, _ctx_hash = self._evaluate(
             tool_name=tool_name,
             arguments=args,
             agent_id=agent_id,
@@ -318,5 +402,6 @@ class SecurityGateway:
             approval_token=None,
             argument_parent_span_ids=argument_parent_span_ids,
             candidates=candidates,
+            session_id=session_id,
         )
         return decision

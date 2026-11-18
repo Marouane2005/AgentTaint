@@ -9,6 +9,7 @@ dependencies = [
   "agenttaint-policy",
   "agenttaint-audit",
   "pydantic>=2.9.0",
+  "sqlalchemy>=2.0.36",
 ]
 
 [build-system]

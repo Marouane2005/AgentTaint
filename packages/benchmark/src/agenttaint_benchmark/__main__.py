@@ -95,10 +95,7 @@ def _run_matrix(
     per_defense = {}
     defenses = default_defense_matrix()
     for defense in defenses:
-        rows = [
-            run_scenario(sc, defense, embedding_backend=embedding_backend)
-            for sc in scenarios
-        ]
+        rows = [run_scenario(sc, defense, embedding_backend=embedding_backend) for sc in scenarios]
         all_results.extend(rows)
         per_defense[_defense_key(defense)] = aggregate(rows)
 
@@ -106,8 +103,7 @@ def _run_matrix(
     if not skip_ablations:
         for defense in ablation_matrix():
             rows = [
-                run_scenario(sc, defense, embedding_backend=embedding_backend)
-                for sc in scenarios
+                run_scenario(sc, defense, embedding_backend=embedding_backend) for sc in scenarios
             ]
             all_results.extend(rows)
             per_ablation[defense.ablation.value] = aggregate(rows)
@@ -116,8 +112,7 @@ def _run_matrix(
     combined_rows = [
         r
         for r in all_results
-        if r.defense == DefenseMode.COMBINED.value
-        and r.ablation == combined_cfg.ablation.value
+        if r.defense == DefenseMode.COMBINED.value and r.ablation == combined_cfg.ablation.value
     ]
     per_family = {
         fam: aggregate([r for r in combined_rows if r.family == fam])
@@ -133,9 +128,7 @@ def _run_matrix(
     }
 
     challenge_results = []
-    challenge_path = (data_dir or (ROOT / "benchmarks" / "data")) / (
-        "scenarios_challenge.json"
-    )
+    challenge_path = (data_dir or (ROOT / "benchmarks" / "data")) / ("scenarios_challenge.json")
     if include_challenge and challenge_path.exists():
         _, challenge_scenarios = load_scenarios(Split.CHALLENGE, data_dir=data_dir)
         for defense in defenses:
@@ -172,9 +165,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(exc, file=sys.stderr)
         return 2
     backend_label = (
-        "none"
-        if embedder is None
-        else getattr(embedder, "model_name", type(embedder).__name__)
+        "none" if embedder is None else getattr(embedder, "model_name", type(embedder).__name__)
     )
     command = " ".join(["python -m agenttaint_benchmark", *sys.argv[1:]])
 
@@ -198,9 +189,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         seed=args.seed,
         split=split.value,
         defenses=[d.mode.value for d in bundle["defenses"]],
-        ablations=[d.ablation.value for d in ablation_matrix()]
-        if not args.skip_ablations
-        else [],
+        ablations=[d.ablation.value for d in ablation_matrix()] if not args.skip_ablations else [],
         command=command,
         config={
             "confirm_untrusted_influence": False,
@@ -251,9 +240,7 @@ def cmd_experiment(args: argparse.Namespace) -> int:
     backend_name = args.semantic_backend
     embedder = resolve_embedding_backend(backend_name)
     backend_label = (
-        "none"
-        if embedder is None
-        else getattr(embedder, "model_name", type(embedder).__name__)
+        "none" if embedder is None else getattr(embedder, "model_name", type(embedder).__name__)
     )
     seeds = [int(x.strip()) for x in args.seeds.split(",") if x.strip()]
     command = " ".join(["python -m agenttaint_benchmark", *sys.argv[1:]])
@@ -280,11 +267,9 @@ def cmd_experiment(args: argparse.Namespace) -> int:
                 r.scenario_id: r
                 for r in bundle["all_results"]
                 if (
-                    
-                        f"{r.defense}:{r.ablation}" == key
-                        if ":" in key
-                        else r.defense == key and r.ablation in {"none", ""}
-                    
+                    f"{r.defense}:{r.ablation}" == key
+                    if ":" in key
+                    else r.defense == key and r.ablation in {"none", ""}
                 )
             }
             for sid in sampled_ids:
@@ -305,9 +290,7 @@ def cmd_experiment(args: argparse.Namespace) -> int:
         seed=args.seed,
         split=split.value,
         defenses=[d.mode.value for d in bundle["defenses"]],
-        ablations=[d.ablation.value for d in ablation_matrix()]
-        if not args.skip_ablations
-        else [],
+        ablations=[d.ablation.value for d in ablation_matrix()] if not args.skip_ablations else [],
         command=command,
         config={
             "mode": "multi_seed_bootstrap",

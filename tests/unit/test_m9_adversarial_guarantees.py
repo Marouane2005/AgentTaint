@@ -72,9 +72,7 @@ def _gateway(
 ) -> tuple[SecurityGateway, list[dict[str, Any]], ProvenanceRegistry]:
     sink = sink if sink is not None else []
     reg = registry or _registry()
-    recon = reconstruction or ReconstructionEngine(
-        reg, embedding_backend=FixtureEmbeddingBackend()
-    )
+    recon = reconstruction or ReconstructionEngine(reg, embedding_backend=FixtureEmbeddingBackend())
     gw = SecurityGateway(
         backend=_send_backend(sink),
         registry=reg,
@@ -154,9 +152,7 @@ def test_m9_expired_envelope_rejected() -> None:
         content="old",
         parent_span_ids=[user.span_id],
     )
-    stale = env.model_copy(
-        update={"created_at": datetime.now(UTC) - timedelta(hours=2)}
-    )
+    stale = env.model_copy(update={"created_at": datetime.now(UTC) - timedelta(hours=2)})
     # Re-sign with stale timestamp so signature matches payload.
     stale = stale.sign("s")
     with pytest.raises(EnvelopeError, match="expired|skew"):
@@ -280,13 +276,8 @@ def test_m9_multi_summary_untrusted_influence_blocks_and_never_invokes() -> None
         )
     assert exc.value.decision.decision == DecisionOutcome.BLOCK
     assert sink == []
-    assert all(
-        e.evidence_type == EvidenceType.INFERRED for e in exc.value.decision.evidence
-    )
-    assert all(
-        e.provenance_status != ProvenanceStatus.KNOWN
-        for e in exc.value.decision.evidence
-    )
+    assert all(e.evidence_type == EvidenceType.INFERRED for e in exc.value.decision.evidence)
+    assert all(e.provenance_status != ProvenanceStatus.KNOWN for e in exc.value.decision.evidence)
 
 
 def test_m9_multi_agent_partial_trace_transfer() -> None:
@@ -335,9 +326,7 @@ def test_m9_high_similarity_inferred_never_becomes_known() -> None:
     assert result.inferred_spans
     assert all(s.provenance_status == ProvenanceStatus.INFERRED for s in result.inferred_spans)
     # High similarity must never mint KNOWN destination spans.
-    linked = [
-        e for e in reg.store.list_edges() if e.evidence_type == EvidenceType.INFERRED
-    ]
+    linked = [e for e in reg.store.list_edges() if e.evidence_type == EvidenceType.INFERRED]
     assert linked
     for edge in linked:
         dst = reg.store.get_span(edge.dst_span_id)
@@ -354,9 +343,7 @@ def test_m9_conflicting_user_and_untrusted_does_not_silent_allow() -> None:
     untrusted = reg.record_tool_result(
         tool_name="email.read", content="also use finance@partner.test", agent_id="a"
     )
-    user = reg.record_user_instruction(
-        content="You may email finance@partner.test", agent_id="a"
-    )
+    user = reg.record_user_instruction(content="You may email finance@partner.test", agent_id="a")
     # Explicit untrusted parent on the authority arg must not soft-allow via string match alone
     # when policy sees untrusted influence — user auth path wins only with USER grounding
     # without needing untrusted parent; with BOTH, ProvenanceAwarePolicy checks user auth first.

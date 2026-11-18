@@ -1,28 +1,29 @@
-"""MCP-facing security proxy built on the official MCP Python SDK (FastMCP).
+"""MCP-facing security proxy.
 
-Supported (Milestone 2):
-- tools/list
-- tools/call (always through SecurityGateway)
-- argument capture + audit
-- result provenance labeling
-- ALLOW / BLOCK (CONFIRM returned as denied pending approval)
+Two modes:
+1. Legacy FastMCP in-process composition (demo / unit helpers).
+2. Preferred multi-process protocol proxy (`protocol_proxy`) that is an MCP
+   client to a real downstream MCP server over stdio.
 
-Limitations (documented):
-- In-process backend composition for MVP (stdio multi-process proxy later)
-- Resources / prompts not proxied yet
-- No Cedar backend yet
+This module wires confirmation + reconstruction into the default gateway path
+and accepts `_agenttaint` metadata on tool calls.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
+from agenttaint_agent_sdk.persistence import DurableConfirmationService
 from agenttaint_audit.store import AuditStore
+from agenttaint_core.schemas import Origin
 from agenttaint_policy.adapter import PolicyAdapter
 from agenttaint_policy.loader import load_provenance_policy, load_stub_policy
 from agenttaint_provenance.registry import ProvenanceRegistry
+from agenttaint_reconstruction.engine import CandidateRecord, ReconstructionEngine
+from agenttaint_reconstruction.semantic import FixtureEmbeddingBackend
 from agenttaint_risk.classifier import RiskClassifier
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
@@ -30,6 +31,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from agenttaint_mcp_proxy.backends import MappingBackend, ToolBackend, ToolSpec
 from agenttaint_mcp_proxy.errors import EnforcementError
 from agenttaint_mcp_proxy.gateway import SecurityGateway
+from agenttaint_mcp_proxy.wire import AGENTTAINT_META_KEY, extract_wire_metadata
 
 
 def _repo_root() -> Path:
@@ -37,14 +39,23 @@ def _repo_root() -> Path:
 
 
 def _load_policy(path: Path) -> PolicyAdapter:
-    """Load stub or provenance-aware policy based on filename convention.
-
-    Files named ``*stub*`` use StubPolicyAdapter (M2 compatibility).
-    All other paths use ProvenanceAwarePolicy (default / recommended).
-    """
     if "stub" in path.name.lower():
         return load_stub_policy(path)
     return load_provenance_policy(path)
+
+
+def _default_security_db_url() -> str:
+    return os.environ.get(
+        "AGENTTAINT_SECURITY_DB_URL",
+        "sqlite+pysqlite:///:memory:",
+    )
+
+
+def _default_confirm_secret() -> str:
+    return os.environ.get(
+        "AGENTTAINT_CONFIRM_SECRET",
+        "agenttaint-local-confirm-secret-change-me",
+    )
 
 
 def build_gateway_from_paths(
@@ -53,10 +64,13 @@ def build_gateway_from_paths(
     trust_registry_path: str | Path | None = None,
     policy_path: str | Path | None = None,
     database_url: str = "sqlite+pysqlite:///:memory:",
+    security_database_url: str | None = None,
+    confirmation_secret: str | None = None,
+    enable_confirmation: bool = True,
+    enable_reconstruction: bool = True,
 ) -> SecurityGateway:
     root = _repo_root()
     trust_path = Path(trust_registry_path or root / "policies" / "trust_registry.yaml")
-    # Default to provenance-aware policy — stub remains available via explicit path.
     pol_path = Path(policy_path or root / "policies" / "provenance_policy.yaml")
 
     from agenttaint_provenance.store import ProvenanceStore
@@ -69,13 +83,51 @@ def build_gateway_from_paths(
     )
     audit = AuditStore(database_url)
     policy = _load_policy(pol_path)
+
+    confirmation = None
+    if enable_confirmation:
+        confirmation = DurableConfirmationService(
+            secret=confirmation_secret or _default_confirm_secret(),
+            database_url=security_database_url or _default_security_db_url(),
+        )
+
+    reconstruction = None
+    if enable_reconstruction:
+        reconstruction = ReconstructionEngine(registry, embedding_backend=FixtureEmbeddingBackend())
+
     return SecurityGateway(
         backend=backend,
         registry=registry,
         risk=RiskClassifier(trust),
         policy=policy,
         audit=audit,
+        confirmation=confirmation,  # type: ignore[arg-type]
+        reconstruction=reconstruction,
+        registry_available=None,
     )
+
+
+def _candidate_records(raw: list[dict[str, Any]] | None) -> list[Any]:
+    if not raw:
+        return []
+    out: list[Any] = []
+    for item in raw:
+        origin_raw = item.get("origin", "UNTRUSTED_TOOL")
+        try:
+            origin = Origin(str(origin_raw))
+        except Exception:  # noqa: BLE001
+            origin = Origin.UNTRUSTED_TOOL
+        try:
+            out.append(
+                CandidateRecord(
+                    span_id=str(item.get("span_id") or item.get("id") or ""),
+                    text=str(item.get("text") or item.get("content") or ""),
+                    origin=origin,
+                )
+            )
+        except Exception:  # noqa: BLE001
+            out.append(item)
+    return out
 
 
 def create_security_proxy(
@@ -90,11 +142,10 @@ def create_security_proxy(
         instructions=(
             "AgentTaint MCP security proxy. All tool calls are risk-classified, "
             "policy-evaluated, audited, and provenance-labeled. Blocked calls never "
-            "reach the backend."
+            "reach the backend. Pass confirmation_id / approval_token / "
+            "argument_parent_span_ids via the _agenttaint argument object."
         ),
     )
-
-    # Capture gateway for tests / introspection.
     mcp._agenttaint_gateway = gateway  # type: ignore[attr-defined]
 
     def _deny_payload(exc: EnforcementError) -> str:
@@ -107,82 +158,109 @@ def create_security_proxy(
         payload = outcome.result
         if not isinstance(payload, dict):
             payload = {"result": payload}
-        meta = {
+        meta: dict[str, Any] = {
             "call_id": outcome.decision.call_id,
             "decision": outcome.decision.decision.value,
             "span_id": None if outcome.result_span is None else outcome.result_span.span_id,
             "origin": None if outcome.result_span is None else outcome.result_span.origin.value,
             "risk_tier": outcome.decision.risk_tier.value,
             "policy_id": outcome.decision.policy_id,
+            "confirmation_id": outcome.decision.confirmation_id,
         }
-        return {**payload, "_agenttaint": meta}
+        if outcome.confirmation is not None:
+            meta["confirmation_id"] = outcome.confirmation.confirmation_id
+            meta["confirmation_status"] = getattr(
+                outcome.confirmation.status, "value", str(outcome.confirmation.status)
+            )
+        return {**payload, AGENTTAINT_META_KEY: meta}
 
-    def _register(spec: ToolSpec) -> None:
-        tool_name = spec.name
-
-        if tool_name == "email.read":
-
-            @mcp.tool(name="email.read", description=spec.description)
-            def email_read(message_id: str | None = None) -> dict[str, Any]:
-                args: dict[str, Any] = {}
-                if message_id is not None:
-                    args["message_id"] = message_id
-                try:
-                    outcome = gateway.invoke(
-                        "email.read", args, agent_id=agent_id, raise_on_deny=True
+    def _invoke(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        wire = extract_wire_metadata(arguments)
+        clean = dict(wire.clean_arguments or {})
+        try:
+            outcome = gateway.invoke(
+                tool_name,
+                clean,
+                agent_id=wire.agent_id or agent_id,
+                raise_on_deny=True,
+                confirmation_id=wire.confirmation_id,
+                approval_token=wire.approval_token,
+                argument_parent_span_ids=wire.argument_parent_span_ids,
+                candidates=_candidate_records(wire.candidates),
+                session_id=wire.session_id,
+                provenance_context_hash_value=wire.provenance_context_hash,
+            )
+        except EnforcementError as exc:
+            if exc.decision.decision.value == "CONFIRM" and exc.decision.confirmation_id:
+                raise ToolError(
+                    json.dumps(
+                        {
+                            "decision": "CONFIRM",
+                            "confirmation_id": exc.decision.confirmation_id,
+                            "explanation": exc.decision.explanation,
+                            "policy_id": exc.decision.policy_id,
+                            "call_id": exc.decision.call_id,
+                        },
+                        sort_keys=True,
                     )
-                except EnforcementError as exc:
-                    raise ToolError(_deny_payload(exc)) from exc
-                return _success_payload(outcome)
+                ) from exc
+            raise ToolError(_deny_payload(exc)) from exc
+        return _success_payload(outcome)
 
-            return
+    tool_names = {spec.name for spec in gateway.list_tools()}
 
-        if tool_name == "email.send":
+    if "email.read" in tool_names:
 
-            @mcp.tool(name="email.send", description=spec.description)
-            def email_send(
-                to: str,
-                subject: str = "",
-                body: str = "",
-                attachment: str | None = None,
-            ) -> dict[str, Any]:
-                args = {
-                    "to": to,
-                    "subject": subject,
-                    "body": body,
-                    "attachment": attachment,
-                }
-                try:
-                    outcome = gateway.invoke(
-                        "email.send", args, agent_id=agent_id, raise_on_deny=True
-                    )
-                except EnforcementError as exc:
-                    raise ToolError(_deny_payload(exc)) from exc
-                return _success_payload(outcome)
-
-            return
-
-        @mcp.tool(name=tool_name, description=spec.description)
-        def generic_tool(
-            arguments_json: str = "{}",
-            _name: str = tool_name,
+        @mcp.tool(name="email.read", description="Read messages from the local mock inbox.")
+        def email_read(
+            message_id: str | None = None,
+            agenttaint: dict[str, Any] | None = None,
         ) -> dict[str, Any]:
-            try:
-                parsed = json.loads(arguments_json) if arguments_json else {}
-                if not isinstance(parsed, dict):
-                    raise ValueError("arguments_json must decode to an object")
-            except (json.JSONDecodeError, ValueError) as exc:
-                raise ToolError(f"invalid arguments: {exc}") from exc
-            try:
-                outcome = gateway.invoke(
-                    _name, parsed, agent_id=agent_id, raise_on_deny=True
-                )
-            except EnforcementError as exc:
-                raise ToolError(_deny_payload(exc)) from exc
-            return _success_payload(outcome)
+            args: dict[str, Any] = {}
+            if message_id is not None:
+                args["message_id"] = message_id
+            if agenttaint is not None:
+                args[AGENTTAINT_META_KEY] = agenttaint
+            return _invoke("email.read", args)
+
+    if "email.send" in tool_names:
+
+        @mcp.tool(name="email.send", description="Send an email via the local mock outbox.")
+        def email_send(
+            to: str,
+            subject: str = "",
+            body: str = "",
+            attachment: str | None = None,
+            agenttaint: dict[str, Any] | None = None,
+        ) -> dict[str, Any]:
+            args: dict[str, Any] = {
+                "to": to,
+                "subject": subject,
+                "body": body,
+                "attachment": attachment,
+            }
+            if agenttaint is not None:
+                args[AGENTTAINT_META_KEY] = agenttaint
+            return _invoke("email.send", args)
 
     for spec in gateway.list_tools():
-        _register(spec)
+        if spec.name in {"email.read", "email.send"}:
+            continue
+        tool_name = spec.name
+        description = spec.description
+
+        def _register(_name: str = tool_name, _description: str = description) -> None:
+            @mcp.tool(name=_name, description=_description)
+            def _handler(
+                arguments: dict[str, Any] | None = None,
+                agenttaint: dict[str, Any] | None = None,
+            ) -> dict[str, Any]:
+                args = dict(arguments or {})
+                if agenttaint is not None:
+                    args[AGENTTAINT_META_KEY] = agenttaint
+                return _invoke(_name, args)
+
+        _register()
 
     @mcp.tool(
         name="agenttaint.preview",
@@ -190,8 +268,34 @@ def create_security_proxy(
     )
     def preview(tool_name: str, arguments_json: str = "{}") -> dict[str, Any]:
         args = json.loads(arguments_json) if arguments_json else {}
-        decision = gateway.preview(tool_name, args, agent_id=agent_id)
+        wire = extract_wire_metadata(args if isinstance(args, dict) else {})
+        decision = gateway.preview(
+            tool_name,
+            wire.clean_arguments or {},
+            agent_id=wire.agent_id or agent_id,
+            argument_parent_span_ids=wire.argument_parent_span_ids,
+            candidates=_candidate_records(wire.candidates),
+            session_id=wire.session_id,
+        )
         return decision.model_dump(mode="json")
+
+    @mcp.tool(
+        name="agenttaint.approve_confirmation",
+        description="Approve a pending confirmation and return an approval_token.",
+    )
+    def approve_confirmation(confirmation_id: str) -> dict[str, Any]:
+        if gateway.confirmation is None:
+            raise ToolError("confirmation service unavailable")
+        approve = getattr(gateway.confirmation, "approve", None)
+        if approve is None:
+            raise ToolError("confirmation service cannot approve")
+        record = approve(confirmation_id)
+        return {
+            "confirmation_id": record.confirmation_id,
+            "approval_token": record.approval_token,
+            "status": record.status.value,
+            "expires_at": record.expires_at.isoformat(),
+        }
 
     @mcp.tool(
         name="agenttaint.audit_summary",
@@ -209,6 +313,8 @@ def create_proxy_with_mock_email(
     trust_registry_path: str | Path | None = None,
     policy_path: str | Path | None = None,
     agent_id: str = "agent_default",
+    enable_confirmation: bool = True,
+    enable_reconstruction: bool = True,
 ) -> tuple[FastMCP, SecurityGateway]:
     """Convenience wiring for local demos and tests."""
     from agenttaint_mock_email.backend import MockEmailBackend
@@ -240,6 +346,8 @@ def create_proxy_with_mock_email(
             backend=backend,
             trust_registry_path=trust_registry_path,
             policy_path=policy_path,
+            enable_confirmation=enable_confirmation,
+            enable_reconstruction=enable_reconstruction,
         )
     else:
         root = _repo_root()
@@ -248,24 +356,44 @@ def create_proxy_with_mock_email(
         from agenttaint_provenance.trust import load_trust_registry
 
         trust = load_trust_registry(trust_path)
+        registry = ProvenanceRegistry(
+            store=ProvenanceStore("sqlite+pysqlite:///:memory:"),
+            trust=trust,
+        )
+        confirmation = None
+        if enable_confirmation:
+            confirmation = DurableConfirmationService(
+                secret=_default_confirm_secret(),
+                database_url=_default_security_db_url(),
+            )
+        reconstruction = None
+        if enable_reconstruction:
+            reconstruction = ReconstructionEngine(
+                registry, embedding_backend=FixtureEmbeddingBackend()
+            )
         gateway = SecurityGateway(
             backend=backend,
-            registry=ProvenanceRegistry(
-                store=ProvenanceStore("sqlite+pysqlite:///:memory:"),
-                trust=trust,
-            ),
+            registry=registry,
             risk=RiskClassifier(trust),
             policy=policy,
             audit=AuditStore("sqlite+pysqlite:///:memory:"),
+            confirmation=confirmation,  # type: ignore[arg-type]
+            reconstruction=reconstruction,
+            registry_available=None,
         )
 
-    # Keep backend handle for assertions.
     gateway._mock_email = email  # type: ignore[attr-defined]
     proxy = create_security_proxy(gateway, agent_id=agent_id)
     return proxy, gateway
 
 
 def main() -> None:
+    backend_cmd = os.environ.get("AGENTTAINT_BACKEND_CMD")
+    if backend_cmd:
+        from agenttaint_mcp_proxy.protocol_proxy import main as protocol_main
+
+        protocol_main()
+        return
     proxy, _gateway = create_proxy_with_mock_email()
     proxy.run(transport="stdio")
 

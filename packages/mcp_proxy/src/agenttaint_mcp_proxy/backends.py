@@ -29,8 +29,7 @@ class MappingBackend:
     ) -> None:
         self._tools = tools
         self._specs = specs or [
-            ToolSpec(name=name, description=name, input_schema={"type": "object"})
-            for name in tools
+            ToolSpec(name=name, description=name, input_schema={"type": "object"}) for name in tools
         ]
 
     def list_tools(self) -> list[ToolSpec]:

@@ -94,10 +94,7 @@ def aggregate_from_ids(
             key = f"{row.defense}:{row.ablation}"
         if key != defense_key:
             # Also allow exact defense-only keys for undefended/coarse/explicit
-            if not (
-                row.ablation in {"none", ""}
-                and row.defense == defense_key
-            ):
+            if not (row.ablation in {"none", ""} and row.defense == defense_key):
                 continue
         if row.scenario_id not in by_id:
             by_id[row.scenario_id] = row

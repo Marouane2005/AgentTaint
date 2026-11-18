@@ -43,6 +43,9 @@ pythonpath = [
   "packages/benchmark/src",
   "packages/api/src",
   "integrations/mock_email/src",
+  "integrations/mock_filesystem/src",
+  "integrations/mock_http/src",
+  "integrations/mock_shell/src",
 ]
 
 [tool.ruff]

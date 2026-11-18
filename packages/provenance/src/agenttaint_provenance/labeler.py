@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from agenttaint_core.hashing import content_hash, redact_sensitive
 from agenttaint_core.schemas import (
     Origin,
@@ -31,7 +33,7 @@ class SourceLabeler:
         agent_id: str | None = None,
         parent_ids: list[str] | None = None,
         path: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ProvenanceSpan:
         origin = self.trust.result_origin_for(tool_name)
         if (
@@ -62,7 +64,7 @@ class SourceLabeler:
         *,
         content: str,
         agent_id: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ProvenanceSpan:
         return ProvenanceSpan(
             origin=Origin.USER,

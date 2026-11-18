@@ -174,9 +174,7 @@ def test_envelope_with_unknown_parent_rejected(registry: ProvenanceRegistry) -> 
 
 
 def test_expired_envelope_rejected(registry: ProvenanceRegistry) -> None:
-    verifier = EnvelopeVerifier(
-        secret=SECRET, registry=registry, max_age=timedelta(seconds=1)
-    )
+    verifier = EnvelopeVerifier(secret=SECRET, registry=registry, max_age=timedelta(seconds=1))
     src = registry.record_user_instruction(content="ok", agent_id="a")
     env = verifier.create(
         sender_agent="a",
@@ -184,9 +182,9 @@ def test_expired_envelope_rejected(registry: ProvenanceRegistry) -> None:
         content="hello",
         parent_span_ids=[src.span_id],
     )
-    stale = env.model_copy(
-        update={"created_at": datetime.now(UTC) - timedelta(hours=1)}
-    ).sign(SECRET)
+    stale = env.model_copy(update={"created_at": datetime.now(UTC) - timedelta(hours=1)}).sign(
+        SECRET
+    )
     with pytest.raises(EnvelopeError, match="expired"):
         verifier.verify(stale)
 
@@ -289,9 +287,7 @@ def test_interactive_confirm_approve_and_deny(registry: ProvenanceRegistry) -> N
         risk_tier=RiskTier.HIGH,
         explanation="need confirm",
     )
-    denied = interactive_confirm(
-        conf, record2, input_fn=lambda _p: "n", print_fn=lambda _s: None
-    )
+    denied = interactive_confirm(conf, record2, input_fn=lambda _p: "n", print_fn=lambda _s: None)
     assert denied.status == ConfirmationStatus.DENIED
 
 

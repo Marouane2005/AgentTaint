@@ -232,9 +232,7 @@ def _refine_gold_sources(scenario: Scenario, state: PipelineState) -> list[str]:
     return gold
 
 
-def _resolve_parent_ids(
-    scenario: Scenario, state: PipelineState
-) -> dict[str, list[str]] | None:
+def _resolve_parent_ids(scenario: Scenario, state: PipelineState) -> dict[str, list[str]] | None:
     if not scenario.send_to:
         return None
     mode = (scenario.argument_parent_mode or "last").casefold()

@@ -1,0 +1,21 @@
+[project]
+name = "agenttaint-mock-filesystem"
+version = "0.1.0"
+description = "Local mock filesystem MCP server for AgentTaint"
+requires-python = ">=3.12"
+dependencies = [
+  "mcp>=1.23.0,<2",
+]
+
+[project.scripts]
+agenttaint-mock-filesystem = "agenttaint_mock_filesystem.server:main"
+
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

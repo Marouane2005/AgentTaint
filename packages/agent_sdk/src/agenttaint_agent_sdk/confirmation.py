@@ -1,13 +1,14 @@
 """Confirmation binding: approval is single-use and bound to exact action context.
 
-Binding tuple: (tool, arguments_hash, agent_id).
-Replay, expiry, and argument modification after approval all fail closed.
+Binding tuple: (tool, arguments_hash, agent_id, provenance_context_hash).
+Replay, expiry, argument modification, and provenance-context drift all fail closed.
 """
 
 from __future__ import annotations
 
 import hmac
 import json
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -54,6 +55,7 @@ class ConfirmationRecord:
     nonce: str
     approval_token: str | None = None
     policy_id: str | None = None
+    provenance_context_hash: str | None = None
 
 
 class ConfirmationError(PermissionError):
@@ -61,7 +63,7 @@ class ConfirmationError(PermissionError):
 
 
 class ConfirmationService:
-    """In-memory confirmation binder for local MVP / tests."""
+    """In-memory confirmation binder with locked single-use consume."""
 
     def __init__(
         self,
@@ -72,6 +74,7 @@ class ConfirmationService:
         self.secret = secret
         self.default_ttl = default_ttl
         self._records: dict[str, ConfirmationRecord] = {}
+        self._lock = threading.Lock()
 
     def request(
         self,
@@ -84,6 +87,7 @@ class ConfirmationService:
         arguments_redacted: dict[str, Any] | None = None,
         policy_id: str | None = None,
         ttl: timedelta | None = None,
+        provenance_context_hash: str | None = None,
     ) -> ConfirmationRecord:
         now = _utcnow()
         record = ConfirmationRecord(
@@ -99,8 +103,10 @@ class ConfirmationService:
             status=ConfirmationStatus.PENDING,
             nonce=generate_nonce(),
             policy_id=policy_id,
+            provenance_context_hash=provenance_context_hash,
         )
-        self._records[record.confirmation_id] = record
+        with self._lock:
+            self._records[record.confirmation_id] = record
         return record
 
     def _token_payload(self, record: ConfirmationRecord) -> str:
@@ -112,24 +118,27 @@ class ConfirmationService:
                 "agent_id": record.agent_id,
                 "nonce": record.nonce,
                 "expires_at": record.expires_at.astimezone(UTC).isoformat(),
+                "provenance_context_hash": record.provenance_context_hash,
             },
             sort_keys=True,
             separators=(",", ":"),
         )
 
     def approve(self, confirmation_id: str) -> ConfirmationRecord:
-        record = self._get(confirmation_id)
-        self._ensure_pending_fresh(record)
-        record.status = ConfirmationStatus.APPROVED
-        record.approval_token = hmac_sign(self.secret, self._token_payload(record))
-        return record
+        with self._lock:
+            record = self._get(confirmation_id)
+            self._ensure_pending_fresh(record)
+            record.status = ConfirmationStatus.APPROVED
+            record.approval_token = hmac_sign(self.secret, self._token_payload(record))
+            return record
 
     def deny(self, confirmation_id: str) -> ConfirmationRecord:
-        record = self._get(confirmation_id)
-        self._ensure_pending_fresh(record)
-        record.status = ConfirmationStatus.DENIED
-        record.approval_token = None
-        return record
+        with self._lock:
+            record = self._get(confirmation_id)
+            self._ensure_pending_fresh(record)
+            record.status = ConfirmationStatus.DENIED
+            record.approval_token = None
+            return record
 
     def consume(
         self,
@@ -139,38 +148,45 @@ class ConfirmationService:
         arguments: dict[str, Any],
         agent_id: str,
         approval_token: str | None,
+        provenance_context_hash: str | None = None,
     ) -> ConfirmationRecord:
-        """Validate binding and consume a single-use approval."""
-        record = self._get(confirmation_id)
-        now = _utcnow()
-        if record.expires_at < now:
-            record.status = ConfirmationStatus.EXPIRED
-            raise ConfirmationError("confirmation expired")
-        if record.status == ConfirmationStatus.CONSUMED:
-            raise ConfirmationError("confirmation already consumed (replay)")
-        if record.status == ConfirmationStatus.DENIED:
-            raise ConfirmationError("confirmation was denied")
-        if record.status != ConfirmationStatus.APPROVED:
-            raise ConfirmationError(f"confirmation not approved ({record.status.value})")
-        if record.tool != tool:
-            raise ConfirmationError("confirmation tool mismatch")
-        if record.agent_id != agent_id:
-            raise ConfirmationError("confirmation agent mismatch")
-        if record.arguments_hash != arguments_hash(arguments):
-            raise ConfirmationError(
-                "confirmation arguments mismatch (possible modification after approval)"
-            )
-        if not approval_token or not record.approval_token:
-            raise ConfirmationError("missing approval token")
-        if not hmac_verify(self.secret, self._token_payload(record), approval_token):
-            raise ConfirmationError("invalid approval token")
-        if not hmac.compare_digest(record.approval_token, approval_token):
-            raise ConfirmationError("approval token mismatch")
-        record.status = ConfirmationStatus.CONSUMED
-        return record
+        """Validate binding and atomically consume a single-use approval."""
+        with self._lock:
+            record = self._get(confirmation_id)
+            now = _utcnow()
+            if record.expires_at < now:
+                record.status = ConfirmationStatus.EXPIRED
+                raise ConfirmationError("confirmation expired")
+            if record.status == ConfirmationStatus.CONSUMED:
+                raise ConfirmationError("confirmation already consumed (replay)")
+            if record.status == ConfirmationStatus.DENIED:
+                raise ConfirmationError("confirmation was denied")
+            if record.status != ConfirmationStatus.APPROVED:
+                raise ConfirmationError(f"confirmation not approved ({record.status.value})")
+            if record.tool != tool:
+                raise ConfirmationError("confirmation tool mismatch")
+            if record.agent_id != agent_id:
+                raise ConfirmationError("confirmation agent mismatch")
+            if record.arguments_hash != arguments_hash(arguments):
+                raise ConfirmationError(
+                    "confirmation arguments mismatch (possible modification after approval)"
+                )
+            if record.provenance_context_hash is not None:
+                if provenance_context_hash != record.provenance_context_hash:
+                    raise ConfirmationError("confirmation provenance context mismatch")
+            if not approval_token or not record.approval_token:
+                raise ConfirmationError("missing approval token")
+            if not hmac_verify(self.secret, self._token_payload(record), approval_token):
+                raise ConfirmationError("invalid approval token")
+            if not hmac.compare_digest(record.approval_token, approval_token):
+                raise ConfirmationError("approval token mismatch")
+            # Atomic under lock: only APPROVED → CONSUMED.
+            record.status = ConfirmationStatus.CONSUMED
+            return record
 
     def get(self, confirmation_id: str) -> ConfirmationRecord | None:
-        return self._records.get(confirmation_id)
+        with self._lock:
+            return self._records.get(confirmation_id)
 
     def _get(self, confirmation_id: str) -> ConfirmationRecord:
         record = self._records.get(confirmation_id)

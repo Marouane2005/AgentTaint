@@ -151,9 +151,7 @@ class ReconstructionEngine:
         ]
         semantic_available = self.embedding_backend is not None
         if "semantic" in enabled and not semantic_available:
-            notes.append(
-                "Semantic channel requested but no embedding backend is available."
-            )
+            notes.append("Semantic channel requested but no embedding backend is available.")
 
         matches: list[MatchResult] = []
         for candidate in candidates:
@@ -166,13 +164,9 @@ class ReconstructionEngine:
             )
             level = support_level(
                 lexical_score=channel.lexical_score if "lexical" in enabled else 0.0,
-                structural_match=channel.structural_match
-                if "structural" in enabled
-                else False,
+                structural_match=channel.structural_match if "structural" in enabled else False,
                 semantic_score=channel.semantic_score if "semantic" in enabled else None,
-                explicit_lineage=channel.explicit_lineage
-                if "explicit" in enabled
-                else False,
+                explicit_lineage=channel.explicit_lineage if "explicit" in enabled else False,
                 lexical_threshold=self.lexical_threshold,
                 semantic_threshold=self.semantic_threshold,
             )
@@ -233,9 +227,7 @@ class ReconstructionEngine:
             effective = ProvenanceStatus.UNKNOWN
             notes.append("Insufficient evidence; leaving provenance UNKNOWN.")
 
-        preview = (
-            argument_value if len(argument_value) <= 64 else argument_value[:61] + "..."
-        )
+        preview = argument_value if len(argument_value) <= 64 else argument_value[:61] + "..."
         return ReconstructionResult(
             argument_name=argument_name,
             argument_value_preview=preview,

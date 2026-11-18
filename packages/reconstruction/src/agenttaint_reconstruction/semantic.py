@@ -7,6 +7,7 @@ Cosine similarity is an evidence signal, not causation probability.
 
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass
 from typing import Protocol
@@ -57,7 +58,9 @@ class FixtureEmbeddingBackend:
                 vectors.append(vec)
                 continue
             for token in tokens:
-                idx = hash(token) % self.dim
+                # Stable across PYTHONHASHSEED (stdlib hash() is salted per process).
+                digest = hashlib.sha256(token.encode("utf-8")).digest()
+                idx = int.from_bytes(digest[:8], "big") % self.dim
                 vec[idx] += 1.0
             norm = math.sqrt(sum(v * v for v in vec)) or 1.0
             vectors.append([v / norm for v in vec])
@@ -78,7 +81,9 @@ class SentenceTransformerBackend:
     def _load(self) -> None:
         if self._model is not None:
             return
-        from sentence_transformers import SentenceTransformer
+        from sentence_transformers import (  # type: ignore[import-not-found]
+            SentenceTransformer,
+        )
 
         self._model = SentenceTransformer(self._model_name)
 
@@ -93,7 +98,7 @@ def try_create_default_semantic_backend() -> EmbeddingBackend | None:
     """Return SentenceTransformer backend if extras are installed; else None."""
     try:
         import sentence_transformers  # noqa: F401
-        import torch  # noqa: F401
+        import torch  # type: ignore[import-not-found]  # noqa: F401
     except ImportError:
         return None
     return SentenceTransformerBackend()

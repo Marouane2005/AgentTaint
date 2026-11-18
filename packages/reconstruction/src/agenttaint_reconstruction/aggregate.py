@@ -99,9 +99,7 @@ def to_argument_evidence(
         argument_name=argument_name,
         value_hash=content_hash(argument_value),
         lexical_score=channel.lexical_score,
-        semantic_score=0.0
-        if channel.semantic_score is None
-        else float(channel.semantic_score),
+        semantic_score=0.0 if channel.semantic_score is None else float(channel.semantic_score),
         structural_match=channel.structural_match,
         explicit_lineage=channel.explicit_lineage,
         matched_source_ids=[channel.span_id] if level != SupportLevel.NONE else [],

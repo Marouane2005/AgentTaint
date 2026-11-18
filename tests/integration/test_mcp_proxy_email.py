@@ -25,9 +25,7 @@ async def test_mock_email_mcp_lists_and_reads() -> None:
 
         result = await session.call_tool("email.read", {})
         assert result.isError is False
-        text = " ".join(
-            block.text for block in result.content if getattr(block, "text", None)
-        )
+        text = " ".join(block.text for block in result.content if getattr(block, "text", None))
         assert "attacker@example.com" in text or "Q3" in text
 
 
@@ -50,9 +48,7 @@ async def test_proxy_lists_tools_and_labels_read() -> None:
 
         result = await session.call_tool("email.read", {})
         assert result.isError is False
-        text = " ".join(
-            block.text for block in result.content if getattr(block, "text", None)
-        )
+        text = " ".join(block.text for block in result.content if getattr(block, "text", None))
         assert "_agenttaint" in text
         assert "UNTRUSTED_TOOL" in text or "span_id" in text
 
@@ -85,9 +81,7 @@ async def test_proxy_blocks_attacker_send_and_does_not_forward() -> None:
             },
         )
         assert result.isError is True
-        text = " ".join(
-            block.text for block in result.content if getattr(block, "text", None)
-        )
+        text = " ".join(block.text for block in result.content if getattr(block, "text", None))
         assert "BLOCK" in text or "blocked" in text.lower() or "AgentTaint" in text
 
     assert mock_email.sent == []

@@ -103,4 +103,9 @@ class AgentTaintContext:
         )
 
     def accept(self, envelope: ProvenanceEnvelope | dict[str, Any]) -> ProvenanceSpan:
-        return self.verifier.accept(envelope, expected_recipient=self.agent_id)
+        span = self.verifier.accept(envelope, expected_recipient=self.agent_id)
+        from agenttaint_core.schemas import ProvenanceSpan
+
+        if not isinstance(span, ProvenanceSpan):
+            raise TypeError("envelope accept must return a ProvenanceSpan")
+        return span
