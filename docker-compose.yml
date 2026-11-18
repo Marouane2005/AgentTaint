@@ -27,6 +27,11 @@ services:
       HOST: "0.0.0.0"
       PORT: "8080"
       AGENTTAINT_API_AUTH: "off"
+      # Approval endpoints stay disabled (503) until both of these are set.
+      # Generate: python3 -c "import secrets; print(secrets.token_hex(32))"
+      AGENTTAINT_CONFIRM_SECRET: "${AGENTTAINT_CONFIRM_SECRET:-}"
+      AGENTTAINT_DASHBOARD_TOKEN: "${AGENTTAINT_DASHBOARD_TOKEN:-}"
+      AGENTTAINT_SECURITY_DB_URL: "sqlite+pysqlite:////data/security.db"
       AGENTTAINT_DATA_DIR: "/data"
       AGENTTAINT_BENCHMARKS_DIR: "/app/benchmarks/reports"
       AGENTTAINT_CORS_ORIGINS: "http://127.0.0.1:3000,http://localhost:3000"

@@ -18,6 +18,7 @@ from typing import Any
 
 from agenttaint_agent_sdk.persistence import DurableConfirmationService
 from agenttaint_audit.store import AuditStore
+from agenttaint_core.config import ConfigurationError, resolve_confirm_secret
 from agenttaint_core.schemas import Origin
 from agenttaint_policy.adapter import PolicyAdapter
 from agenttaint_policy.loader import load_provenance_policy, load_stub_policy
@@ -31,7 +32,12 @@ from mcp.server.fastmcp.exceptions import ToolError
 from agenttaint_mcp_proxy.backends import MappingBackend, ToolBackend, ToolSpec
 from agenttaint_mcp_proxy.errors import EnforcementError
 from agenttaint_mcp_proxy.gateway import SecurityGateway
-from agenttaint_mcp_proxy.wire import AGENTTAINT_META_KEY, extract_wire_metadata
+from agenttaint_mcp_proxy.wire import (
+    AGENTTAINT_META_KEY,
+    AgentIdentityError,
+    extract_wire_metadata,
+    resolve_agent_identity,
+)
 
 
 def _repo_root() -> Path:
@@ -48,13 +54,6 @@ def _default_security_db_url() -> str:
     return os.environ.get(
         "AGENTTAINT_SECURITY_DB_URL",
         "sqlite+pysqlite:///:memory:",
-    )
-
-
-def _default_confirm_secret() -> str:
-    return os.environ.get(
-        "AGENTTAINT_CONFIRM_SECRET",
-        "agenttaint-local-confirm-secret-change-me",
     )
 
 
@@ -87,7 +86,8 @@ def build_gateway_from_paths(
     confirmation = None
     if enable_confirmation:
         confirmation = DurableConfirmationService(
-            secret=confirmation_secret or _default_confirm_secret(),
+            # Fails closed (ConfigurationError) when no strong secret is configured.
+            secret=resolve_confirm_secret(confirmation_secret),
             database_url=security_database_url or _default_security_db_url(),
         )
 
@@ -178,17 +178,20 @@ def create_security_proxy(
         wire = extract_wire_metadata(arguments)
         clean = dict(wire.clean_arguments or {})
         try:
+            effective_agent = resolve_agent_identity(wire, agent_id)
+        except AgentIdentityError as exc:
+            raise ToolError(f"AgentTaint BLOCK: {exc}") from exc
+        try:
             outcome = gateway.invoke(
                 tool_name,
                 clean,
-                agent_id=wire.agent_id or agent_id,
+                agent_id=effective_agent,
                 raise_on_deny=True,
                 confirmation_id=wire.confirmation_id,
                 approval_token=wire.approval_token,
                 argument_parent_span_ids=wire.argument_parent_span_ids,
                 candidates=_candidate_records(wire.candidates),
                 session_id=wire.session_id,
-                provenance_context_hash_value=wire.provenance_context_hash,
             )
         except EnforcementError as exc:
             if exc.decision.decision.value == "CONFIRM" and exc.decision.confirmation_id:
@@ -269,33 +272,19 @@ def create_security_proxy(
     def preview(tool_name: str, arguments_json: str = "{}") -> dict[str, Any]:
         args = json.loads(arguments_json) if arguments_json else {}
         wire = extract_wire_metadata(args if isinstance(args, dict) else {})
+        try:
+            effective_agent = resolve_agent_identity(wire, agent_id)
+        except AgentIdentityError as exc:
+            raise ToolError(f"AgentTaint BLOCK: {exc}") from exc
         decision = gateway.preview(
             tool_name,
             wire.clean_arguments or {},
-            agent_id=wire.agent_id or agent_id,
+            agent_id=effective_agent,
             argument_parent_span_ids=wire.argument_parent_span_ids,
             candidates=_candidate_records(wire.candidates),
             session_id=wire.session_id,
         )
         return decision.model_dump(mode="json")
-
-    @mcp.tool(
-        name="agenttaint.approve_confirmation",
-        description="Approve a pending confirmation and return an approval_token.",
-    )
-    def approve_confirmation(confirmation_id: str) -> dict[str, Any]:
-        if gateway.confirmation is None:
-            raise ToolError("confirmation service unavailable")
-        approve = getattr(gateway.confirmation, "approve", None)
-        if approve is None:
-            raise ToolError("confirmation service cannot approve")
-        record = approve(confirmation_id)
-        return {
-            "confirmation_id": record.confirmation_id,
-            "approval_token": record.approval_token,
-            "status": record.status.value,
-            "expires_at": record.expires_at.isoformat(),
-        }
 
     @mcp.tool(
         name="agenttaint.audit_summary",
@@ -363,7 +352,7 @@ def create_proxy_with_mock_email(
         confirmation = None
         if enable_confirmation:
             confirmation = DurableConfirmationService(
-                secret=_default_confirm_secret(),
+                secret=resolve_confirm_secret(),
                 database_url=_default_security_db_url(),
             )
         reconstruction = None
@@ -394,7 +383,10 @@ def main() -> None:
 
         protocol_main()
         return
-    proxy, _gateway = create_proxy_with_mock_email()
+    try:
+        proxy, _gateway = create_proxy_with_mock_email()
+    except ConfigurationError as exc:
+        raise SystemExit(f"AgentTaint proxy refusing to start: {exc}") from exc
     proxy.run(transport="stdio")
 
 

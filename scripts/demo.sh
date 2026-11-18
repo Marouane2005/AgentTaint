@@ -21,6 +21,30 @@ make dashboard-install >/tmp/agenttaint-demo-dash-install.log 2>&1 || {
 }
 
 mkdir -p .agenttaint/demo
+
+# Confirmation secret: there is no built-in default. Generate a random one for
+# this demo run unless the operator already exported one.
+if [[ -z "${AGENTTAINT_CONFIRM_SECRET:-}" ]]; then
+  AGENTTAINT_CONFIRM_SECRET="$("$PYTHON" -c 'import secrets; print(secrets.token_hex(32))')"
+  export AGENTTAINT_CONFIRM_SECRET
+  echo "==> Generated a random AGENTTAINT_CONFIRM_SECRET for this demo run"
+fi
+# Operator token for the out-of-band approval endpoints (/api/v1/confirmations).
+if [[ -z "${AGENTTAINT_DASHBOARD_TOKEN:-}" ]]; then
+  AGENTTAINT_DASHBOARD_TOKEN="$("$PYTHON" -c 'import secrets; print(secrets.token_urlsafe(24))')"
+  export AGENTTAINT_DASHBOARD_TOKEN
+fi
+export AGENTTAINT_SECURITY_DB_URL="${AGENTTAINT_SECURITY_DB_URL:-sqlite+pysqlite:///$ROOT/.agenttaint/demo/security.db}"
+# Operator credentials for a second terminal (file is git-ignored, mode 0600).
+OPERATOR_ENV=".agenttaint/demo/operator.env"
+(
+  umask 077
+  {
+    printf 'export AGENTTAINT_CONFIRM_SECRET=%q\n' "$AGENTTAINT_CONFIRM_SECRET"
+    printf 'export AGENTTAINT_DASHBOARD_TOKEN=%q\n' "$AGENTTAINT_DASHBOARD_TOKEN"
+    printf 'export AGENTTAINT_SECURITY_DB_URL=%q\n' "$AGENTTAINT_SECURITY_DB_URL"
+  } >"$OPERATOR_ENV"
+)
 API_PID_FILE=".agenttaint/demo/api.pid"
 DASH_PID_FILE=".agenttaint/demo/dashboard.pid"
 
@@ -62,6 +86,12 @@ echo "AgentTaint local demo is running."
 echo "  Dashboard: http://127.0.0.1:${DASH_PORT}"
 echo "  API:       http://127.0.0.1:${API_PORT}/api/v1/health"
 echo "  Logs:      /tmp/agenttaint-demo-{api,dashboard}.log"
+echo
+echo "Out-of-band approvals (the agent cannot approve its own CONFIRMs):"
+echo "  source ${OPERATOR_ENV}   # in a second terminal"
+echo "  python3 -m agenttaint_agent_sdk.confirm_cli list"
+echo "  curl -H \"X-AgentTaint-Token: \$AGENTTAINT_DASHBOARD_TOKEN\" http://127.0.0.1:${API_PORT}/api/v1/confirmations"
+echo "  (secrets are not printed; they live in ${OPERATOR_ENV})"
 echo
 echo "Open the dashboard, click \"Seed demo session\", then inspect"
 echo "Overview / Provenance / Gateway. Press Ctrl-C to stop."

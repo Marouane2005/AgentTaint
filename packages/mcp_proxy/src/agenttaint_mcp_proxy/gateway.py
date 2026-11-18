@@ -16,6 +16,7 @@ from agenttaint_core.hashing import content_hash, redact_sensitive
 from agenttaint_core.schemas import (
     ArgumentEvidence,
     DecisionOutcome,
+    Origin,
     ProvenanceSpan,
     RiskTier,
     ToolCallDecision,
@@ -34,6 +35,8 @@ from agenttaint_risk.classifier import RiskClassifier
 from agenttaint_mcp_proxy.backends import ToolBackend, ToolSpec
 from agenttaint_mcp_proxy.errors import EnforcementError
 from agenttaint_mcp_proxy.registry_health import probe_registry_available
+
+_UNTRUSTED_ORIGINS = frozenset({Origin.UNTRUSTED_TOOL, Origin.UNKNOWN})
 
 
 def _canonicalize_arguments(arguments: dict[str, Any]) -> str:
@@ -110,6 +113,10 @@ class SecurityGateway:
     registry_available: bool | None = None
     attach_reconstruction: bool = True
     session_id: str | None = None
+    # Untrusted tool results this gateway has labeled (plaintext kept in-process only,
+    # never persisted) so calls with undeclared lineage can still be reconstructed.
+    session_untrusted: list[Any] = field(default_factory=list)
+    max_session_candidates: int = 256
 
     def list_tools(self) -> list[ToolSpec]:
         return self.backend.list_tools()
@@ -118,6 +125,63 @@ class SecurityGateway:
         if self.registry_available is not None:
             return self.registry_available
         return probe_registry_available(self.registry)
+
+    def label_tool_result(
+        self,
+        *,
+        tool_name: str,
+        content: str,
+        agent_id: str | None,
+    ) -> ProvenanceSpan:
+        """Register a tool result span and remember untrusted text for reconstruction."""
+        span = self.registry.record_tool_result(
+            tool_name=tool_name,
+            content=content,
+            agent_id=agent_id,
+        )
+        if span.origin in _UNTRUSTED_ORIGINS and content:
+            from agenttaint_reconstruction.engine import CandidateRecord
+
+            self.session_untrusted.append(
+                CandidateRecord(
+                    span_id=span.span_id,
+                    text=content,
+                    origin=span.origin,
+                    agent_id=agent_id,
+                )
+            )
+            overflow = len(self.session_untrusted) - self.max_session_candidates
+            if overflow > 0:
+                del self.session_untrusted[:overflow]
+        return span
+
+    def _registry_untrusted_spans(self) -> list[ProvenanceSpan]:
+        try:
+            return [s for s in self.registry.store.list_spans() if s.origin in _UNTRUSTED_ORIGINS]
+        except Exception:  # noqa: BLE001 - availability handled by registry probe
+            return []
+
+    def session_corpus(self) -> list[Any]:
+        """Untrusted spans this session has seen, as reconstruction candidates."""
+        from agenttaint_reconstruction.engine import CandidateRecord
+
+        corpus: list[Any] = list(self.session_untrusted)
+        seen = {getattr(c, "span_id", None) for c in corpus}
+        for span in self._registry_untrusted_spans():
+            if span.span_id in seen or not span.content_redacted:
+                continue
+            corpus.append(
+                CandidateRecord(
+                    span_id=span.span_id,
+                    text=span.content_redacted,
+                    origin=span.origin,
+                    agent_id=span.agent_id,
+                )
+            )
+        return corpus
+
+    def session_untrusted_seen(self) -> bool:
+        return bool(self.session_untrusted) or bool(self._registry_untrusted_spans())
 
     def _try_consume_confirmation(
         self,
@@ -134,6 +198,12 @@ class SecurityGateway:
             return False, None, None
         if self.confirmation is None:
             return False, confirmation_id, "confirmation service unavailable"
+        if not approval_token:
+            # Approval happens out-of-band (CLI / authenticated control plane); the
+            # token stays server-side, so the agent only references the confirmation.
+            getter = getattr(self.confirmation, "get", None)
+            record = getter(confirmation_id) if callable(getter) else None
+            approval_token = getattr(record, "approval_token", None) if record else None
         try:
             self.confirmation.consume(
                 confirmation_id=confirmation_id,
@@ -168,13 +238,19 @@ class SecurityGateway:
         agent_id: str | None,
         risk_tier: RiskTier,
         candidates: list[Any] | None,
+        lineage_declared: bool = True,
     ) -> list[ArgumentEvidence]:
         _ = tool_name
         if self.reconstruction is None:
             return []
         if risk_tier == RiskTier.LOW:
             return []
-        corpus = list(candidates if candidates is not None else self.candidates)
+        corpus = list(candidates if candidates else self.candidates)
+        if not lineage_declared:
+            # No declared parents: reconstruct against everything untrusted this
+            # session has ingested instead of trusting the omission.
+            have = {getattr(c, "span_id", None) for c in corpus}
+            corpus.extend(c for c in self.session_corpus() if c.span_id not in have)
         if not corpus:
             return []
         return reconstruct_authority_evidence(
@@ -210,10 +286,14 @@ class SecurityGateway:
                 sid = c.get("span_id")
             if sid:
                 cand_ids.append(str(sid))
-        ctx_hash = provenance_context_hash_value or provenance_context_hash(
+        # Always computed server-side: a caller-supplied hash could otherwise replay
+        # an approval against different provenance references.
+        _ = provenance_context_hash_value
+        ctx_hash = provenance_context_hash(
             argument_parent_span_ids=argument_parent_span_ids,
             candidate_span_ids=cand_ids,
         )
+        lineage_declared = any(bool(v) for v in (argument_parent_span_ids or {}).values())
 
         validated, cid, confirm_err = self._try_consume_confirmation(
             tool_name=tool_name,
@@ -230,6 +310,7 @@ class SecurityGateway:
             agent_id=agent_id,
             risk_tier=risk_tier,
             candidates=candidates,
+            lineage_declared=lineage_declared,
         )
 
         ctx = build_policy_context(
@@ -247,6 +328,7 @@ class SecurityGateway:
             agent_id=agent_id,
             session_id=session_id or self.session_id,
             tool_name=tool_name,
+            session_untrusted_seen=(not lineage_declared) and self.session_untrusted_seen(),
         )
 
         if confirmation_id and not validated:
@@ -369,7 +451,7 @@ class SecurityGateway:
             if isinstance(raw_result, str)
             else json.dumps(raw_result, sort_keys=True, default=str)
         )
-        span = self.registry.record_tool_result(
+        span = self.label_tool_result(
             tool_name=tool_name,
             content=result_text,
             agent_id=agent_id,

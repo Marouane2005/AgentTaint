@@ -9,6 +9,8 @@ dependencies = [
   "agenttaint-risk",
   "agenttaint-policy",
   "agenttaint-audit",
+  "agenttaint-reconstruction",
+  "agenttaint-agent-sdk",
   "mcp>=1.23.0,<2",
 ]
 

@@ -132,6 +132,8 @@ class DurableConfirmationService:
         database_url: str = "sqlite+pysqlite:///:memory:",
         default_ttl: timedelta = timedelta(minutes=5),
     ) -> None:
+        if not secret:
+            raise ValueError("DurableConfirmationService requires a non-empty secret")
         self.secret = secret
         self.default_ttl = default_ttl
         self.database_url = database_url
@@ -269,6 +271,19 @@ class DurableConfirmationService:
         with self.session() as session:
             row = session.get(ConfirmationRow, confirmation_id)
             return self._from_row(row) if row else None
+
+    def list_by_status(
+        self, status: ConfirmationStatus = ConfirmationStatus.PENDING, *, limit: int = 50
+    ) -> list[ConfirmationRecord]:
+        """Records in one status, newest first (for out-of-band review)."""
+        with self.session() as session:
+            rows = session.scalars(
+                select(ConfirmationRow)
+                .where(ConfirmationRow.status == status.value)
+                .order_by(ConfirmationRow.created_at.desc())
+                .limit(max(1, min(limit, 500)))
+            ).all()
+            return [self._from_row(r) for r in rows]
 
     def _token_payload(self, record: ConfirmationRecord) -> str:
         return json.dumps(

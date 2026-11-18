@@ -10,7 +10,6 @@ AGENTTAINT_META_KEY = "_agenttaint"
 
 _AGENTTAINT_SCHEMA_PROPS: dict[str, Any] = {
     "confirmation_id": {"type": "string"},
-    "approval_token": {"type": "string"},
     "argument_parent_span_ids": {
         "type": "object",
         "additionalProperties": {
@@ -29,10 +28,28 @@ _AGENTTAINT_SCHEMA_PROPS: dict[str, Any] = {
             },
         },
     },
-    "agent_id": {"type": "string"},
     "session_id": {"type": "string"},
-    "provenance_context_hash": {"type": "string"},
 }
+
+
+class AgentIdentityError(PermissionError):
+    """Caller tried to assert an agent identity different from the proxy's own."""
+
+
+def resolve_agent_identity(wire: WireMetadata, configured_agent_id: str) -> str:
+    """Agent identity comes from proxy configuration, never from the caller.
+
+    A caller-supplied ``agent_id`` is accepted only if it equals the configured
+    identity (harmless echo); any other value is rejected so it can never be used
+    to impersonate another agent or satisfy a confirmation bound to one.
+    """
+    claimed = wire.agent_id
+    if claimed is not None and claimed != configured_agent_id:
+        raise AgentIdentityError(
+            "agent_id is derived from proxy configuration; caller-supplied identity "
+            f"{claimed!r} rejected"
+        )
+    return configured_agent_id
 
 
 @dataclass(frozen=True)
@@ -95,8 +112,9 @@ def augment_input_schema(schema: dict[str, Any] | None) -> dict[str, Any]:
     props[AGENTTAINT_META_KEY] = {
         "type": "object",
         "description": (
-            "AgentTaint enforcement metadata: confirmation_id, approval_token, "
-            "argument_parent_span_ids, candidates, agent_id, session_id."
+            "AgentTaint enforcement metadata: confirmation_id, "
+            "argument_parent_span_ids, candidates, session_id. Agent identity is "
+            "fixed by proxy configuration; approvals happen out-of-band."
         ),
         "properties": dict(_AGENTTAINT_SCHEMA_PROPS),
         "additionalProperties": False,

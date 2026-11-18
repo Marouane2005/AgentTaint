@@ -12,6 +12,9 @@ dependencies = [
   "sqlalchemy>=2.0.36",
 ]
 
+[project.scripts]
+agenttaint-confirm = "agenttaint_agent_sdk.confirm_cli:main"
+
 [project.optional-dependencies]
 postgres = [
   "psycopg[binary]>=3.2.0",

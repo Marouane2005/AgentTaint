@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -31,7 +32,8 @@ def _proxy_params(*, backend_module: str, db_path: Path) -> StdioServerParameter
         "--agent-id",
         "agent_mp",
     ]
-    return StdioServerParameters(command=sys.executable, args=args, cwd=str(ROOT))
+    env = {**os.environ, "AGENTTAINT_CONFIRM_SECRET": os.environ["AGENTTAINT_CONFIRM_SECRET"]}
+    return StdioServerParameters(command=sys.executable, args=args, cwd=str(ROOT), env=env)
 
 
 @pytest.mark.asyncio
@@ -44,7 +46,8 @@ async def test_multiprocess_email_list_and_block(tmp_path: Path) -> None:
             names = {t.name for t in tools.tools}
             assert "email.read" in names
             assert "email.send" in names
-            assert "agenttaint.approve_confirmation" in names
+            # Approval is out-of-band only: the agent-facing surface has no approve tool.
+            assert not any("approve" in n for n in names)
 
             # Real schema forwarded (not arguments_json-only).
             send = next(t for t in tools.tools if t.name == "email.send")
@@ -122,6 +125,7 @@ async def test_multiprocess_backend_error_surfaces(tmp_path: Path) -> None:
             f"sqlite+pysqlite:///{tmp_path / 'e.db'}",
         ],
         cwd=str(ROOT),
+        env=dict(os.environ),
     )
     with pytest.raises((McpError, OSError, RuntimeError, BaseExceptionGroup)):
         async with stdio_client(params) as (read, write):

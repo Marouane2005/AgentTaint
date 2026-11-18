@@ -263,3 +263,96 @@ def session_clear(
         },
         "overview": state.overview(),
     }
+
+
+# --- Out-of-band confirmation approval ----------------------------------------
+#
+# These routes are the human approval channel. They ALWAYS require the dashboard
+# token (independent of AGENTTAINT_API_AUTH) and are disabled when no token or no
+# confirmation secret is configured. The MCP proxy exposes no approval tool.
+
+
+def _require_approval_token(x_agenttaint_token: str | None) -> None:
+    expected = os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="confirmation approval disabled: set AGENTTAINT_DASHBOARD_TOKEN",
+        )
+    if not hmac.compare_digest(x_agenttaint_token or "", expected):
+        raise HTTPException(status_code=401, detail="invalid or missing dashboard token")
+
+
+def _confirmation_service() -> Any:
+    from agenttaint_agent_sdk.persistence import DurableConfirmationService
+    from agenttaint_core.config import ConfigurationError, resolve_confirm_secret
+
+    url = os.environ.get("AGENTTAINT_SECURITY_DB_URL", "").strip()
+    if not url:
+        raise HTTPException(
+            status_code=503,
+            detail="confirmation approval disabled: set AGENTTAINT_SECURITY_DB_URL",
+        )
+    try:
+        secret = resolve_confirm_secret()
+    except ConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return DurableConfirmationService(secret=secret, database_url=url)
+
+
+def _confirmation_view(record: Any) -> dict[str, Any]:
+    # Never return the approval token: the agent does not need it and the
+    # control plane should not leak it.
+    return {
+        "confirmation_id": record.confirmation_id,
+        "tool": record.tool,
+        "agent_id": record.agent_id,
+        "risk_tier": record.risk_tier.value,
+        "policy_id": record.policy_id,
+        "arguments_redacted": record.arguments_redacted,
+        "arguments_hash": record.arguments_hash,
+        "explanation": record.explanation,
+        "status": record.status.value,
+        "expires_at": record.expires_at.isoformat(),
+    }
+
+
+@app.get("/api/v1/confirmations")
+def list_confirmations(
+    x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
+) -> dict[str, Any]:
+    _require_approval_token(x_agenttaint_token)
+    service = _confirmation_service()
+    return {"pending": [_confirmation_view(r) for r in service.list_by_status()]}
+
+
+def _decide(confirmation_id: str, approve: bool) -> dict[str, Any]:
+    from agenttaint_agent_sdk.confirmation import ConfirmationError
+
+    cid = _validate_id(confirmation_id, "confirmation_id")
+    service = _confirmation_service()
+    if service.get(cid) is None:
+        raise HTTPException(status_code=404, detail="unknown confirmation_id")
+    try:
+        record = service.approve(cid) if approve else service.deny(cid)
+    except ConfirmationError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _confirmation_view(record)
+
+
+@app.post("/api/v1/confirmations/{confirmation_id}/approve")
+def approve_confirmation(
+    confirmation_id: str,
+    x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
+) -> dict[str, Any]:
+    _require_approval_token(x_agenttaint_token)
+    return _decide(confirmation_id, approve=True)
+
+
+@app.post("/api/v1/confirmations/{confirmation_id}/deny")
+def deny_confirmation(
+    confirmation_id: str,
+    x_agenttaint_token: str | None = Header(default=None, alias="X-AgentTaint-Token"),
+) -> dict[str, Any]:
+    _require_approval_token(x_agenttaint_token)
+    return _decide(confirmation_id, approve=False)

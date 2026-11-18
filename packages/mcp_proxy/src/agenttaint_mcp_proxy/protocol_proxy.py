@@ -20,6 +20,7 @@ from typing import Any
 
 import anyio
 import mcp.types as types
+from agenttaint_core.config import ConfigurationError, resolve_confirm_secret
 from agenttaint_core.schemas import DecisionOutcome
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -32,9 +33,32 @@ from agenttaint_mcp_proxy.gateway import SecurityGateway
 from agenttaint_mcp_proxy.server import build_gateway_from_paths
 from agenttaint_mcp_proxy.wire import (
     AGENTTAINT_META_KEY,
+    AgentIdentityError,
     augment_input_schema,
     extract_wire_metadata,
+    resolve_agent_identity,
 )
+
+# Proxy-side secrets must never be handed to downstream tool servers.
+_SECRET_ENV_VARS = frozenset(
+    {
+        "AGENTTAINT_CONFIRM_SECRET",
+        "AGENTTAINT_DASHBOARD_TOKEN",
+        "AGENTTAINT_SHARED_SECRET",
+        "AGENTTAINT_SECURITY_DB_URL",
+        "AGENTTAINT_DATABASE_URL",
+    }
+)
+
+
+def backend_environment(environ: dict[str, str] | None = None) -> dict[str, str]:
+    """Environment for the downstream MCP server, minus proxy secrets/keyrings."""
+    src = dict(os.environ if environ is None else environ)
+    return {
+        k: v
+        for k, v in src.items()
+        if k not in _SECRET_ENV_VARS and not k.startswith("AGENTTAINT_ENVELOPE_KEY")
+    }
 
 
 class _ListingBackend:
@@ -127,17 +151,6 @@ def build_protocol_server(
             )
         tools.append(
             types.Tool(
-                name="agenttaint.approve_confirmation",
-                description="Approve a pending confirmation and return approval_token.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {"confirmation_id": {"type": "string"}},
-                    "required": ["confirmation_id"],
-                },
-            )
-        )
-        tools.append(
-            types.Tool(
                 name="agenttaint.preview",
                 description="Preview enforcement without executing the backend tool.",
                 inputSchema={
@@ -177,35 +190,20 @@ def build_protocol_server(
         if name == "agenttaint.audit_summary":
             return _text_result({"counts": gateway.audit.count_by_decision()})
 
-        if name == "agenttaint.approve_confirmation":
-            cid = str((arguments or {}).get("confirmation_id", ""))
-            if gateway.confirmation is None:
-                return _text_result({"error": "confirmation unavailable"}, is_error=True)
-            approve = getattr(gateway.confirmation, "approve", None)
-            if approve is None:
-                return _text_result({"error": "approve unsupported"}, is_error=True)
-            try:
-                record = approve(cid)
-            except Exception as exc:  # noqa: BLE001
-                return _text_result({"error": str(exc)}, is_error=True)
-            return _text_result(
-                {
-                    "confirmation_id": record.confirmation_id,
-                    "approval_token": record.approval_token,
-                    "status": record.status.value,
-                }
-            )
-
         if name == "agenttaint.preview":
             tool_name = str((arguments or {}).get("tool_name", ""))
             raw_args = (arguments or {}).get("arguments") or {}
             if not isinstance(raw_args, dict):
                 raw_args = {}
             wire = extract_wire_metadata(raw_args)
+            try:
+                preview_agent = resolve_agent_identity(wire, agent_id)
+            except AgentIdentityError as exc:
+                return _text_result({"decision": "BLOCK", "error": str(exc)}, is_error=True)
             decision = gateway.preview(
                 tool_name,
                 wire.clean_arguments or {},
-                agent_id=wire.agent_id or agent_id,
+                agent_id=preview_agent,
                 argument_parent_span_ids=wire.argument_parent_span_ids,
                 candidates=_candidate_records(wire.candidates),
                 session_id=wire.session_id,
@@ -215,17 +213,23 @@ def build_protocol_server(
         wire = extract_wire_metadata(arguments or {})
         clean = dict(wire.clean_arguments or {})
         try:
+            effective_agent = resolve_agent_identity(wire, agent_id)
+        except AgentIdentityError as exc:
+            return _text_result(
+                {"decision": "BLOCK", "policy_id": "agent-identity-mismatch", "error": str(exc)},
+                is_error=True,
+            )
+        try:
             outcome = gateway.invoke(
                 name,
                 clean,
-                agent_id=wire.agent_id or agent_id,
+                agent_id=effective_agent,
                 raise_on_deny=False,
                 confirmation_id=wire.confirmation_id,
                 approval_token=wire.approval_token,
                 argument_parent_span_ids=wire.argument_parent_span_ids,
                 candidates=_candidate_records(wire.candidates),
                 session_id=wire.session_id,
-                provenance_context_hash_value=wire.provenance_context_hash,
                 execute=False,
             )
         except EnforcementError as exc:
@@ -283,10 +287,10 @@ def build_protocol_server(
             if text_bits
             else json.dumps({"isError": backend_result.isError}, sort_keys=True)
         )
-        span = gateway.registry.record_tool_result(
+        span = gateway.label_tool_result(
             tool_name=name,
             content=result_text,
-            agent_id=wire.agent_id or agent_id,
+            agent_id=effective_agent,
         )
         outcome.decision.explanation = (
             f"{outcome.decision.explanation} Provenance span={span.span_id} "
@@ -342,7 +346,7 @@ async def run_protocol_proxy(
     params = StdioServerParameters(
         command=backend_command[0],
         args=list(backend_command[1:]),
-        env=dict(os.environ),
+        env=backend_environment(),
     )
     listing = _ListingBackend()
     gateway = build_gateway_from_paths(
@@ -393,6 +397,10 @@ def main(argv: list[str] | None = None) -> None:
     cmd = shlex.split(args.backend_cmd)
     if not cmd:
         raise SystemExit("AGENTTAINT_BACKEND_CMD / --backend-cmd is required")
+    try:
+        resolve_confirm_secret()
+    except ConfigurationError as exc:
+        raise SystemExit(f"AgentTaint proxy refusing to start: {exc}") from exc
     asyncio.run(
         run_protocol_proxy(
             cmd,
