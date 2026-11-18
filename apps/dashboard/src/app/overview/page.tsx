@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarList, DECISION_COLORS, DestinationMap, Donut, Gauge, TimelineChart } from "@/components/charts";
+import {
+  BarList,
+  DECISION_COLORS,
+  DestinationMap,
+  Donut,
+  Gauge,
+  TimelineChart,
+} from "@/components/charts";
 import { DecisionTable } from "@/components/DecisionTable";
 import { SessionBanner } from "@/components/SessionBanner";
 import {
@@ -14,8 +21,15 @@ import {
   seedDemo,
   type Decision,
 } from "@/lib/api";
-import { countBy, decisionTimeline, destinationFlows, riskGauges, type SpanEdge } from "@/lib/derive";
+import {
+  countBy,
+  decisionTimeline,
+  destinationFlows,
+  riskGauges,
+  type SpanEdge,
+} from "@/lib/derive";
 import { useDemoMode } from "@/lib/useDemoMode";
+import { PageHint } from "@/components/PageHint";
 
 const TIER_COLORS: Record<string, string> = {
   LOW: "#22d3ee",
@@ -77,23 +91,58 @@ export default function OverviewPage() {
   const graph = overview?.graph || {};
 
   const kpis = [
-    { label: "Gateway decisions", value: decisions.length, tone: "cyan", hint: "audit store" },
-    { label: "Blocked", value: counts.BLOCK || 0, tone: "block", hint: "BLOCK" },
-    { label: "Awaiting human", value: counts.CONFIRM || 0, tone: "confirm", hint: "CONFIRM" },
-    { label: "Allowed", value: counts.ALLOW || 0, tone: "allow", hint: "ALLOW" },
-    { label: "Provenance spans", value: Number(graph.spans || 0), tone: "cyan", hint: `${graph.edges || 0} edges` },
-    { label: "Median latency", value: `${p50} ms`, tone: "cyan", hint: "policy + audit" },
+    {
+      label: "Gateway decisions",
+      value: decisions.length,
+      tone: "cyan",
+      hint: "audit store",
+    },
+    {
+      label: "Blocked",
+      value: counts.BLOCK || 0,
+      tone: "block",
+      hint: "BLOCK",
+    },
+    {
+      label: "Awaiting human",
+      value: counts.CONFIRM || 0,
+      tone: "confirm",
+      hint: "CONFIRM",
+    },
+    {
+      label: "Allowed",
+      value: counts.ALLOW || 0,
+      tone: "allow",
+      hint: "ALLOW",
+    },
+    {
+      label: "Provenance spans",
+      value: Number(graph.spans || 0),
+      tone: "cyan",
+      hint: `${graph.edges || 0} edges`,
+    },
+    {
+      label: "Median latency",
+      value: `${p50} ms`,
+      tone: "cyan",
+      hint: "policy + audit",
+    },
   ];
 
   return (
     <div className="console">
+      <PageHint id="overview" title="Security overview">
+        A summary of every tool call the gateway has judged in this session: how many were allowed,
+        held for approval (CONFIRM) or blocked, and which policies fired. Run a scenario or try your
+        own text, then come back to see the totals change.
+      </PageHint>
       <div className="console-head">
         <div>
           <p className="eyebrow">Investigative console</p>
           <h1>Security overview</h1>
           <p className="sub">
-            Every number below is read from the audit store and provenance registry. The demo
-            seed runs synthetic scenarios through the real SecurityGateway; it is not production
+            Every number below is read from the audit store and provenance registry. The demo seed
+            runs synthetic scenarios through the real SecurityGateway; it is not production
             telemetry.
           </p>
         </div>
@@ -148,15 +197,30 @@ export default function OverviewPage() {
             <h2>Risk gauges</h2>
           </header>
           <div className="gauge-grid">
-            <Gauge value={gauges.blockRate} label="Block rate" hint="BLOCK / decisions" color="#ff5f6d" />
-            <Gauge value={gauges.reviewLoad} label="Human review load" hint="CONFIRM / decisions" color="#f2b937" />
+            <Gauge
+              value={gauges.blockRate}
+              label="Block rate"
+              hint="BLOCK / decisions"
+              color="#ff5f6d"
+            />
+            <Gauge
+              value={gauges.reviewLoad}
+              label="Human review load"
+              hint="CONFIRM / decisions"
+              color="#f2b937"
+            />
             <Gauge
               value={gauges.unverifiedProvenance}
               label="Unverified provenance"
               hint="decisions not KNOWN"
               color="#a78bfa"
             />
-            <Gauge value={gauges.inferredLineage} label="Inferred lineage" hint="inferred / all edges" color="#22d3ee" />
+            <Gauge
+              value={gauges.inferredLineage}
+              label="Inferred lineage"
+              hint="inferred / all edges"
+              color="#22d3ee"
+            />
           </div>
         </section>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { SessionBanner } from "@/components/SessionBanner";
 import { fetchReconstruction } from "@/lib/api";
+import { PageHint } from "@/components/PageHint";
 
 function Meter({
   label,
@@ -28,9 +29,7 @@ function Meter({
 }
 
 export default function ReconstructionPage() {
-  const [data, setData] = useState<Awaited<
-    ReturnType<typeof fetchReconstruction>
-  > | null>(null);
+  const [data, setData] = useState<Awaited<ReturnType<typeof fetchReconstruction>> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(0);
@@ -47,14 +46,18 @@ export default function ReconstructionPage() {
 
   return (
     <>
+      <PageHint id="reconstruction" title="Reconstruction inspector">
+        When an agent does not declare where a value came from, AgentTaint compares it with
+        everything the agent read and scores possible sources. These matches are evidence for
+        scrutiny, not proof of causation.
+      </PageHint>
       <div className="topbar">
         <div>
           <p className="eyebrow">Scrutiny</p>
           <h1>Reconstruction Inspector</h1>
           <p>
-            Lexical, structural, and semantic signals attached to authority
-            arguments. INFERRED evidence is a scrutiny signal — never verified
-            lineage.
+            Lexical, structural, and semantic signals attached to authority arguments. INFERRED
+            evidence is a scrutiny signal — never verified lineage.
           </p>
         </div>
       </div>
@@ -125,18 +128,13 @@ export default function ReconstructionPage() {
           ) : (
             <>
               <p style={{ marginTop: 0 }}>
-                Argument <span className="mono">{String(active.argument_name)}</span>{" "}
-                ·{" "}
+                Argument <span className="mono">{String(active.argument_name)}</span> ·{" "}
                 <span className={`pill ${String(active.provenance_status)}`}>
                   {String(active.provenance_status)}
                 </span>
               </p>
               <div style={{ display: "grid", gap: "0.7rem", marginTop: "0.85rem" }}>
-                <Meter
-                  label="Lexical"
-                  value={Number(active.lexical_score || 0)}
-                  kind="lexical"
-                />
+                <Meter label="Lexical" value={Number(active.lexical_score || 0)} kind="lexical" />
                 <Meter
                   label="Semantic"
                   value={Number(active.semantic_score || 0)}
@@ -159,15 +157,12 @@ export default function ReconstructionPage() {
                 </div>
                 <div className="status-row">
                   <span className="k">Explicit lineage</span>
-                  <span className="v">
-                    {active.explicit_lineage ? "yes" : "no"}
-                  </span>
+                  <span className="v">{active.explicit_lineage ? "yes" : "no"}</span>
                 </div>
                 <div className="status-row">
                   <span className="k">Matched sources</span>
                   <span className="v mono" style={{ fontSize: "0.75rem" }}>
-                    {Array.isArray(active.matched_source_ids) &&
-                    active.matched_source_ids.length
+                    {Array.isArray(active.matched_source_ids) && active.matched_source_ids.length
                       ? active.matched_source_ids
                           .map((id: string) => `${String(id).slice(0, 8)}…`)
                           .join(", ")

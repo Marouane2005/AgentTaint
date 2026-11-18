@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { TokenGate } from "@/components/TokenGate";
 import { useDemoMode } from "@/lib/useDemoMode";
 
@@ -23,19 +23,30 @@ const SITE_PREFIXES = ["/product", "/limitations", "/admin", "/terms", "/privacy
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
   const demo = useDemoMode();
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => setMenuOpen(false), [pathname]);
   if (SITE_PREFIXES.some((p) => pathname.startsWith(p))) {
     return <>{children}</>;
   }
   return (
     <div className="app-frame">
-      <header className="topnav">
+      <header className={menuOpen ? "topnav menu-open" : "topnav"}>
         <Link href={demo ? "/product" : "/overview"} className="topnav-brand">
           <span className="brand-glyph" aria-hidden>
             AT
           </span>
           <strong>AgentTaint</strong>
         </Link>
-        <nav aria-label="Main">
+        <button
+          type="button"
+          className="menu-toggle"
+          aria-expanded={menuOpen}
+          aria-controls="main-nav"
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          <span aria-hidden>{menuOpen ? "✕" : "☰"}</span> Menu
+        </button>
+        <nav id="main-nav" aria-label="Main" className={menuOpen ? "open" : undefined}>
           {TABS.map((t) => {
             const active = pathname.startsWith(t.href);
             return (

@@ -134,13 +134,33 @@ export function TraceGraph({
   const [view, setView] = useState({ k: 1, x: 0, y: 0 });
   const [showFlows, setShowFlows] = useState(true);
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{
+    d: number;
+    k: number;
+    vx: number;
+    vy: number;
+    cx: number;
+    cy: number;
+  } | null>(null);
+  const [legendOpen, setLegendOpen] = useState(true);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 760) {
+      setLegendOpen(false);
+      setShowFlows(false);
+    }
+  }, []);
 
   const fit = useCallback(() => {
     const el = wrapRef.current;
     const w = el?.clientWidth || 900;
     const h = el?.clientHeight || 560;
-    const k = Math.min(1.4, Math.max(0.2, Math.min(w / layout.width, h / layout.height)));
-    setView({ k, x: (w - layout.width * k) / 2, y: (h - layout.height * k) / 2 });
+    // On phones keep labels readable: never shrink below ~45%; start at the left edge
+    // so the sources are visible, and let the visitor pan to the right.
+    const minK = w < 600 ? 0.45 : 0.2;
+    const k = Math.min(1.4, Math.max(minK, Math.min(w / layout.width, h / layout.height)));
+    const x = layout.width * k > w ? 8 : (w - layout.width * k) / 2;
+    setView({ k, x, y: (h - layout.height * k) / 2 });
   }, [layout.width, layout.height]);
 
   useEffect(() => {
@@ -153,7 +173,11 @@ export function TraceGraph({
       const cx = (el?.clientWidth || 900) / 2;
       const cy = (el?.clientHeight || 560) / 2;
       const k = Math.min(3, Math.max(0.15, v.k * factor));
-      return { k, x: cx - ((cx - v.x) * k) / v.k, y: cy - ((cy - v.y) * k) / v.k };
+      return {
+        k,
+        x: cx - ((cx - v.x) * k) / v.k,
+        y: cy - ((cy - v.y) * k) / v.k,
+      };
     });
 
   function onWheel(e: ReactWheelEvent<HTMLDivElement>) {
@@ -162,21 +186,67 @@ export function TraceGraph({
     const py = e.clientY - rect.top;
     setView((v) => {
       const k = Math.min(3, Math.max(0.15, v.k * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
-      return { k, x: px - ((px - v.x) * k) / v.k, y: py - ((py - v.y) * k) / v.k };
+      return {
+        k,
+        x: px - ((px - v.x) * k) / v.k,
+        y: py - ((py - v.y) * k) / v.k,
+      };
     });
   }
 
   function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     if ((e.target as Element).closest("[data-node]")) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    pointers.current.set(e.pointerId, {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = {
+        d: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+        k: view.k,
+        vx: view.x,
+        vy: view.y,
+        cx: (a.x + b.x) / 2,
+        cy: (a.y + b.y) / 2,
+      };
+      drag.current = null;
+      return;
+    }
     drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   }
   function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (pointers.current.has(e.pointerId)) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      pointers.current.set(e.pointerId, {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    }
+    const p = pinch.current;
+    if (p && pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      const k = Math.min(3, Math.max(0.15, (p.k * Math.hypot(a.x - b.x, a.y - b.y)) / p.d));
+      setView({
+        k,
+        x: p.cx - ((p.cx - p.vx) * k) / p.k,
+        y: p.cy - ((p.cy - p.vy) * k) / p.k,
+      });
+      return;
+    }
     const d = drag.current;
     if (!d) return;
-    setView((v) => ({ ...v, x: d.vx + e.clientX - d.x, y: d.vy + e.clientY - d.y }));
+    setView((v) => ({
+      ...v,
+      x: d.vx + e.clientX - d.x,
+      y: d.vy + e.clientY - d.y,
+    }));
   }
-  function onPointerUp() {
+  function onPointerUp(e?: ReactPointerEvent<HTMLDivElement>) {
+    if (e) pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
     drag.current = null;
   }
 
@@ -192,11 +262,14 @@ export function TraceGraph({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
+        onPointerCancel={onPointerUp}
         role="img"
         aria-label="Provenance trace graph"
       >
         {!nodes.length ? (
-          <div className="tg-empty">No spans for this trace. Seed the demo session first.</div>
+          <div className="tg-empty">
+            No spans for this trace yet. Run a scenario, then pick it from the trace list.
+          </div>
         ) : null}
         <svg width="100%" height="100%">
           <defs>
@@ -218,13 +291,7 @@ export function TraceGraph({
           <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
             {layout.columns.map((c, i) => (
               <g key={`${c.x}-${i}`}>
-                <line
-                  x1={c.x}
-                  x2={c.x}
-                  y1={28}
-                  y2={layout.height - 10}
-                  className="tg-col-line"
-                />
+                <line x1={c.x} x2={c.x} y1={28} y2={layout.height - 10} className="tg-col-line" />
                 <text x={c.x} y={22} textAnchor="middle" className="tg-col-label">
                   {c.label.toUpperCase()}
                 </text>
@@ -320,62 +387,77 @@ export function TraceGraph({
           </div>
         ) : null}
 
-        <div className="tg-legend" onPointerDown={(e) => e.stopPropagation()}>
-          <div className="tg-legend-title">Node types</div>
-          <div className="tg-legend-row">
-            <svg width="14" height="14">
-              <polygon points="7,0 14,7 7,14 0,7" fill="#8a93a3" />
-            </svg>
-            Source / input
-          </div>
-          <div className="tg-legend-row">
-            <svg width="14" height="14">
-              <circle cx="7" cy="7" r="6" fill="#2fd39a" />
-            </svg>
-            Agent
-          </div>
-          <div className="tg-legend-row">
-            <svg width="14" height="14">
-              <rect width="14" height="14" rx="4" fill="#e04fd0" />
-            </svg>
-            Tool step / memory
-          </div>
-          <div className="tg-legend-row">
-            <svg width="14" height="14">
-              <rect width="14" height="14" rx="2" fill="#f5d142" />
-            </svg>
-            Output / sink
-          </div>
-          <div className="tg-legend-row">
-            <svg width="14" height="14">
-              <rect width="14" height="14" rx="7" fill="#3b7bff" />
-            </svg>
-            Final action (gateway decision)
-          </div>
-          <div className="tg-legend-title">Edges</div>
-          {(
-            [
-              ["explicit", "Explicit lineage"],
-              ["inferred", "Inferred (not verified causation)"],
-              ["evaluated", "Argument evaluated"],
-              ["executed", "Tool executed"],
-            ] as const
-          ).map(([k, label]) => (
-            <div className="tg-legend-row" key={k}>
-              <svg width="22" height="8">
-                <line
-                  x1="0"
-                  y1="4"
-                  x2="22"
-                  y2="4"
-                  stroke={EDGE_STYLE[k].stroke}
-                  strokeWidth="2"
-                  strokeDasharray={EDGE_STYLE[k].dash}
-                />
-              </svg>
-              {label}
-            </div>
-          ))}
+        <div
+          className={legendOpen ? "tg-legend" : "tg-legend closed"}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="tg-legend-toggle"
+            aria-expanded={legendOpen}
+            onClick={() => setLegendOpen((v) => !v)}
+          >
+            Legend {legendOpen ? "▾" : "▸"}
+          </button>
+          {legendOpen ? (
+            <>
+              <div className="tg-legend-title">Node types</div>
+              <div className="tg-legend-row">
+                <svg width="14" height="14">
+                  <polygon points="7,0 14,7 7,14 0,7" fill="#8a93a3" />
+                </svg>
+                Source / input
+              </div>
+              <div className="tg-legend-row">
+                <svg width="14" height="14">
+                  <circle cx="7" cy="7" r="6" fill="#2fd39a" />
+                </svg>
+                Agent
+              </div>
+              <div className="tg-legend-row">
+                <svg width="14" height="14">
+                  <rect width="14" height="14" rx="4" fill="#e04fd0" />
+                </svg>
+                Tool step / memory
+              </div>
+              <div className="tg-legend-row">
+                <svg width="14" height="14">
+                  <rect width="14" height="14" rx="2" fill="#f5d142" />
+                </svg>
+                Output / sink
+              </div>
+              <div className="tg-legend-row">
+                <svg width="14" height="14">
+                  <rect width="14" height="14" rx="7" fill="#3b7bff" />
+                </svg>
+                Final action (gateway decision)
+              </div>
+              <div className="tg-legend-title">Edges</div>
+              {(
+                [
+                  ["explicit", "Explicit lineage"],
+                  ["inferred", "Inferred (not verified causation)"],
+                  ["evaluated", "Argument evaluated"],
+                  ["executed", "Tool executed"],
+                ] as const
+              ).map(([k, label]) => (
+                <div className="tg-legend-row" key={k}>
+                  <svg width="22" height="8">
+                    <line
+                      x1="0"
+                      y1="4"
+                      x2="22"
+                      y2="4"
+                      stroke={EDGE_STYLE[k].stroke}
+                      strokeWidth="2"
+                      strokeDasharray={EDGE_STYLE[k].dash}
+                    />
+                  </svg>
+                  {label}
+                </div>
+              ))}
+            </>
+          ) : null}
         </div>
       </div>
     </div>
