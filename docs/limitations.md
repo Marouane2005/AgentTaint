@@ -50,6 +50,7 @@
 44. **The synthetic suite does not exercise MEDIUM sinks** (only `email.read`/`email.send`), so the M15 MEDIUM-tier change has no measured effect on the published benchmark numbers; its utility impact is covered only by unit tests.
 45. **Shell sandbox limits** are executed in the CI `docker-sandbox` job: commands run in a real container and the tests check uid/gid 65534, empty capability sets, no-new-privileges, loopback-only networking, read-only rootfs, noexec `/tmp`, cgroup memory/CPU/pids limits and the kill timeout. Docker is not a VM boundary; kernel escapes are out of scope.
 46. **Reconstruction's added value** shows only in reviewer-sensitivity metrics (CONFIRM→BLOCK), not strict ASR: on the synthetic `reconstruction` split explicit lineage BLOCKs 0/16 broken-lineage attacks, reconstruction 13/16 (fixture) or 16/16 (BGE). BGE also falsely BLOCKs 3/8 benign controls there; the fixture embedder misses assembled/spelled-out addresses (`docs/benchmark_results_reconstruction.md`).
+47. **External benchmark (AgentDojo, real LLMs)** is a sampled subset on free-tier models (`docs/external_results_agentdojo.md`). AgentTaint does not filter model output, so injection goals met by answer text alone (e.g. `travel/injection_task_6`) are out of scope. Utility drops sharply where tasks legitimately take recipients from untrusted content (slack utility 0 with `mercury-3`) unless the user grants those values.
 
 ## Operational
 

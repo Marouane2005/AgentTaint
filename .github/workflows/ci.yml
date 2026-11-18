@@ -167,3 +167,24 @@ jobs:
           path: |
             reconstruction_ci.md
             reconstruction_ci.json
+
+  agentdojo-adapter:
+    name: AgentDojo adapter (offline, scripted model)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install workspace with the agentdojo extra
+        run: |
+          make install
+          python3 -m pip install -e "./packages/benchmark[agentdojo]"
+
+      - name: Adapter tests (no network, no API keys)
+        run: |
+          python3 -m pytest -q -rs tests/unit/test_agentdojo_adapter.py | tee adapter.txt
+          if grep -q SKIPPED adapter.txt; then echo "adapter tests were skipped"; exit 1; fi

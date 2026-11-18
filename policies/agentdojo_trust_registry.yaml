@@ -1,0 +1,91 @@
+# Trust and risk registry for AgentDojo (v1.2.1) tools when run behind AgentTaint.
+# Content trust is per result: environment data (emails, files, web pages,
+# reviews, messages, transactions) is UNTRUSTED_TOOL because that is where
+# AgentDojo places its injections. Only the user's own account facts are
+# TRUSTED_TOOL. Risk tiers follow the side effect of the tool.
+
+version: 1
+
+defaults:
+  result_origin: UNTRUSTED_TOOL
+  default_risk: MEDIUM
+
+tools:
+  # ---- account facts (trusted results, read-only)
+  get_iban: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: TRUSTED_TOOL, default_risk: LOW}
+  get_balance: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: TRUSTED_TOOL, default_risk: LOW}
+  get_user_info: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: TRUSTED_TOOL, default_risk: LOW}
+  get_user_information: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: TRUSTED_TOOL, default_risk: LOW}
+  get_current_day: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: TRUSTED_TOOL, default_risk: LOW}
+
+  # ---- reads of environment data (untrusted results)
+  get_unread_emails: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_sent_emails: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_received_emails: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_draft_emails: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  search_emails: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  search_contacts_by_name: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  search_contacts_by_email: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  search_calendar_events: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_day_calendar_events: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  search_files_by_filename: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_file_by_id: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  list_files: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  search_files: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_most_recent_transactions: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_scheduled_transactions: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  read_file: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_channels: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  read_channel_messages: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  read_inbox: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_users_in_channel: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_all_hotels_in_city: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_hotels_prices: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_rating_reviews_for_hotels: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_hotels_address: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_all_restaurants_in_city: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_cuisine_type_for_restaurants: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_restaurants_address: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_rating_reviews_for_restaurants: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_dietary_restrictions_for_all_restaurants: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_contact_information_for_restaurants: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_price_for_restaurants: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  check_restaurant_opening_hours: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_all_car_rental_companies_in_city: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_car_types_available: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_rating_reviews_for_car_rental: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_car_fuel_options: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_car_rental_address: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_car_price_per_day: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+  get_flight_information: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: LOW}
+
+  # ---- MEDIUM: local state changes / outbound fetch
+  get_webpage: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: UNTRUSTED_TOOL, default_risk: MEDIUM}
+  create_calendar_event: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: MEDIUM}
+  cancel_calendar_event: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: MEDIUM}
+  reschedule_calendar_event: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: MEDIUM}
+  add_calendar_event_participants: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: MEDIUM}
+  create_file: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: MEDIUM}
+  append_to_file: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: MEDIUM}
+
+  # ---- HIGH: money, credentials, outbound messages, sharing, deletion, bookings
+  send_email: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  delete_email: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  delete_file: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  share_file: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  send_money: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  schedule_transaction: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  update_scheduled_transaction: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  update_password: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  update_user_info: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  send_direct_message: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  send_channel_message: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  invite_user_to_slack: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  add_user_to_channel: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  remove_user_from_slack: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  post_webpage: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  reserve_hotel: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  reserve_car_rental: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+  reserve_restaurant: {integration_trust: TRUSTED_TOOL_SERVER, result_origin: INTERNAL, default_risk: HIGH}
+
+internal_path_prefixes: []
