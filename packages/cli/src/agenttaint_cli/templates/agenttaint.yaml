@@ -1,0 +1,37 @@
+# AgentTaint 1.0 configuration.
+#
+# ${NAME} placeholders are filled from the environment, then from the .env file
+# next to this config (written by `agenttaint init`, mode 600). Keep secrets in
+# .env or your secret manager, never in this file.
+version: 1
+
+# Identity recorded on every decision for calls arriving through this proxy.
+agent_id: agent_default
+
+policy:
+  # Cedar-backed provenance policy: which flows are ALLOW / CONFIRM / BLOCK.
+  file: ./policies/provenance_policy.yaml
+  # Risk tier and result trust for each tool name. Add every tool your MCP
+  # server exposes; unknown tools get `defaults.default_risk`.
+  trust_registry: ./policies/trust_registry.yaml
+
+storage:
+  # Provenance graph and audit log. SQLite is fine for one machine; use
+  # Postgres (postgresql+psycopg://...) when the proxy and dashboard run apart.
+  database_url: ${AGENTTAINT_DATABASE_URL}
+  # Confirmation queue and replay nonces. Must be durable (not :memory:) so
+  # `agenttaint approve` and the dashboard see the proxy's pending approvals.
+  security_database_url: ${AGENTTAINT_SECURITY_DB_URL}
+
+# The MCP server AgentTaint protects. The proxy starts it as a child process on
+# stdio and forwards only the calls the policy allows. AgentTaint secrets
+# (AGENTTAINT_* tokens, database URLs) are stripped from the child's env.
+backend:
+  command: ["npx", "-y", "@modelcontextprotocol/server-filesystem", "./sandbox"]
+
+dashboard:
+  # Bind to loopback; put a TLS reverse proxy in front for remote access.
+  host: 127.0.0.1
+  port: 8080
+  # required: every /api/v1 route (except health) needs AGENTTAINT_DASHBOARD_TOKEN.
+  auth: required

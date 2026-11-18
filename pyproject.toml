@@ -1,11 +1,11 @@
 [project]
-name = "agenttaint"
-version = "0.1.0"
+name = "agenttaint-workspace"
+version = "1.0.0"
 description = "Evidence-based information-flow enforcement for AI agents and MCP systems"
 readme = "README.md"
-license = { text = "Apache-2.0" }
+license = { text = "LicenseRef-AgentTaint-Commercial" }
 requires-python = ">=3.12"
-authors = [{ name = "AgentTaint Contributors" }]
+authors = [{ name = "Marouane El Aasri" }]
 dependencies = []
 
 [project.optional-dependencies]
@@ -47,6 +47,7 @@ pythonpath = [
   "packages/agent_sdk/src",
   "packages/benchmark/src",
   "packages/api/src",
+  "packages/cli/src",
   "integrations/mock_email/src",
   "integrations/mock_filesystem/src",
   "integrations/mock_http/src",

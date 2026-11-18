@@ -1,0 +1,40 @@
+[project]
+name = "agenttaint"
+version = "1.0.0"
+description = "AgentTaint: provenance-based tool-call firewall for MCP agents (CLI and full install)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "LicenseRef-AgentTaint-Commercial" }
+authors = [{ name = "Marouane El Aasri" }]
+dependencies = [
+  "agenttaint-core==1.0.0",
+  "agenttaint-provenance==1.0.0",
+  "agenttaint-risk==1.0.0",
+  "agenttaint-policy==1.0.0",
+  "agenttaint-audit==1.0.0",
+  "agenttaint-reconstruction==1.0.0",
+  "agenttaint-agent-sdk==1.0.0",
+  "agenttaint-mcp-proxy==1.0.0",
+  "agenttaint-mock-email==1.0.0",
+  "agenttaint-api==1.0.0",
+  "pyyaml>=6.0.2",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.2.0"]
+
+[project.scripts]
+agenttaint = "agenttaint_cli.main:main"
+
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agenttaint_cli = ["templates/*"]

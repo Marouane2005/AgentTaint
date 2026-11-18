@@ -1,6 +1,6 @@
 [project]
 name = "agenttaint-provenance"
-version = "0.1.0"
+version = "1.0.0"
 description = "Provenance registry, graph, and source labeling for AgentTaint"
 requires-python = ">=3.12"
 dependencies = [

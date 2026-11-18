@@ -23,4 +23,4 @@ __all__ = [
     "load_provenance_policy",
     "load_stub_policy",
 ]
-__version__ = "0.1.0"
+__version__ = "1.0.0"

@@ -20,3 +20,5 @@ htmlcov/
 # Generated benchmark JSON is large; keep markdown summaries in git.
 benchmarks/reports/*.json
 !benchmarks/reports/.gitkeep
+packages/api/src/agenttaint_api/ui/
+dist/

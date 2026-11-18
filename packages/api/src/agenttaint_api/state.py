@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from agenttaint_audit.store import AuditStore
+from agenttaint_core.paths import TRUST_REGISTRY_FILE, default_policy_file
 from agenttaint_core.schemas import Origin, TransformationOperation
 from agenttaint_mcp_proxy.backends import MappingBackend, ToolSpec
 from agenttaint_mcp_proxy.errors import EnforcementError
@@ -26,7 +27,7 @@ from agenttaint_reconstruction.semantic import FixtureEmbeddingBackend
 from agenttaint_risk.classifier import RiskClassifier
 
 ROOT = Path(__file__).resolve().parents[4]
-TRUST = ROOT / "policies" / "trust_registry.yaml"
+TRUST = default_policy_file(TRUST_REGISTRY_FILE)
 DEFAULT_DATA = Path(os.environ.get("AGENTTAINT_DATA_DIR", str(ROOT / ".agenttaint" / "dashboard")))
 BENCHMARKS = Path(os.environ.get("AGENTTAINT_BENCHMARKS_DIR", str(ROOT / "benchmarks" / "reports")))
 
@@ -86,10 +87,35 @@ class AppState:
 _STATE: AppState | None = None
 
 
+def live_database_url() -> str:
+    """Shared provenance/audit DB of a running proxy, when configured.
+
+    Point the control plane at the same ``AGENTTAINT_DATABASE_URL`` as
+    ``agenttaint proxy`` and the dashboard shows the proxy's live decisions.
+    In-memory URLs are ignored (nothing to share).
+    """
+    url = os.environ.get("AGENTTAINT_DATABASE_URL", "").strip()
+    if not url or ":memory:" in url:
+        return ""
+    return url
+
+
+def create_live_state(url: str) -> AppState:
+    trust = load_trust_registry(TRUST)
+    registry = ProvenanceRegistry(store=ProvenanceStore(url), trust=trust)
+    state = AppState(registry=registry, audit=AuditStore(url), data_dir=DEFAULT_DATA)
+    state.session = SessionMeta(
+        mode="live",
+        label="Live data from the AgentTaint proxy database (AGENTTAINT_DATABASE_URL).",
+    )
+    return state
+
+
 def get_state() -> AppState:
     global _STATE
     if _STATE is None:
-        _STATE = create_state(DEFAULT_DATA)
+        url = live_database_url()
+        _STATE = create_live_state(url) if url else create_state(DEFAULT_DATA)
     return _STATE
 
 

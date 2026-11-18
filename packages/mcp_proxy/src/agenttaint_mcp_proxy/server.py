@@ -19,6 +19,7 @@ from typing import Any
 from agenttaint_agent_sdk.persistence import DurableConfirmationService
 from agenttaint_audit.store import AuditStore
 from agenttaint_core.config import ConfigurationError, resolve_confirm_secret
+from agenttaint_core.paths import POLICY_FILE, TRUST_REGISTRY_FILE, default_policy_file
 from agenttaint_core.schemas import Origin
 from agenttaint_policy.adapter import PolicyAdapter
 from agenttaint_policy.loader import load_policy, load_stub_policy
@@ -68,9 +69,8 @@ def build_gateway_from_paths(
     enable_confirmation: bool = True,
     enable_reconstruction: bool = True,
 ) -> SecurityGateway:
-    root = _repo_root()
-    trust_path = Path(trust_registry_path or root / "policies" / "trust_registry.yaml")
-    pol_path = Path(policy_path or root / "policies" / "provenance_policy.yaml")
+    trust_path = Path(trust_registry_path or default_policy_file(TRUST_REGISTRY_FILE))
+    pol_path = Path(policy_path or default_policy_file(POLICY_FILE))
 
     from agenttaint_provenance.store import ProvenanceStore
     from agenttaint_provenance.trust import load_trust_registry
@@ -339,8 +339,7 @@ def create_proxy_with_mock_email(
             enable_reconstruction=enable_reconstruction,
         )
     else:
-        root = _repo_root()
-        trust_path = Path(trust_registry_path or root / "policies" / "trust_registry.yaml")
+        trust_path = Path(trust_registry_path or default_policy_file(TRUST_REGISTRY_FILE))
         from agenttaint_provenance.store import ProvenanceStore
         from agenttaint_provenance.trust import load_trust_registry
 

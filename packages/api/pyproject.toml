@@ -1,6 +1,6 @@
 [project]
 name = "agenttaint-api"
-version = "0.1.0"
+version = "1.0.0"
 description = "FastAPI control plane for the AgentTaint dashboard"
 requires-python = ">=3.12"
 dependencies = [
@@ -30,3 +30,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+agenttaint_api = ["ui/*", "ui/**/*"]
