@@ -1,7 +1,7 @@
 # Related Work — AgentTaint Literature Review
 
-**Status:** Living — M9 reaffirms no primacy claims without shared protocols  
-**Date:** 2026-11-13  
+**Status:** Living — M14 reaffirms no primacy claims without shared protocols  
+**Date:** 2026-11-18  
 **Rule:** Do not claim AgentTaint is the first provenance / taint / IFC system for AI agents. Novelty must be established experimentally.
 
 ---

@@ -195,7 +195,20 @@ Each task is done only when its **acceptance tests** pass.
 
 ---
 
+## Milestone 14 — Research & public release
+
+| ID | Task | Acceptance |
+|----|------|------------|
+| 14.1 | Research report + contribution honesty | `docs/research_report.md`, updated contribution/limitations |
+| 14.2 | Install + one-command demo | `docs/install.md`, `make demo`, Compose `--profile demo` |
+| 14.3 | README / architecture refresh | Professional entrypoint; M10–M14 notes |
+| 14.4 | Dashboard polish | Research console framing; screenshots under `docs/screenshots/` |
+
+**Hold:** Stop for merge approval before landing stacked PRs. Do not claim production completeness.
+
+---
+
 ## Immediate next coding tasks
 
-1. M14 public release packaging (docs, demo compose, README, dashboard polish)  
-2. Stop for merge approval before landing stacked PRs
+1. Stop for merge approval on stacked PRs (M10→M14)  
+2. Optional history rewrite of pre-M10 authorship (separate, after M14)

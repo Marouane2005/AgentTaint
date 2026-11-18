@@ -1,7 +1,7 @@
 # Architecture — AgentTaint
 
-**Status:** Living — implementation through M8; M9 audit notes appended  
-**Date:** 2026-11-13
+**Status:** Living — implementation through M14 research/demo release  
+**Date:** 2026-11-18
 
 ---
 
@@ -371,6 +371,19 @@ Empty packages will not be created ahead of need; modules appear when implemente
 
 - Default MCP gateway builder now loads **provenance-aware** policy (`policies/provenance_policy.yaml`); stub remains available via `*stub*` policy paths.  
 - `SecurityGateway.invoke` is the single enforcement chokepoint: non-ALLOW never calls `backend.call_tool`.  
-- FastMCP tool wrappers currently pass only tool-native arguments — **not** confirmation tokens / parent maps / reconstruction candidates. Those remain SDK/library parameters.  
 - Dashboard `agenttaint-api` is a local control plane over the same stores; it must not bypass the gateway (demo seed still uses live `SecurityGateway`).  
 - Full detail: `docs/m9_independent_review.md`, `docs/mcp_compatibility_m9.md`.
+
+---
+
+## M10–M14 architecture updates
+
+| Milestone | Change |
+|-----------|--------|
+| M10 | Multi-process MCP protocol proxy; `_agenttaint` wire for confirmation / parents / candidates; durable nonce + confirmation stores; structured grants; MEDIUM sinks; registry `SELECT 1` probe |
+| M11 | Per-agent envelope keyring; control-plane `AGENTTAINT_API_AUTH`; Postgres/psycopg path; Cedar deferred |
+| M12 | External benchmark adapters refuse without LLM; expanded missing-lineage scenarios |
+| M13 | Adversarial + ablation evaluation harness; measured latency/memory |
+| M14 | One-command demo (`make demo` / Compose profile), install guide, research report, dashboard polish |
+
+MCP support boundary remains **stdio client↔proxy↔backend** for mock tools — not full-spec SSE/resources/prompts. See `docs/mcp_compatibility_m10.md`.

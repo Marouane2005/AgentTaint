@@ -27,6 +27,8 @@ Browser (Next.js 15)  --rewrite /api/*-->  FastAPI (agenttaint-api)
 | `/gateway` | Intercepted MCP-style calls, policy verdicts, confirmations, audit |
 | `/benchmarks` | Baselines, ASR, utility, provenance metrics, latency, ablations |
 
+Screenshots from the local demo: [docs/screenshots/](screenshots/).
+
 ### Provenance graph semantics
 
 - Solid edges: recorded relationships with explicit or structural evidence.

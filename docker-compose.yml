@@ -1,5 +1,6 @@
 services:
   postgres:
+    profiles: ["postgres", "demo"]
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: agenttaint
@@ -15,5 +16,40 @@ services:
     volumes:
       - agenttaint_pg:/var/lib/postgresql/data
 
+  api:
+    profiles: ["demo"]
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8080:8080"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      AGENTTAINT_API_AUTH: "off"
+      AGENTTAINT_DATA_DIR: "/data"
+      AGENTTAINT_BENCHMARKS_DIR: "/app/benchmarks/reports"
+      AGENTTAINT_CORS_ORIGINS: "http://127.0.0.1:3000,http://localhost:3000"
+    volumes:
+      - agenttaint_api_data:/data
+      - ./benchmarks/reports:/app/benchmarks/reports:ro
+
+  dashboard:
+    profiles: ["demo"]
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+      args:
+        AGENTTAINT_API_ORIGIN: http://api:8080
+    ports:
+      - "3000:3000"
+    environment:
+      AGENTTAINT_API_ORIGIN: http://api:8080
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      - api
+
 volumes:
   agenttaint_pg:
+  agenttaint_api_data:

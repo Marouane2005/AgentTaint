@@ -1,5 +1,6 @@
 .PHONY: install test lint typecheck benchmark benchmark-bge benchmark-experiment \
-	api dashboard dashboard-install dashboard-test dashboard-lint test-all
+	eval-m13 api dashboard dashboard-install dashboard-test dashboard-lint test-all \
+	demo demo-compose
 
 PYTHON ?= python3
 API_PORT ?= 8080
@@ -36,6 +37,10 @@ benchmark-experiment:
 	$(PYTHON) -m agenttaint_benchmark experiment --split test --seed 2120 \
 		--seeds 2120,7,42,99,12345 --semantic-backend fixture --tag experiment_fixture
 
+eval-m13:
+	PYTHONHASHSEED=0 $(PYTHON) scripts/run_m13_evaluation.py \
+		--split test --seed 2120 --semantic-backend fixture --tag m13
+
 typecheck:
 	$(PYTHON) -m mypy packages/core/src packages/provenance/src packages/risk/src \
 		packages/policy/src packages/audit/src packages/reconstruction/src \
@@ -58,3 +63,9 @@ dashboard-lint:
 	cd apps/dashboard && npm run lint
 
 test-all: test dashboard-test
+
+demo:
+	API_PORT=$(API_PORT) DASH_PORT=$(DASH_PORT) PYTHON=$(PYTHON) bash scripts/demo.sh
+
+demo-compose:
+	docker compose --profile demo up --build

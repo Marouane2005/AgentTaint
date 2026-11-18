@@ -60,6 +60,9 @@ export function Shell({ children }: { children: ReactNode }) {
         <div className="sidebar-foot">
           <div className="k">Local control plane</div>
           <div className="v">Read-only inspection · gateway not bypassed</div>
+          <div className="research-chip" title="Synthetic + adversarial evidence only">
+            Research demo · not production ASR
+          </div>
         </div>
       </aside>
       <main className="main">{children}</main>

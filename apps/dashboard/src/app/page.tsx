@@ -93,12 +93,13 @@ export default function OverviewPage() {
     <>
       <div className="topbar">
         <div>
-          <p className="eyebrow">Security operations</p>
+          <p className="eyebrow">Security research console</p>
           <h1>Overview</h1>
           <p>
             Live counters from the AgentTaint audit store and provenance registry.
             Demo seed executes a labeled simulated scenario through the real
-            SecurityGateway — decisions are never invented by the UI.
+            SecurityGateway — decisions are never invented by the UI. Synthetic
+            evidence only; not a production ASR scoreboard.
           </p>
         </div>
         <div className="actions">

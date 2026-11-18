@@ -1,0 +1,39 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md LICENSE ./
+COPY packages ./packages
+COPY integrations ./integrations
+COPY policies ./policies
+COPY benchmarks/reports/.gitkeep ./benchmarks/reports/.gitkeep
+
+RUN pip install --no-cache-dir -U pip setuptools wheel \
+ && pip install --no-cache-dir \
+      -e ./packages/core \
+      -e ./packages/provenance \
+      -e ./packages/risk \
+      -e ./packages/policy \
+      -e ./packages/audit \
+      -e ./packages/reconstruction \
+      -e ./packages/agent_sdk \
+      -e ./integrations/mock_email \
+      -e ./integrations/mock_filesystem \
+      -e ./integrations/mock_http \
+      -e ./integrations/mock_shell \
+      -e ./packages/mcp_proxy \
+      -e ./packages/benchmark \
+      -e ./packages/api
+
+ENV HOST=0.0.0.0
+ENV PORT=8080
+ENV AGENTTAINT_DATA_DIR=/data
+ENV AGENTTAINT_BENCHMARKS_DIR=/app/benchmarks/reports
+ENV AGENTTAINT_API_AUTH=off
+
+EXPOSE 8080
+CMD ["python", "-m", "agenttaint_api"]

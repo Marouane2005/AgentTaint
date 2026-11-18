@@ -2,106 +2,95 @@
 
 **Evidence-based information-flow enforcement for AI agents and MCP tool use.**
 
-AgentTaint is a research-oriented security layer that sits between AI agents and Model Context Protocol (MCP) tools. It tracks provenance across transformations and agents, reconstructs possible influence on sensitive tool arguments, and enforces risk-sensitive policies (**ALLOW** / **BLOCK** / **CONFIRM**).
+AgentTaint sits between agents and Model Context Protocol (MCP) tools. It tracks
+provenance across transformations and agents, reconstructs possible influence on
+sensitive arguments, and enforces risk-sensitive **ALLOW / BLOCK / CONFIRM**
+decisions at a single gateway.
 
 This is **not** a prompt-injection classifier and **not** a keyword filter.
 
-> **Current status:** Milestones **0–8** on main feature branch; **Milestone 9** (independent review / research readiness) on `m9-research-readiness`. See [docs/m9_independent_review.md](docs/m9_independent_review.md).
+> **Status (M14):** Research / demo release on a free/local stack. Synthetic
+> suite + adversarial tests are reproducible. AgentDojo / InjecAgent ASR are
+> **not evaluated**. Do not treat zero synthetic ASR as production attack
+> prevention. Details: [docs/research_report.md](docs/research_report.md).
 
-## Quick start
+## One-command demo
+
+```bash
+make demo
+# Dashboard → http://127.0.0.1:3000
+# Click “Seed demo session”, then open Provenance / Gateway / Benchmark Lab
+```
+
+Docker Compose alternative:
+
+```bash
+make demo-compose
+```
+
+Full install notes: [docs/install.md](docs/install.md).
+
+## Quick checks
 
 ```bash
 make install
 make test
-make benchmark            # fixture semantic backend
-# optional local BGE:
-python3 -m pip install -e "./packages/reconstruction[semantic]"
-make benchmark-bge
-make benchmark-experiment
+make benchmark          # fixture semantic backend
+make eval-m13           # M13 defense + ablation tables
 ```
 
-### Dashboard (Milestone 8)
+Optional local BGE embeddings:
 
 ```bash
-make install              # includes agenttaint-api
-make dashboard-install
-make api                  # terminal 1 — http://127.0.0.1:8080
-make dashboard            # terminal 2 — http://127.0.0.1:3000
+python3 -m pip install -e "./packages/reconstruction[semantic]"
+make benchmark-bge
 ```
 
-Use **Seed demo session** on Overview for a labeled SIMULATED scenario that still runs the live SecurityGateway. Benchmark Lab reads `benchmarks/reports/` only — run `make benchmark` first. Details: [docs/dashboard.md](docs/dashboard.md), security notes: [docs/security_review_m8.md](docs/security_review_m8.md).
+## What ships
 
-No API keys required. Packages: `agenttaint-core`, `agenttaint-provenance`, `agenttaint-risk`, `agenttaint-policy`, `agenttaint-audit`, `agenttaint-reconstruction`, `agenttaint-agent-sdk`, `agenttaint-benchmark`, `agenttaint-mcp-proxy`, `agenttaint-api`, plus `agenttaint-mock-email`.
-
-See [docs/mcp_proxy.md](docs/mcp_proxy.md), [docs/reconstruction.md](docs/reconstruction.md), [docs/security_integration.md](docs/security_integration.md), [docs/dashboard.md](docs/dashboard.md), and [docs/benchmark_results.md](docs/benchmark_results.md).
-
----
+| Layer | Packages / apps |
+|-------|-----------------|
+| Core | `agenttaint-core`, `provenance`, `risk`, `policy`, `audit`, `reconstruction` |
+| Enforcement | `agenttaint-mcp-proxy`, `agenttaint-agent-sdk` |
+| Mocks | email, filesystem, http, shell (Docker-sandboxed) |
+| Evaluation | `agenttaint-benchmark`, `scripts/run_m13_evaluation.py` |
+| Control plane | `agenttaint-api` + Next.js dashboard (`apps/dashboard`) |
 
 ## Core research question
 
-Can we determine whether untrusted information **materially influenced** a dangerous agent action after summarization, paraphrase, memory, or multi-agent delegation—and use that evidence to enforce policy at the MCP boundary?
+Can we determine whether untrusted information **materially influenced** a
+dangerous agent action after summarization, paraphrase, memory, or multi-agent
+delegation—and enforce policy at the MCP boundary?
 
-**Important:** Provenance is not causation. The system distinguishes **KNOWN**, **INFERRED**, and **UNKNOWN** lineage and never silently upgrades inference to fact.
+Provenance is not causation. The system distinguishes **KNOWN**, **INFERRED**,
+and **UNKNOWN** lineage and never silently upgrades inference to fact.
 
----
-
-## Documentation (assessment)
+## Documentation
 
 | Document | Contents |
 |----------|----------|
-| [docs/related_work.md](docs/related_work.md) | CaMeL, FIDES, CapLite, NeuroTaint, AgentDojo, InjecAgent |
-| [docs/threat_model.md](docs/threat_model.md) | Assets, attackers, trust boundaries, objectives |
-| [docs/feasibility.md](docs/feasibility.md) | What we can guarantee vs estimate |
-| [docs/architecture.md](docs/architecture.md) | Components, schemas, APIs, MCP design |
-| [docs/provenance_model.md](docs/provenance_model.md) | Epistemic model |
-| [docs/security_policies.md](docs/security_policies.md) | Policy principles + M5 rules |
-| [docs/security_integration.md](docs/security_integration.md) | Guarantees vs SDK requirements |
-| [docs/benchmark_methodology.md](docs/benchmark_methodology.md) | Protocol, splits, metrics |
-| [docs/benchmark_results.md](docs/benchmark_results.md) | M6 measured tables |
-| [docs/benchmark_results_m7.md](docs/benchmark_results_m7.md) | M7 expansion, BGE, variability |
-| [docs/research_contribution.md](docs/research_contribution.md) | Honest contribution assessment |
-| [docs/mvp.md](docs/mvp.md) | Smallest hypothesis-testing slice |
-| [docs/implementation_plan.md](docs/implementation_plan.md) | Ordered tasks + acceptance criteria |
-| [docs/free_development_plan.md](docs/free_development_plan.md) | Local-first stack, hardware, licenses |
-| [docs/benchmark_methodology.md](docs/benchmark_methodology.md) | Evaluation protocol |
-| [docs/limitations.md](docs/limitations.md) | Honest limits |
-| [docs/mcp_proxy.md](docs/mcp_proxy.md) | MCP proxy supported features & limits |
-| [docs/reconstruction.md](docs/reconstruction.md) | Reconstruction channels, ablation, limits |
-| [docs/dashboard.md](docs/dashboard.md) | Interactive security dashboard (M8) |
-| [docs/security_review_m8.md](docs/security_review_m8.md) | Control-plane security review + fixes |
-| [docs/m9_independent_review.md](docs/m9_independent_review.md) | M9 independent audit + verdict |
-| [docs/benchmark_validity_m9.md](docs/benchmark_validity_m9.md) | Synthetic result validity |
-| [docs/external_benchmarks_feasibility.md](docs/external_benchmarks_feasibility.md) | AgentDojo / InjecAgent blockers |
-| [docs/mcp_compatibility_m9.md](docs/mcp_compatibility_m9.md) | MCP support boundary |
-| [research_log/](research_log/) | Decisions, failures, experiments |
+| [docs/research_report.md](docs/research_report.md) | M14 research report + completeness verdict |
+| [docs/research_contribution.md](docs/research_contribution.md) | Defensible vs unsupported claims |
+| [docs/related_work.md](docs/related_work.md) | CaMeL, FIDES, CapLite, NeuroTaint |
+| [docs/architecture.md](docs/architecture.md) | Components, MCP design, M10–M14 notes |
+| [docs/threat_model.md](docs/threat_model.md) | Assets, attackers, trust boundaries |
+| [docs/limitations.md](docs/limitations.md) | Honest limits & assumptions |
+| [docs/install.md](docs/install.md) | Install, demo, environment variables |
+| [docs/benchmark_results_m13.md](docs/benchmark_results_m13.md) | Latest measured tables (additive) |
+| [docs/m13_security_performance.md](docs/m13_security_performance.md) | M13 adversarial + ablation scope |
+| [docs/external_benchmarks_m12.md](docs/external_benchmarks_m12.md) | External ASR not evaluated |
+| [docs/dashboard.md](docs/dashboard.md) | Dashboard usage |
+| [docs/mcp_compatibility_m10.md](docs/mcp_compatibility_m10.md) | MCP support boundary |
+| [research_log/](research_log/) | Decisions and experiments |
 
----
+## Design principles
 
-## Design principles (short)
-
-1. Build the real enforcement engine first; UI never invents decisions.  
-2. Free/local stack — no mandatory paid APIs.  
-3. Fail closed for designated high-risk ops when provenance cannot be verified.  
-4. Reproducible tests and benchmarks; no fabricated metrics.  
+1. Build the real enforcement engine first; the UI never invents decisions.
+2. Free/local stack — no mandatory paid APIs.
+3. Fail closed for designated high-risk ops when provenance cannot be verified.
+4. Reproducible tests and benchmarks; no fabricated metrics.
 5. Compare honestly to existing systems; do not claim primacy.
-
----
-
-## Roadmap (summary)
-
-1. Provenance registry  
-2. MCP proxy + mock tools  
-3. Transformation graph  
-4. Reconstruction + ablation  
-5. Cross-agent SDK + policy + confirmation  
-6. Benchmarks  
-7. Benchmark expansion (M7)  
-8. Dashboard (M8) — done  
-9. Research readiness / independent validation (M9) — review branch  
-10. Research release (deferred)  
-
----
 
 ## License
 
-Apache-2.0 (intended; `LICENSE` file added with first implementation milestone).
+Apache-2.0 — see [LICENSE](LICENSE).

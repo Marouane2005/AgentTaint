@@ -37,9 +37,12 @@
 31. **MCP compatibility** is stdio multi-process client↔proxy↔backend for mock email/filesystem/http/shell — not full-spec conformance (`docs/mcp_compatibility_m10.md`).  
 32. **Cancellation** is cooperative pre-forward only; an in-flight backend `tools/call` may still complete.  
 33. **USER authorization** requires structured `(tool, argument, value)` grants scoped by agent/session — free-text USER spans are not scraped into allow-lists.  
-34. **Envelope HMAC** still uses a shared secret (per-agent keys planned).  
-35. **Control plane auth** remains local-trust / optional token.  
-36. **Cedar** remains deferred.
+34. **Envelope HMAC** uses **per-agent keys** via `AgentKeyring` for cooperating agents; unknown agents fail closed.  
+35. **Control plane auth** defaults to local-trust; set `AGENTTAINT_API_AUTH=required` with `AGENTTAINT_DASHBOARD_TOKEN` on shared hosts.  
+36. **Cedar** remains deferred (`docs/cedar_deferred.md`).  
+37. **M13 zero ASR** on the synthetic suite is not general attack prevention.  
+38. **External ASR** (AgentDojo / InjecAgent) remains not evaluated without an LLM.  
+39. **Demo Compose** is a local research demo, not a hardened production deployment.
 
 ## Operational
 
