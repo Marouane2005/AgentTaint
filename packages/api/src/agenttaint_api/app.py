@@ -90,7 +90,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=[
         "Accept",
         "Content-Type",
@@ -470,6 +470,11 @@ class DemoRun(BaseModel):
     scenario_id: str = Field(min_length=1, max_length=128)
 
 
+class DemoCustomRun(BaseModel):
+    instruction: str = Field(min_length=3, max_length=demo_mod.MAX_INSTRUCTION)
+    content: str = Field(default="", max_length=demo_mod.MAX_CONTENT)
+
+
 @app.get("/api/v1/demo/scenarios")
 def demo_scenarios() -> dict[str, Any]:
     """Synthetic scenarios a visitor can replay through the real gateway."""
@@ -491,6 +496,20 @@ def demo_run(body: DemoRun) -> dict[str, Any]:
         return demo_mod.run(body.scenario_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="unknown scenario") from exc
+
+
+@app.post("/api/v1/demo/custom")
+def demo_custom(body: DemoCustomRun) -> dict[str, Any]:
+    """Run visitor text through the real gateway; tools are mocks (no shell, no network)."""
+    if live_database_url():
+        raise HTTPException(
+            status_code=409,
+            detail="disabled while connected to a live proxy database (AGENTTAINT_DATABASE_URL)",
+        )
+    try:
+        return demo_mod.run_custom(body.instruction, body.content)
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail="benchmark scenarios not installed") from exc
 
 
 app.include_router(site_router)

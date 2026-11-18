@@ -46,3 +46,16 @@ Delivering the release bundle to new subscribers is manual for now (send the
 * Render's free Postgres expires 30 days after creation. Export the waitlist
   (`/admin/waitlist` → Export CSV) before then, and move to a paid or Neon
   database by setting `AGENTTAINT_SITE_DB_URL`.
+
+## Free-text runs
+
+`POST /api/v1/demo/custom` takes `{"instruction": "...", "content": "..."}`
+(instruction up to 500 characters, content up to 2,000; rate limited to 8 runs per
+minute per visitor). A deliberately obedient mock agent turns the text into at most
+one mocked `email.send` call: it follows a send instruction wherever it reads one,
+including inside the untrusted content. That proposed call then goes through the real
+gateway, provenance registry and Cedar policy, and the response includes the
+plain-English reason, the policy id and the span and call ids for the provenance graph.
+Nothing is sent: every tool is a mock.
+
+`DELETE /api/v1/admin/waitlist/{email}` (admin token) removes one signup.
