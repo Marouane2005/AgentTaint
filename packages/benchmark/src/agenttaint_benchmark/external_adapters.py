@@ -46,9 +46,7 @@ def probe_agentdojo() -> ExternalFeasibility:
         importable=importable,
         free_local_asr_possible=False,
         blockers=blockers
-        or [
-            "LLM-backed protocol required; free/local ASR not available in default stack"
-        ],
+        or ["LLM-backed protocol required; free/local ASR not available in default stack"],
         adapter_status="stub-only (refuses evaluation without LLM harness)",
     )
 
