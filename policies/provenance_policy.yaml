@@ -4,3 +4,8 @@ blocked_recipients:
   - attacker@example.com
 confirm_untrusted_influence: false
 fail_closed_unknown_high: false
+# MEDIUM sinks (external http.get, filesystem.write) with no declared lineage
+# after the session has read untrusted content: CONFIRM, or BLOCK if fail-closed.
+confirm_medium_untrusted: true
+scrutinize_medium_undeclared: true
+fail_closed_unknown_medium: false

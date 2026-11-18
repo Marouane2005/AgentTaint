@@ -337,7 +337,11 @@ def run_scenario(
             agent_id: str | None,
             risk_tier: Any,
             candidates: list[Any] | None,
+            lineage_declared: bool = True,
         ) -> list[Any]:
+            # The scenario corpus (state.candidates) already holds every untrusted
+            # span the pipeline ingested, so undeclared lineage needs no extra corpus.
+            _ = lineage_declared
             if risk_tier.value != "HIGH":
                 return []
             from agenttaint_policy.evidence import reconstruct_authority_evidence

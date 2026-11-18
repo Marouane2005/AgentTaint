@@ -32,4 +32,7 @@ def load_provenance_policy(path: str | Path) -> ProvenanceAwarePolicy:
         confirm_untrusted_influence=bool(raw.get("confirm_untrusted_influence", False)),
         fail_closed_unknown_high=bool(raw.get("fail_closed_unknown_high", False)),
         blocked_recipients=blocked,
+        confirm_medium_untrusted=bool(raw.get("confirm_medium_untrusted", True)),
+        scrutinize_medium_undeclared=bool(raw.get("scrutinize_medium_undeclared", True)),
+        fail_closed_unknown_medium=bool(raw.get("fail_closed_unknown_medium", False)),
     )

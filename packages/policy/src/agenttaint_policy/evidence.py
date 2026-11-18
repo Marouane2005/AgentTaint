@@ -99,6 +99,7 @@ def build_policy_context(
     agent_id: str | None = None,
     session_id: str | None = None,
     tool_name: str | None = None,
+    session_untrusted_seen: bool = False,
 ) -> PolicyContext:
     """Assemble policy inputs. Reconstruction evidence may only raise scrutiny."""
     authority = set(authority_argument_names or DEFAULT_AUTHORITY_ARGUMENTS)
@@ -180,7 +181,14 @@ def build_policy_context(
     else:
         overall = ProvenanceStatus.KNOWN
 
-    if risk_tier == RiskTier.HIGH and not parents and not evidence:
+    lineage_declared = any(bool(v) for v in parents.values())
+    # Missing lineage is never clean: MEDIUM/HIGH calls without declared parents are
+    # UNKNOWN, except that reconstruction may report INFERRED (never KNOWN).
+    if (
+        risk_tier in {RiskTier.HIGH, RiskTier.MEDIUM}
+        and not lineage_declared
+        and overall != ProvenanceStatus.INFERRED
+    ):
         overall = ProvenanceStatus.UNKNOWN
 
     return PolicyContext(
@@ -199,6 +207,8 @@ def build_policy_context(
         agent_id=agent_id,
         session_id=session_id,
         tool_name=tool_name,
+        lineage_declared=lineage_declared,
+        session_untrusted_seen=session_untrusted_seen,
     )
 
 

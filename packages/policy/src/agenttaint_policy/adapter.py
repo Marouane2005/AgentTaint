@@ -104,7 +104,10 @@ class ProvenanceAwarePolicy:
     6. HIGH/MEDIUM + untrusted influence → BLOCK (or CONFIRM if configured).
     7. HIGH + UNKNOWN/PARTIAL without confirmation → CONFIRM (or BLOCK).
     8. HIGH otherwise → CONFIRM.
-    9. LOW defaults to ALLOW unless denylist matched.
+    9. MEDIUM with undeclared lineage after the session ingested untrusted content
+       → CONFIRM (or BLOCK when fail_closed_unknown_medium). Missing lineage is
+       treated as UNKNOWN, never as clean.
+    10. LOW defaults to ALLOW unless denylist matched.
     """
 
     denylist_tools: set[str]
@@ -113,6 +116,10 @@ class ProvenanceAwarePolicy:
     blocked_recipients: set[str] | None = None
     # MEDIUM sinks with untrusted influence default to CONFIRM (safer than ALLOW).
     confirm_medium_untrusted: bool = True
+    # MEDIUM sinks whose caller declared no lineage, in a session that has seen
+    # untrusted content: CONFIRM by default, BLOCK when fail_closed_unknown_medium.
+    scrutinize_medium_undeclared: bool = True
+    fail_closed_unknown_medium: bool = False
 
     def evaluate(
         self,
@@ -240,6 +247,30 @@ class ProvenanceAwarePolicy:
                     explanation=(
                         "Blocked: untrusted information influenced a MEDIUM sink "
                         "without structured authorization."
+                    ),
+                )
+
+            if (
+                self.scrutinize_medium_undeclared
+                and not ctx.lineage_declared
+                and ctx.session_untrusted_seen
+                and not granted
+            ):
+                if self.fail_closed_unknown_medium:
+                    return PolicyResult(
+                        decision=DecisionOutcome.BLOCK,
+                        policy_id="block-medium-undeclared-lineage",
+                        explanation=(
+                            "Blocked: MEDIUM sink with undeclared (UNKNOWN) lineage after "
+                            "the session ingested untrusted content (fail closed)."
+                        ),
+                    )
+                return PolicyResult(
+                    decision=DecisionOutcome.CONFIRM,
+                    policy_id="confirm-medium-undeclared-lineage",
+                    explanation=(
+                        "MEDIUM sink with undeclared (UNKNOWN) lineage after the session "
+                        "ingested untrusted content; confirmation required."
                     ),
                 )
 

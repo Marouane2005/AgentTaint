@@ -40,3 +40,7 @@ class PolicyContext:
     agent_id: str | None = None
     session_id: str | None = None
     tool_name: str | None = None
+    # False when the caller declared no argument parent spans for this call.
+    lineage_declared: bool = True
+    # True when the enforcing session has already ingested untrusted content.
+    session_untrusted_seen: bool = False
