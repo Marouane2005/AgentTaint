@@ -17,6 +17,7 @@ def pending(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> str:
     db = f"sqlite+pysqlite:///{tmp_path / 'sec.db'}"
     monkeypatch.setenv("AGENTTAINT_SECURITY_DB_URL", db)
     monkeypatch.setenv("AGENTTAINT_API_AUTH", "off")
+    monkeypatch.delenv("AGENTTAINT_APPROVER_TOKEN", raising=False)
     svc = DurableConfirmationService(secret=resolve_confirm_secret(), database_url=db)
     rec = svc.request(
         tool="email.send",
