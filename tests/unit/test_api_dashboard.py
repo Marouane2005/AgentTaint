@@ -76,6 +76,34 @@ def test_session_clear_resets_decisions() -> None:
     assert cleared.json()["overview"]["decisions"]["total"] == 0
 
 
+def test_decisions_filter_sort_and_page() -> None:
+    reset_state_for_tests()
+    client = TestClient(app)
+    client.post("/api/v1/demo/seed")
+    blocked = client.get("/api/v1/decisions", params={"decision": "BLOCK", "limit": 5})
+    assert blocked.status_code == 200
+    body = blocked.json()
+    assert body["total"] >= 1
+    assert body["items"]
+    assert all(item["decision"] == "BLOCK" for item in body["items"])
+    assert body["limit"] == 5
+    page = client.get("/api/v1/decisions", params={"limit": 1, "offset": 0, "sort": "tool"})
+    assert page.status_code == 200
+    assert len(page.json()["items"]) == 1
+    assert page.json()["total"] >= 2
+    assert client.get("/api/v1/decisions", params={"decision": "MAYBE"}).status_code == 400
+    assert client.get("/api/v1/decisions", params={"sort": "secret"}).status_code == 400
+
+
+def test_health_reports_policy_engine() -> None:
+    reset_state_for_tests()
+    client = TestClient(app)
+    body = client.get("/api/v1/health").json()
+    assert body["policy_ok"] is True
+    assert body["registry_ok"] is True
+    assert body["audit_ok"] is True
+
+
 def test_decisions_limit_clamped_and_ids_validated() -> None:
     reset_state_for_tests()
     client = TestClient(app)

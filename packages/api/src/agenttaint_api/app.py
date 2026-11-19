@@ -154,6 +154,17 @@ async def enforce_api_auth(request: Request, call_next):  # type: ignore[no-unty
     return await call_next(request)
 
 
+def _policy_engine_ok() -> bool:
+    """True when the Cedar policy text loads and validates. No decision is made."""
+    try:
+        from agenttaint_policy.cedar_engine import CedarProvenancePolicy
+
+        CedarProvenancePolicy(denylist_tools=set())
+    except Exception:  # noqa: BLE001 - health probe must not raise
+        return False
+    return True
+
+
 @app.get("/api/v1/health")
 def health() -> dict[str, Any]:
     state = get_state()
@@ -169,11 +180,13 @@ def health() -> dict[str, Any]:
         audit_ok = True
     except Exception:  # noqa: BLE001 - health probe
         audit_ok = False
-    status = "ok" if registry_ok and audit_ok else "degraded"
+    policy_ok = _policy_engine_ok()
+    status = "ok" if registry_ok and audit_ok and policy_ok else "degraded"
     return {
         "status": status,
         "registry_ok": registry_ok,
         "audit_ok": audit_ok,
+        "policy_ok": policy_ok,
         "session_mode": state.session.mode,
         "auth_mode": _auth_mode(),
         "demo_mode": demo_mod.demo_mode(),
@@ -186,12 +199,41 @@ def metrics_overview() -> dict[str, Any]:
     return get_state().overview()
 
 
+_DECISIONS = {"ALLOW", "CONFIRM", "BLOCK"}
+_TIERS = {"LOW", "MEDIUM", "HIGH"}
+_SORTS = {"created_at", "tool", "decision", "risk_tier"}
+
+
 @app.get("/api/v1/decisions")
 def list_decisions(
     limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0, le=100_000),
+    decision: str | None = Query(default=None),
+    risk_tier: str | None = Query(default=None),
+    tool: str | None = Query(default=None, max_length=128),
+    q: str | None = Query(default=None, max_length=200),
+    sort: str = Query(default="created_at"),
+    order: str = Query(default="desc"),
 ) -> dict[str, Any]:
+    if decision is not None and decision not in _DECISIONS:
+        raise HTTPException(status_code=400, detail="invalid decision")
+    if risk_tier is not None and risk_tier not in _TIERS:
+        raise HTTPException(status_code=400, detail="invalid risk_tier")
+    if sort not in _SORTS:
+        raise HTTPException(status_code=400, detail="invalid sort")
+    if order not in {"asc", "desc"}:
+        raise HTTPException(status_code=400, detail="invalid order")
     state = get_state()
-    rows = state.audit.list_decisions(limit=limit)
+    rows, total = state.audit.query_decisions(
+        limit=limit,
+        offset=offset,
+        decision=decision,
+        risk_tier=risk_tier,
+        tool=tool,
+        q=q,
+        sort=sort,
+        order=order,
+    )
     return {
         "session": {
             "mode": state.session.mode,
@@ -199,6 +241,9 @@ def list_decisions(
             "notes": list(state.session.notes),
         },
         "items": [d.model_dump(mode="json") for d in rows],
+        "total": total,
+        "offset": offset,
+        "limit": limit,
     }
 
 

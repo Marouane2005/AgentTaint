@@ -7,7 +7,9 @@ import {
   destinationFlows,
   flowsBySource,
   parseTs,
+  provenanceCoverage,
   riskGauges,
+  toolUsage,
   traceTimeline,
   type SpanEdge,
   type SpanNode,
@@ -117,5 +119,28 @@ describe("derive", () => {
     expect(l.positions.get("s4")!.x).toBeLessThan(l.positions.get("call:c1")!.x);
     expect(l.columns[0].label).toContain("Sources");
     expect(curvePath(l.paths[0].points)).toMatch(/^M/);
+  });
+
+  it("counts tools and provenance statuses without inventing spans", () => {
+    expect(toolUsage(decisions)).toEqual([
+      { name: "email.send", count: 2 },
+      { name: "http.get", count: 1 },
+    ]);
+    expect(provenanceCoverage(spans)).toEqual({
+      total: 5,
+      known: 4,
+      inferred: 1,
+      unknown: 0,
+      partial: 0,
+      other: 0,
+    });
+    expect(provenanceCoverage([])).toEqual({
+      total: 0,
+      known: 0,
+      inferred: 0,
+      unknown: 0,
+      partial: 0,
+      other: 0,
+    });
   });
 });

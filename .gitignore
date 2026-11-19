@@ -14,6 +14,9 @@ venv/
 .agenttaint/
 node_modules/
 .next/
+apps/dashboard/out/
+apps/dashboard/test-results/
+apps/dashboard/playwright-report/
 .DS_Store
 htmlcov/
 .coverage

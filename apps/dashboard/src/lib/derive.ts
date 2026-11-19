@@ -336,6 +336,37 @@ export type TimelineEvent = {
   tone: "allow" | "block" | "confirm" | "info" | "warn";
 };
 
+export function toolUsage(decisions: Decision[]): Array<{ name: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const decision of decisions) {
+    const name = decision.tool || "unknown";
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+export function provenanceCoverage(nodes: SpanNode[]): {
+  total: number;
+  known: number;
+  inferred: number;
+  unknown: number;
+  partial: number;
+  other: number;
+} {
+  const counts = { total: nodes.length, known: 0, inferred: 0, unknown: 0, partial: 0, other: 0 };
+  for (const node of nodes) {
+    const status = (node.provenance_status || "").toUpperCase();
+    if (status === "KNOWN") counts.known += 1;
+    else if (status === "INFERRED") counts.inferred += 1;
+    else if (status === "UNKNOWN") counts.unknown += 1;
+    else if (status === "PARTIAL") counts.partial += 1;
+    else counts.other += 1;
+  }
+  return counts;
+}
+
 export function traceTimeline(nodes: ViewNode[]): TimelineEvent[] {
   const events: TimelineEvent[] = [];
   for (const n of nodes) {

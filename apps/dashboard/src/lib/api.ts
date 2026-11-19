@@ -66,11 +66,30 @@ export function fetchOverview() {
   }>("/api/v1/metrics/overview");
 }
 
-export function fetchDecisions() {
+export type DecisionQuery = {
+  limit?: number;
+  offset?: number;
+  decision?: string;
+  risk_tier?: string;
+  tool?: string;
+  q?: string;
+  sort?: "created_at" | "tool" | "decision" | "risk_tier";
+  order?: "asc" | "desc";
+};
+
+export function fetchDecisions(query: DecisionQuery = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") params.set(key, String(value));
+  }
+  const qs = params.toString();
   return getJson<{
     session: SessionInfo;
     items: Array<Record<string, unknown>>;
-  }>("/api/v1/decisions");
+    total?: number;
+    offset?: number;
+    limit?: number;
+  }>(qs ? `/api/v1/decisions?${qs}` : "/api/v1/decisions");
 }
 
 export function fetchGraph() {
@@ -129,7 +148,22 @@ export function clearSession() {
 }
 
 export function fetchHealth() {
-  return getJson<{ status: string; session_mode: string }>("/api/v1/health");
+  return getJson<{
+    status: string;
+    session_mode: string;
+    registry_ok?: boolean;
+    audit_ok?: boolean;
+    policy_ok?: boolean;
+    demo_mode?: boolean;
+    auth_mode?: string;
+  }>("/api/v1/health");
+}
+
+export function fetchAncestors(spanId: string) {
+  return getJson<{
+    span_id: string;
+    ancestors: Array<Record<string, unknown>>;
+  }>(`/api/v1/spans/${encodeURIComponent(spanId)}/ancestors`);
 }
 
 export type Decision = {

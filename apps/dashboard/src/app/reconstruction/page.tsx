@@ -170,11 +170,26 @@ export default function ReconstructionPage() {
                   </span>
                 </div>
               </div>
+              <p className="panel-meta">
+                Lexical is text overlap. Structural is an exact value match. Semantic is embedding
+                similarity; a zero means this row has no semantic support, not that a model proved
+                the value is clean.
+                {active.explicit_lineage
+                  ? " Explicit lineage was declared by instrumentation."
+                  : " This row is not explicit lineage."}{" "}
+                {String(active.evidence_type) === "INFERRED"
+                  ? "INFERRED is a scrutiny signal, not a proven origin."
+                  : `Recorded evidence type: ${String(active.evidence_type)}.`}
+              </p>
               {!active.explicit_lineage ? (
                 <div className="banner warn" style={{ marginTop: "1rem", marginBottom: 0 }}>
                   No explicit lineage for this match. Treat as scrutiny only.
                 </div>
-              ) : null}
+              ) : (
+                <div className="banner" style={{ marginTop: "1rem", marginBottom: 0 }}>
+                  Explicit lineage is what the caller declared. It is not a reconstruction guess.
+                </div>
+              )}
             </>
           )}
         </div>

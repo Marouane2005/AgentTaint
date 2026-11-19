@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any
 
@@ -13,7 +16,7 @@ from agenttaint_core.schemas import (
     RiskTier,
     ToolCallDecision,
 )
-from sqlalchemy import JSON, DateTime, Integer, String, Text, create_engine, select
+from sqlalchemy import JSON, DateTime, Integer, String, Text, create_engine, func, or_, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -108,10 +111,18 @@ class AuditStore:
                 engine_kwargs["poolclass"] = StaticPool
         self.engine = create_engine(database_url, connect_args=connect_args, **engine_kwargs)
         self._session_factory = sessionmaker(self.engine, expire_on_commit=False, future=True)
+        self._lock = threading.RLock()
         Base.metadata.create_all(self.engine)
 
-    def session(self) -> Session:
-        return self._session_factory()
+    @contextmanager
+    def session(self) -> Iterator[Session]:
+        """One session at a time. The shared SQLite connection is not thread-safe."""
+        with self._lock:
+            db = self._session_factory()
+            try:
+                yield db
+            finally:
+                db.close()
 
     def record(self, decision: ToolCallDecision) -> ToolCallDecision:
         with self.session() as session:
@@ -125,11 +136,59 @@ class AuditStore:
             return _from_row(row) if row else None
 
     def list_decisions(self, *, limit: int = 100) -> list[ToolCallDecision]:
+        rows, _total = self.query_decisions(limit=limit)
+        return rows
+
+    def query_decisions(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+        decision: str | None = None,
+        risk_tier: str | None = None,
+        tool: str | None = None,
+        q: str | None = None,
+        sort: str = "created_at",
+        order: str = "desc",
+    ) -> tuple[list[ToolCallDecision], int]:
+        """Filter and page audit rows. Unknown sort keys fall back to created_at."""
+        columns = {
+            "created_at": DecisionRow.created_at,
+            "tool": DecisionRow.tool_name,
+            "decision": DecisionRow.decision,
+            "risk_tier": DecisionRow.risk_tier,
+        }
+        column = columns.get(sort, DecisionRow.created_at)
+        ordering = column.asc() if order == "asc" else column.desc()
+        filters = []
+        if decision:
+            filters.append(DecisionRow.decision == decision)
+        if risk_tier:
+            filters.append(DecisionRow.risk_tier == risk_tier)
+        if tool:
+            filters.append(DecisionRow.tool_name == tool)
+        if q:
+            safe = q.replace("%", "").replace("_", "")
+            if safe:
+                like = f"%{safe}%"
+                filters.append(
+                    or_(
+                        DecisionRow.tool_name.ilike(like),
+                        DecisionRow.agent_id.ilike(like),
+                        DecisionRow.policy_id.ilike(like),
+                        DecisionRow.call_id.ilike(like),
+                        DecisionRow.explanation.ilike(like),
+                    )
+                )
         with self.session() as session:
-            rows = session.scalars(
-                select(DecisionRow).order_by(DecisionRow.created_at.desc()).limit(limit)
-            ).all()
-            return [_from_row(r) for r in rows]
+            count_stmt = select(func.count()).select_from(DecisionRow)
+            stmt = select(DecisionRow)
+            for clause in filters:
+                count_stmt = count_stmt.where(clause)
+                stmt = stmt.where(clause)
+            total = int(session.scalar(count_stmt) or 0)
+            rows = session.scalars(stmt.order_by(ordering).offset(offset).limit(limit)).all()
+            return [_from_row(row) for row in rows if row is not None], total
 
     def count_by_decision(self) -> dict[str, int]:
         counts: dict[str, int] = {}

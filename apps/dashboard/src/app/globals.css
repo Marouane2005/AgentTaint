@@ -1,19 +1,19 @@
 :root {
   /* System font stacks: builds need no font download (offline/CI/static export). */
-  --font-sans: "IBM Plex Sans", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: Inter, "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
   /* Surfaces */
-  --bg: #0a0e13;
-  --bg-raised: #0f141b;
-  --bg-panel: #121820;
-  --bg-panel-2: #161e28;
-  --bg-hover: #1a2330;
-  --bg-active: #1e2a3a;
+  --bg: #070b14;
+  --bg-raised: #0c1220;
+  --bg-panel: #10182a;
+  --bg-panel-2: #141c2e;
+  --bg-hover: #1a2540;
+  --bg-active: #1e2c4a;
 
   /* Lines */
   --line: #243041;
   --line-strong: #314257;
-  --line-focus: #3d9cf0;
+  --line-focus: #22d3ee;
 
   /* Text */
   --text: #e8eef6;
@@ -22,17 +22,17 @@
 
   /* Brand / info */
   --brand: #e8eef6;
-  --accent: #3d9cf0;
-  --accent-dim: rgba(61, 156, 240, 0.14);
-  --accent-border: rgba(61, 156, 240, 0.35);
+  --accent: #22d3ee;
+  --accent-dim: rgba(34, 211, 238, 0.12);
+  --accent-border: rgba(34, 211, 238, 0.4);
 
   /* Status */
-  --allow: #3dba8a;
-  --allow-dim: rgba(61, 186, 138, 0.14);
-  --block: #e05d4f;
-  --block-dim: rgba(224, 93, 79, 0.14);
-  --confirm: #d4a017;
-  --confirm-dim: rgba(212, 160, 23, 0.14);
+  --allow: #3dd68c;
+  --allow-dim: rgba(61, 214, 140, 0.14);
+  --block: #f05252;
+  --block-dim: rgba(240, 82, 82, 0.14);
+  --confirm: #f5b942;
+  --confirm-dim: rgba(245, 185, 66, 0.16);
   --known: #3dba8a;
   --inferred: #d4a017;
   --unknown: #7a8799;
@@ -65,11 +65,7 @@ body {
   padding: 0;
   min-height: 100%;
   color: var(--text);
-  background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(61, 156, 240, 0.08), transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, rgba(61, 186, 138, 0.05), transparent 50%),
-    linear-gradient(180deg, #0b1016 0%, var(--bg) 42%, #080b10 100%);
-  background-attachment: fixed;
+  background: var(--bg);
   font-family: var(--font-sans), "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.45;
@@ -954,6 +950,33 @@ select.control {
   }
   .main {
     padding: var(--space-5);
+  }
+}
+
+.plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+.plain-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

@@ -3,18 +3,30 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import {
+  Activity,
+  FlaskConical,
+  LayoutDashboard,
+  Radio,
+  ScrollText,
+  Search,
+  Share2,
+  ShieldCheck,
+  Waypoints,
+} from "lucide-react";
 import { TokenGate } from "@/components/TokenGate";
 import { useDemoMode } from "@/lib/useDemoMode";
 
 const TABS = [
-  { href: "/overview", label: "Overview" },
-  { href: "/demo", label: "Run a scenario" },
-  { href: "/provenance", label: "Provenance" },
-  { href: "/audit", label: "Audit" },
-  { href: "/confirmations", label: "Confirmations" },
-  { href: "/reconstruction", label: "Reconstruction" },
-  { href: "/gateway", label: "Gateway" },
-  { href: "/benchmarks", label: "Benchmarks" },
+  { href: "/overview", label: "Overview", icon: LayoutDashboard },
+  { href: "/activity", label: "Live activity", icon: Activity },
+  { href: "/demo", label: "Run a scenario", icon: Waypoints },
+  { href: "/provenance", label: "Provenance", icon: Share2 },
+  { href: "/audit", label: "Audit", icon: ScrollText },
+  { href: "/confirmations", label: "Confirmations", icon: ShieldCheck },
+  { href: "/reconstruction", label: "Reconstruction", icon: Search },
+  { href: "/gateway", label: "Gateway", icon: Radio },
+  { href: "/benchmarks", label: "Benchmarks", icon: FlaskConical },
 ];
 
 // Product site pages render without the console frame.
@@ -49,6 +61,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <nav id="main-nav" aria-label="Main" className={menuOpen ? "open" : undefined}>
           {TABS.map((t) => {
             const active = pathname.startsWith(t.href);
+            const Icon = t.icon;
             return (
               <Link
                 key={t.href}
@@ -56,7 +69,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 className={active ? "active" : undefined}
                 aria-current={active ? "page" : undefined}
               >
-                {t.label}
+                <Icon size={15} aria-hidden /> {t.label}
               </Link>
             );
           })}

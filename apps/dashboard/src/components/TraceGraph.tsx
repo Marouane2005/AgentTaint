@@ -438,10 +438,10 @@ export function TraceGraph({
               <div className="tg-legend-title">Edges</div>
               {(
                 [
-                  ["explicit", "Explicit lineage"],
-                  ["inferred", "Inferred (not verified causation)"],
-                  ["evaluated", "Argument evaluated"],
-                  ["executed", "Tool executed"],
+                  ["explicit", "Stored edge · explicit lineage"],
+                  ["inferred", "Stored edge · inferred, not causation"],
+                  ["evaluated", "Not stored · argument under review"],
+                  ["executed", "Not stored · tool result of this call"],
                 ] as const
               ).map(([k, label]) => (
                 <div className="tg-legend-row" key={k}>

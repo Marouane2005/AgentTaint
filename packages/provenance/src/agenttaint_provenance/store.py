@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any
 
@@ -163,10 +166,18 @@ class ProvenanceStore:
                 engine_kwargs["poolclass"] = StaticPool
         self.engine = create_engine(database_url, connect_args=connect_args, **engine_kwargs)
         self._session_factory = sessionmaker(self.engine, expire_on_commit=False, future=True)
+        self._lock = threading.RLock()
         Base.metadata.create_all(self.engine)
 
-    def session(self) -> Session:
-        return self._session_factory()
+    @contextmanager
+    def session(self) -> Iterator[Session]:
+        """One session at a time. The shared SQLite connection is not thread-safe."""
+        with self._lock:
+            db = self._session_factory()
+            try:
+                yield db
+            finally:
+                db.close()
 
     def put_span(self, span: ProvenanceSpan) -> ProvenanceSpan:
         with self.session() as session:
@@ -253,7 +264,11 @@ class ProvenanceStore:
     def list_spans(self) -> list[ProvenanceSpan]:
         with self.session() as session:
             rows = session.scalars(select(SpanRow)).all()
-            return [_row_to_span(r) for r in rows]
+            return [
+                _row_to_span(row)
+                for row in rows
+                if row is not None and row.created_at is not None and row.schema_version is not None
+            ]
 
     def verify_content_hash(self, span_id: str, content: str) -> bool:
         span = self.get_span(span_id)
