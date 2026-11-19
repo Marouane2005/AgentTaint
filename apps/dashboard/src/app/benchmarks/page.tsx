@@ -93,6 +93,56 @@ export default function BenchmarksPage() {
       <div className="banner warn">{data?.disclaimer}</div>
       {loading ? <div className="loading">Loading measured reports…</div> : null}
 
+      {data?.scenarios ? (
+        <div className="panel">
+          <div className="panel-head">
+            <h2>Scenario catalogue</h2>
+            <span className="panel-meta">
+              {data.scenarios.catalog_count} runnable · input fixtures only
+            </span>
+          </div>
+          <p className="panel-meta">{data.scenarios.note}</p>
+          <div className="status-grid">
+            {Object.entries(data.scenarios.counts || {}).map(([split, n]) => (
+              <div className="status-row" key={split}>
+                <span className="k">{split}</span>
+                <span className="v mono">{n}</span>
+              </div>
+            ))}
+          </div>
+          {data.scenarios.message ? <div className="empty">{data.scenarios.message}</div> : null}
+          {!data.scenarios.catalog_count ? (
+            <div className="empty">No scenario files were found in this checkout.</div>
+          ) : (
+            <div className="table-wrap">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>Kind</th>
+                    <th>Family</th>
+                    <th>Split</th>
+                    <th>Scenario</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.scenarios.catalog.map((s) => (
+                    <tr key={s.scenario_id}>
+                      <td>{s.kind}</td>
+                      <td className="mono">{s.family}</td>
+                      <td className="mono">{s.split}</td>
+                      <td>
+                        {s.description}{" "}
+                        <span className="mono dim">{s.scenario_id}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {!data?.available ? (
         <div className="panel">
           <div className="empty">{data?.message || "No reports available."}</div>

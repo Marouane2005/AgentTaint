@@ -29,6 +29,7 @@ function familyLabel(f: string) {
  */
 export default function DemoPage() {
   const [scenarios, setScenarios] = useState<DemoScenario[]>([]);
+  const [catalogState, setCatalogState] = useState<"loading" | "ready" | "error">("loading");
   const [results, setResults] = useState<DemoRunResult[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,8 +37,14 @@ export default function DemoPage() {
 
   useEffect(() => {
     fetchDemoScenarios()
-      .then((r) => setScenarios(r.scenarios))
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+      .then((r) => {
+        setScenarios(Array.isArray(r.scenarios) ? r.scenarios : []);
+        setCatalogState("ready");
+      })
+      .catch((e) => {
+        setCatalogState("error");
+        setError(e instanceof Error ? e.message : String(e));
+      });
   }, []);
 
   const shown = useMemo(
@@ -108,8 +115,17 @@ export default function DemoPage() {
         <section className="card">
           <header>
             <h2>Scenarios</h2>
-            <span className="meta">{shown.length} available</span>
+            <span className="meta">
+              {catalogState === "loading"
+                ? "Loading scenarios…"
+                : catalogState === "error"
+                  ? "Unavailable"
+                  : `${shown.length} available`}
+            </span>
           </header>
+          {catalogState === "ready" && !shown.length ? (
+            <div className="empty">No scenarios match this filter.</div>
+          ) : null}
           <ul className="scenario-list">
             {shown.map((s) => (
               <li key={s.scenario_id} className="scenario-item">

@@ -94,12 +94,29 @@ export function fetchReconstruction() {
   }>("/api/v1/reconstruction");
 }
 
+export type BenchmarkScenario = {
+  scenario_id: string;
+  kind: string;
+  family: string;
+  split: string;
+  description: string;
+  difficulty: string;
+};
+
 export function fetchBenchmarks() {
   return getJson<{
     available: boolean;
     disclaimer: string;
     reports: Array<Record<string, unknown>>;
     message: string | null;
+    scenarios?: {
+      available: boolean;
+      counts: Record<string, number>;
+      catalog: BenchmarkScenario[];
+      catalog_count: number;
+      message?: string | null;
+      note?: string;
+    };
   }>("/api/v1/benchmarks");
 }
 
