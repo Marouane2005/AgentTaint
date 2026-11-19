@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PageHint } from "@/components/PageHint";
-import { TraceGraph } from "@/components/TraceGraph";
+import { ProvenanceFlow } from "@/components/ProvenanceFlow";
+import { Skeleton } from "@/components/Skeleton";
 import {
   fetchAllDecisions,
   fetchAncestors,
@@ -45,6 +46,7 @@ export default function ProvenancePage() {
   const [active, setActive] = useState<string>("");
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState("");
   const [ancestors, setAncestors] = useState<Array<Record<string, unknown>>>([]);
   const [ancestorNote, setAncestorNote] = useState<string | null>(null);
@@ -64,7 +66,8 @@ export default function ProvenancePage() {
         const match = wanted && t.traces.some((x) => x.trace_id === wanted);
         setActive(match ? (wanted as string) : t.traces[0]?.trace_id || ALL);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -103,11 +106,27 @@ export default function ProvenancePage() {
     return traces.find((t) => t.trace_id === active) || null;
   }, [traces, active]);
 
+  const visibleSpans = useMemo(() => {
+    if (!trace) return [];
+    const ids = new Set(trace.span_ids);
+    return spans.filter((span) => ids.has(span.id));
+  }, [spans, trace]);
+  const visibleEdges = useMemo(() => {
+    const ids = new Set(visibleSpans.map((span) => span.id));
+    return edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target));
+  }, [edges, visibleSpans]);
   const graph = useMemo(
     () => buildTraceGraph(spans, edges, decisions, trace),
     [spans, edges, decisions, trace],
   );
   const timeline = useMemo(() => traceTimeline(graph.nodes), [graph.nodes]);
+  useEffect(() => {
+    if (!trace) return;
+    const ids = new Set(trace.span_ids);
+    const arg = spans.find((span) => ids.has(span.id) && span.kind === "TOOL_ARG");
+    setSelected(arg?.id || null);
+  }, [trace, spans]);
+
   const selectedNode = graph.nodes.find((n) => n.id === selected) || null;
   const visibleTraces = traces.filter(
     (t) =>
@@ -221,24 +240,27 @@ export default function ProvenancePage() {
           </select>
         </label>
         <PageHint id="provenance" title="How to read the provenance graph">
-          Each box is something the agent read, wrote or did; arrows show where data came from. The
-          blue box on the right is the tool call the gateway judged, with its verdict. Drag to pan,
-          pinch or use + and − to zoom, and tap a box for details. Pick another run from the trace
-          list.
+          Each box is a span the registry stored. Arrows are stored edges. KNOWN, INFERRED, UNKNOWN
+          and PARTIAL are the recorded status. Selecting a tool argument highlights the untrusted
+          path that reaches it. Drag to pan and use the controls to zoom.
         </PageHint>
         {error ? <div className="banner danger">{error}</div> : null}
-        {!traces.length && !error ? (
+        {!loaded && !error ? <Skeleton label="Loading provenance" rows={4} /> : null}
+        {loaded && !traces.length && !error ? (
           <div className="empty-guide">
             No runs yet. <Link href="/demo">Run a scenario</Link> or try your own text, then come
             back here to see its graph.
           </div>
         ) : null}
-        <TraceGraph
-          nodes={graph.nodes}
-          edges={graph.edges}
-          selectedId={selected}
-          onSelect={setSelected}
-        />
+        {loaded ? (
+          <ProvenanceFlow
+            spans={visibleSpans}
+            edges={visibleEdges}
+            selectedId={selected}
+            onSelect={setSelected}
+            revealKey={trace?.trace_id || "none"}
+          />
+        ) : null}
         {selectedNode ? (
           <div className="trace-inspector">
             <div className="ti-head">

@@ -33,6 +33,7 @@ import {
 } from "@/lib/derive";
 import { useDemoMode } from "@/lib/useDemoMode";
 import { PageHint } from "@/components/PageHint";
+import { Skeleton } from "@/components/Skeleton";
 
 const TIER_COLORS: Record<string, string> = {
   LOW: "#22d3ee",
@@ -176,6 +177,7 @@ export default function OverviewPage() {
         </div>
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
+      {!overview && !error ? <Skeleton label="Loading overview" rows={4} /> : null}
       <SessionBanner session={overview?.session} />
 
       <div className="kpi-row">

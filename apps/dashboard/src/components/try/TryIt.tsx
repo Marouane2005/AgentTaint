@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { TraceGraph } from "@/components/TraceGraph";
-import { runDemoCustom, type DemoRunResult, type Trace } from "@/lib/api";
-import { buildTraceGraph, type SpanEdge, type SpanNode } from "@/lib/derive";
+import { useEffect, useMemo, useState } from "react";
+import { ProvenanceFlow } from "@/components/ProvenanceFlow";
+import { runDemoCustom, type DemoRunResult } from "@/lib/api";
+import type { SpanEdge, SpanNode } from "@/lib/derive";
+import {
+  DecisionSequence,
+  graphVisible,
+  useDecisionStep,
+  verdictVisible,
+} from "./DecisionSequence";
 
 export const MAX_INSTRUCTION = 500;
 export const MAX_CONTENT = 2000;
@@ -98,24 +104,20 @@ export function TryIt({ compact = false }: { compact?: boolean }) {
   const [result, setResult] = useState<DemoRunResult | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
-  const graph = useMemo(() => {
-    if (!result?.graph) return { nodes: [], edges: [] };
-    const trace: Trace = {
-      trace_id: result.trace_id,
-      label: "Your run",
-      kind: result.scenario.kind,
-      family: result.scenario.family,
-      source: "visitor_run",
-      span_ids: result.span_ids || [],
-      call_ids: result.call_ids,
-      calls: [{ call_ids: result.call_ids, span_ids: result.span_ids || [] }],
-    } as Trace;
-    return buildTraceGraph(
-      result.graph.nodes as unknown as SpanNode[],
-      result.graph.edges as unknown as SpanEdge[],
-      result.graph.decisions,
-      trace,
-    );
+  const step = useDecisionStep(result);
+  const spans = useMemo(
+    () => (result?.graph?.nodes || []) as unknown as SpanNode[],
+    [result],
+  );
+  const storedEdges = useMemo(
+    () => (result?.graph?.edges || []) as unknown as SpanEdge[],
+    [result],
+  );
+
+  useEffect(() => {
+    if (!result?.graph?.nodes) return;
+    const arg = result.graph.nodes.find((node) => node.kind === "TOOL_ARG");
+    setSelected(arg ? String(arg.id) : null);
   }, [result]);
 
   function choose(id: string) {
@@ -253,14 +255,22 @@ export function TryIt({ compact = false }: { compact?: boolean }) {
             </div>
           ) : (
             <>
-              <div className={`verdict ${verdict}`}>
-                <span className="verdict-word">{verdict}</span>
-                <span className="verdict-sub">{VERDICT_TEXT[verdict || ""] || ""}</span>
-              </div>
+              <DecisionSequence result={result} step={step} />
+              {verdictVisible(step) ? (
+                <div className={`verdict ${verdict}`}>
+                  <span className="verdict-word">{verdict}</span>
+                  <span className="verdict-sub">{VERDICT_TEXT[verdict || ""] || ""}</span>
+                </div>
+              ) : (
+                <p className="fine">Waiting on the recorded steps. The verdict is already known to the server.</p>
+              )}
+              {verdictVisible(step) ? (
               <p className="try-why">
                 <b>Why: </b>
                 {result.with_agenttaint.explanation || "See the policy id below."}
               </p>
+              ) : null}
+              {verdictVisible(step) ? (
               <div className="try-compare">
                 <div className="side without">
                   <h4>Without AgentTaint</h4>
@@ -300,6 +310,8 @@ export function TryIt({ compact = false }: { compact?: boolean }) {
                   </dl>
                 </div>
               </div>
+              ) : null}
+              {graphVisible(step) ? (
               <div className="try-graph">
                 <div className="try-graph-head">
                   <h4>Provenance graph of this run</h4>
@@ -308,18 +320,18 @@ export function TryIt({ compact = false }: { compact?: boolean }) {
                   </Link>
                 </div>
                 <p className="fine">
-                  Boxes are what you asked, what the agent read and the call the gateway judged;
-                  arrows show where the recipient came from. Drag to pan, pinch or use + and − to
-                  zoom, tap a box for details.
+                  Stored spans and edges only. The untrusted path to the selected argument is
+                  marked in red. Drag to pan, scroll to zoom, and select a node or an edge.
                 </p>
-                <TraceGraph
-                  nodes={graph.nodes}
-                  edges={graph.edges}
+                <ProvenanceFlow
+                  spans={spans}
+                  edges={storedEdges}
                   selectedId={selected}
                   onSelect={setSelected}
-                  collapsedOverlays
+                  revealKey={result.trace_id}
                 />
               </div>
+              ) : null}
             </>
           )}
         </section>

@@ -9,6 +9,7 @@ import {
   type DemoScenario,
 } from "@/lib/api";
 import { PageHint } from "@/components/PageHint";
+import { Skeleton } from "@/components/Skeleton";
 import { TryIt } from "@/components/try/TryIt";
 
 function outcome(r: DemoRunResult["without_agenttaint"], kind: string): string {
@@ -162,6 +163,7 @@ export default function DemoPage() {
                   : `${shown.length} available`}
             </span>
           </header>
+          {catalogState === "loading" ? <Skeleton label="Loading scenarios" rows={4} /> : null}
           {catalogState === "ready" && !shown.length ? (
             <div className="empty">No scenarios match this filter.</div>
           ) : null}

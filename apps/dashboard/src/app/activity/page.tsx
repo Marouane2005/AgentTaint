@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PageHint } from "@/components/PageHint";
+import { Skeleton } from "@/components/Skeleton";
 import { fetchDecisions, type Decision } from "@/lib/api";
 import { formatUtcTime, parseTs } from "@/lib/derive";
 
@@ -55,7 +56,7 @@ export default function ActivityPage() {
         </div>
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
-      {!loaded ? <div className="loading">Loading decisions…</div> : null}
+      {!loaded ? <Skeleton label="Loading activity" rows={5} /> : null}
       {loaded && !items.length ? (
         <div className="empty">No decisions in the audit store yet.</div>
       ) : null}
