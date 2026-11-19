@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    // Playwright specs live beside the app and must not run under Vitest.
+    exclude: ["**/node_modules/**", "**/e2e/**", "playwright.config.ts"],
   },
   resolve: {
     alias: {
