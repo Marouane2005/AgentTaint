@@ -584,56 +584,69 @@ def export_graph(state: AppState) -> dict[str, Any]:
     }
 
 
+def _scenario_inventory() -> dict[str, Any]:
+    """Counts and the curated runnable catalogue. Descriptions only — no results."""
+    try:
+        from agenttaint_benchmark.loader import load_scenarios
+    except ImportError:
+        return {
+            "available": False,
+            "counts": {},
+            "catalog": [],
+            "catalog_count": 0,
+            "message": "Benchmark package is not installed.",
+        }
+    counts: dict[str, int] = {}
+    for split in ("train", "dev", "test", "challenge", "reconstruction"):
+        try:
+            _, items = load_scenarios(split)
+        except (OSError, ValueError):
+            continue
+        counts[split] = len(items)
+    catalog: list[dict[str, Any]] = []
+    message = None
+    try:
+        from agenttaint_api.demo import catalog as demo_catalog
+
+        catalog = demo_catalog()
+    except Exception as exc:  # noqa: BLE001 — inventory must not hide a missing dataset
+        message = f"Scenario catalogue unavailable: {exc.__class__.__name__}"
+    return {
+        "available": bool(catalog),
+        "counts": counts,
+        "catalog": catalog,
+        "catalog_count": len(catalog),
+        "message": message,
+        "note": (
+            "Catalogue entries are input fixtures. Attack success and decisions "
+            "exist only after a scenario is executed through the gateway."
+        ),
+    }
+
+
 def load_benchmark_summary() -> dict[str, Any]:
     """Load latest measured benchmark reports from disk — never invent metrics."""
+    from agenttaint_api.reports import load_report_files
+
     disclaimer = (
         "Synthetic benchmark results only — not real-world security effectiveness. "
         "No superiority claims vs CaMeL/FIDES/CapLite/NeuroTaint."
     )
+    scenarios = _scenario_inventory()
     if not BENCHMARKS.exists():
         return {
             "available": False,
             "disclaimer": disclaimer,
             "reports": [],
+            "scenarios": scenarios,
             "message": "No benchmark reports found. Run: make benchmark",
         }
 
-    reports: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    paths = list(BENCHMARKS.glob("report_test_*.json"))
-    for path in sorted(paths, key=lambda p: p.stat().st_mtime, reverse=True):
-        try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        rid = str(raw.get("report_id") or path.name)
-        if rid in seen:
-            continue
-        seen.add(rid)
-        reports.append(
-            {
-                "path": path.name,
-                "report_id": rid,
-                "dataset_version": raw.get("dataset_version"),
-                "seed": raw.get("seed"),
-                "semantic_backend": (raw.get("config") or {}).get("semantic_backend"),
-                "split": raw.get("split"),
-                "per_defense": raw.get("per_defense") or {},
-                "per_ablation": raw.get("per_ablation") or {},
-                "limitations": raw.get("limitations") or [],
-                "created_at": raw.get("created_at"),
-            }
-        )
-
-    preferred: list[dict[str, Any]] = []
-    for key in ("fixture", "bge", "experiment"):
-        for report in reports:
-            if key in report["path"] and report not in preferred:
-                preferred.append(report)
-    ordered = preferred + [r for r in reports if r not in preferred]
+    ordered = load_report_files(BENCHMARKS)
     return {
         "available": bool(ordered),
         "disclaimer": disclaimer,
         "reports": ordered[:8],
+        "scenarios": scenarios,
         "message": None if ordered else "No benchmark reports found. Run: make benchmark",
     }
