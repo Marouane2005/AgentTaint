@@ -6,6 +6,7 @@ import { PageHint } from "@/components/PageHint";
 import { TraceGraph } from "@/components/TraceGraph";
 import {
   fetchAllDecisions,
+  fetchAncestors,
   fetchGraph,
   fetchTraces,
   type Decision,
@@ -45,6 +46,8 @@ export default function ProvenancePage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [ancestors, setAncestors] = useState<Array<Record<string, unknown>>>([]);
+  const [ancestorNote, setAncestorNote] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([fetchGraph(), fetchAllDecisions(), fetchTraces()])
@@ -63,6 +66,36 @@ export default function ProvenancePage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
+
+  useEffect(() => {
+    if (!selected || selected.startsWith("call:")) {
+      setAncestors([]);
+      setAncestorNote(
+        selected ? "Decision nodes are audit records, not provenance spans." : null,
+      );
+      return;
+    }
+    let cancelled = false;
+    setAncestorNote("Loading stored ancestors…");
+    fetchAncestors(selected)
+      .then((body) => {
+        if (cancelled) return;
+        setAncestors(body.ancestors);
+        setAncestorNote(
+          body.ancestors.length
+            ? null
+            : "This span has no stored ancestors. No edge was added to fill the gap.",
+        );
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setAncestors([]);
+        setAncestorNote(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
 
   const trace = useMemo(() => {
     if (!traces.length) return null;
@@ -238,6 +271,21 @@ export default function ProvenancePage() {
                 <dd className="mono">{selectedNode.span?.content_redacted || "—"}</dd>
                 <dt>Span</dt>
                 <dd className="mono">{selectedNode.id}</dd>
+                <dt>Stored ancestors</dt>
+                <dd>
+                  {ancestorNote ? <span className="dim">{ancestorNote}</span> : null}
+                  {ancestors.length ? (
+                    <ol className="plain-list">
+                      {ancestors.map((span) => (
+                        <li key={String(span.span_id)}>
+                          <span className="mono">{String(span.kind || "span")}</span>
+                          <span>{String(span.provenance_status || "—")}</span>
+                          <span className="dim">{String(span.origin || "")}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : null}
+                </dd>
               </dl>
             )}
           </div>

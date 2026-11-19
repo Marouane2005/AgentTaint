@@ -4,9 +4,7 @@
   --cyan-dim: rgba(34, 211, 238, 0.12);
   --cyan-border: rgba(34, 211, 238, 0.35);
   min-height: 100vh;
-  background:
-    radial-gradient(1200px 500px at 70% -10%, rgba(34, 211, 238, 0.10), transparent 60%),
-    var(--bg);
+  background: var(--bg);
   color: var(--text);
 }
 .site a { color: var(--cyan); text-decoration: none; }

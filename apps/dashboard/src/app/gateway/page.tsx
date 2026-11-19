@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SessionBanner } from "@/components/SessionBanner";
-import { fetchDecisions } from "@/lib/api";
+import { fetchDecisions, fetchHealth } from "@/lib/api";
 import { PageHint } from "@/components/PageHint";
 
 export default function GatewayPage() {
@@ -10,8 +10,12 @@ export default function GatewayPage() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [health, setHealth] = useState<Awaited<ReturnType<typeof fetchHealth>> | null>(null);
 
   useEffect(() => {
+    fetchHealth()
+      .then(setHealth)
+      .catch(() => setHealth(null));
     fetchDecisions()
       .then((payload) => {
         setData(payload);
@@ -45,6 +49,38 @@ export default function GatewayPage() {
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
       <SessionBanner session={data?.session} />
+      <div className="panel">
+        <div className="panel-head">
+          <h2>Health checks</h2>
+          <span className="panel-meta">{health ? health.status : "checking"}</span>
+        </div>
+        {!health ? (
+          <div className="empty">Waiting for GET /api/v1/health.</div>
+        ) : (
+          <div className="status-grid">
+            {(
+              [
+                ["Provenance registry", health.registry_ok],
+                ["Audit store", health.audit_ok],
+                ["Cedar policy engine", health.policy_ok],
+              ] as const
+            ).map(([label, ok]) => (
+              <div className="status-row" key={label}>
+                <span className="k">{label}</span>
+                <span className="v">{ok ? "reachable" : "not confirmed"}</span>
+              </div>
+            ))}
+            <div className="status-row">
+              <span className="k">Auth</span>
+              <span className="v mono">{health.auth_mode || "—"}</span>
+            </div>
+            <div className="status-row">
+              <span className="k">Demo mode</span>
+              <span className="v">{health.demo_mode ? "on" : "off"}</span>
+            </div>
+          </div>
+        )}
+      </div>
       {loading ? <div className="loading">Loading audit trail…</div> : null}
 
       <div className="two-col">

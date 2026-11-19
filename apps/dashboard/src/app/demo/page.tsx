@@ -18,6 +18,14 @@ function outcome(r: DemoRunResult["without_agenttaint"], kind: string): string {
   return r.benign_completed ? "task completed" : "task not completed";
 }
 
+const SPOTLIGHT = [
+  { id: "test-atk-direct-01", title: "Prompt injection in an email" },
+  { id: "test-atk-summary-01", title: "Instructions hidden in summarized content" },
+  { id: "test-atk-delegate-01", title: "Information transferred between agents" },
+  { id: "test-ben-auth-01", title: "Legitimate request" },
+  { id: "chal-atk-user-only-wrong-01", title: "Suspicious request" },
+] as const;
+
 function familyLabel(f: string) {
   return f.replace(/_/g, " ");
 }
@@ -81,6 +89,37 @@ export default function DemoPage() {
         </div>
       </div>
       <TryIt compact />
+      <div className="panel" style={{ marginTop: "1rem" }}>
+        <div className="panel-head">
+          <h2>Example fixtures</h2>
+          <span className="panel-meta">results come from running them</span>
+        </div>
+        <p className="panel-meta">
+          These are named inputs from the synthetic catalogue, including a case that the current
+          policy holds for a person. The verdict is whatever the gateway returns for that run. The
+          proposing side is a scripted pipeline with mock tools, not a language model.
+        </p>
+        <div className="actions">
+          {SPOTLIGHT.map((item) => {
+            const known = scenarios.some((s) => s.scenario_id === item.id);
+            return (
+              <button
+                key={item.id}
+                className="btn secondary"
+                type="button"
+                disabled={!known || busy !== null}
+                onClick={() => run(item.id)}
+              >
+                {busy === item.id ? "Running…" : item.title}
+              </button>
+            );
+          })}
+        </div>
+        {catalogState === "ready" &&
+        SPOTLIGHT.some((item) => !scenarios.some((s) => s.scenario_id === item.id)) ? (
+          <p className="panel-meta">A listed fixture is missing from this catalogue, so its button stays off.</p>
+        ) : null}
+      </div>
       <div className="console-head" style={{ marginTop: "2rem" }}>
         <div>
           <p className="eyebrow">Benchmark scenarios · synthetic</p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchBenchmarks } from "@/lib/api";
+import { fetchBenchmarks, runDemoScenario, type DemoRunResult } from "@/lib/api";
 import { PageHint } from "@/components/PageHint";
 
 type Metrics = {
@@ -54,6 +54,10 @@ export default function BenchmarksPage() {
   const [error, setError] = useState<string | null>(null);
   const [reportIdx, setReportIdx] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [scenarioId, setScenarioId] = useState("");
+  const [runResult, setRunResult] = useState<DemoRunResult | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
     fetchBenchmarks()
@@ -61,6 +65,21 @@ export default function BenchmarksPage() {
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, []);
+
+  async function executeSelected() {
+    if (!scenarioId) return;
+    setRunning(true);
+    setRunError(null);
+    try {
+      setRunResult(await runDemoScenario(scenarioId));
+    } catch (err) {
+      setRunResult(null);
+      const msg = err instanceof Error ? err.message : String(err);
+      setRunError(msg.startsWith("429") ? "Rate limit reached. Wait a minute and try again." : msg);
+    } finally {
+      setRunning(false);
+    }
+  }
 
   const report = data?.reports?.[reportIdx];
   const rows = useMemo(() => {
@@ -102,6 +121,47 @@ export default function BenchmarksPage() {
             </span>
           </div>
           <p className="panel-meta">{data.scenarios.note}</p>
+          <div className="actions" style={{ margin: "0.8rem 0" }}>
+            <label>
+              Fixture
+              <select
+                className="control"
+                value={scenarioId}
+                onChange={(e) => setScenarioId(e.target.value)}
+              >
+                <option value="">Select a scenario</option>
+                {data.scenarios.catalog.map((s) => (
+                  <option key={s.scenario_id} value={s.scenario_id}>
+                    {s.kind} · {s.family} · {s.scenario_id}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="btn" type="button" disabled={!scenarioId || running} onClick={executeSelected}>
+              {running ? "Running…" : "Run through the gateway"}
+            </button>
+          </div>
+          {runError ? <div className="banner danger">{runError}</div> : null}
+          {runResult ? (
+            <div className="status-grid">
+              <div className="status-row">
+                <span className="k">Without AgentTaint</span>
+                <span className="v">{runResult.without_agenttaint.decision}</span>
+              </div>
+              <div className="status-row">
+                <span className="k">With AgentTaint</span>
+                <span className="v">
+                  {runResult.with_agenttaint.decision} · {runResult.with_agenttaint.policy_id || "—"}
+                </span>
+              </div>
+              <div className="status-row">
+                <span className="k">Evidence</span>
+                <span className="v mono">
+                  {runResult.with_agenttaint.evidence_statuses.join(", ") || "—"}
+                </span>
+              </div>
+            </div>
+          ) : null}
           <div className="status-grid">
             {Object.entries(data.scenarios.counts || {}).map(([split, n]) => (
               <div className="status-row" key={split}>
@@ -142,6 +202,17 @@ export default function BenchmarksPage() {
           )}
         </div>
       ) : null}
+
+      <div className="panel">
+        <div className="panel-head">
+          <h2>External benchmarks</h2>
+          <span className="panel-meta">not evaluated here</span>
+        </div>
+        <p>
+          AgentDojo and InjecAgent do not have a published attack-success figure in this demo. This
+          page does not fill one in. The tables below are the synthetic suite only.
+        </p>
+      </div>
 
       {!data?.available ? (
         <div className="panel">

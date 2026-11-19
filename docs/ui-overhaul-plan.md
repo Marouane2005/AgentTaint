@@ -1,5 +1,10 @@
 # AgentTaint audit and product plan
 
+Status: the benchmark report bug and the false zero on the run page are
+fixed on `fix/benchmark-reports-2943`. The console work (live activity,
+server-side audit paging, provenance ancestors, gateway health, fixture
+runs, and the darker console) follows on `feat/console-operations-2943`.
+
 Audit of `main` at `1f38a87` (2026-11-19), before the console restyle.
 The live service is the Render free web service `agenttaint-demo`, which
 auto-deploys this branch and serves the static dashboard from the FastAPI

@@ -25,8 +25,11 @@ import {
   countBy,
   decisionTimeline,
   destinationFlows,
+  provenanceCoverage,
   riskGauges,
+  toolUsage,
   type SpanEdge,
+  type SpanNode,
 } from "@/lib/derive";
 import { useDemoMode } from "@/lib/useDemoMode";
 import { PageHint } from "@/components/PageHint";
@@ -42,6 +45,7 @@ export default function OverviewPage() {
   const [overview, setOverview] = useState<Awaited<ReturnType<typeof fetchOverview>> | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [edges, setEdges] = useState<SpanEdge[]>([]);
+  const [spans, setSpans] = useState<SpanNode[]>([]);
   const [health, setHealth] = useState("checking…");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,6 +63,7 @@ export default function OverviewPage() {
       setHealth(h.status);
       setDecisions(d.items);
       setEdges(g.edges as SpanEdge[]);
+      setSpans(g.nodes as SpanNode[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -86,6 +91,12 @@ export default function OverviewPage() {
   const tiers = useMemo(() => countBy(decisions, (d) => d.risk_tier), [decisions]);
   const policies = useMemo(() => countBy(decisions, (d) => d.policy_id || "—"), [decisions]);
   const counts = useMemo(() => countBy(decisions, (d) => d.decision), [decisions]);
+  const tools = useMemo(() => toolUsage(decisions).slice(0, 6), [decisions]);
+  const coverage = useMemo(() => provenanceCoverage(spans), [spans]);
+  const suspicious = useMemo(
+    () => decisions.filter((d) => d.decision === "BLOCK" || d.decision === "CONFIRM").slice(0, 6),
+    [decisions],
+  );
   const latencies = decisions.map((d) => Number(d.latency_ms || 0)).sort((a, b) => a - b);
   const p50 = latencies.length ? latencies[Math.floor(latencies.length / 2)] : 0;
   const graph = overview?.graph || {};
@@ -178,6 +189,71 @@ export default function OverviewPage() {
       </div>
 
       <div className="console-grid">
+        <section className="card">
+          <header>
+            <h2>Most-used tools</h2>
+            <span className="meta">from the audit store</span>
+          </header>
+          {!tools.length ? (
+            <div className="empty">No tool calls in this session.</div>
+          ) : (
+            <ul className="plain-list">
+              {tools.map((tool) => (
+                <li key={tool.name}>
+                  <span className="mono">{tool.name}</span>
+                  <span className="meta">{tool.count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="card">
+          <header>
+            <h2>Provenance coverage</h2>
+            <span className="meta">{coverage.total} spans</span>
+          </header>
+          {!coverage.total ? (
+            <div className="empty">No spans yet. Coverage appears after a real run.</div>
+          ) : (
+            <ul className="plain-list">
+              <li>
+                <span>KNOWN</span>
+                <span>{coverage.known}</span>
+              </li>
+              <li>
+                <span>INFERRED</span>
+                <span>{coverage.inferred}</span>
+              </li>
+              <li>
+                <span>UNKNOWN</span>
+                <span>{coverage.unknown}</span>
+              </li>
+              <li>
+                <span>PARTIAL</span>
+                <span>{coverage.partial}</span>
+              </li>
+            </ul>
+          )}
+        </section>
+        <section className="card">
+          <header>
+            <h2>Suspicious activity</h2>
+            <span className="meta">BLOCK and CONFIRM</span>
+          </header>
+          {!suspicious.length ? (
+            <div className="empty">No blocked or held calls in the loaded audit page.</div>
+          ) : (
+            <ul className="plain-list">
+              {suspicious.map((row) => (
+                <li key={row.call_id}>
+                  <span className={`dec ${row.decision}`}>{row.decision}</span>
+                  <span className="mono">{row.tool}</span>
+                  <span className="dim">{row.policy_id || "—"}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
         <section className="card span-2">
           <header>
             <h2>Decision timeline</h2>

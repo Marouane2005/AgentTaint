@@ -1,41 +1,54 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { DecisionTable } from "@/components/DecisionTable";
-import { fetchAllDecisions, type Decision } from "@/lib/api";
+import { fetchDecisions, type Decision } from "@/lib/api";
 import { formatUtcTime, parseTs } from "@/lib/derive";
 import { PageHint } from "@/components/PageHint";
 
+const PAGE = 25;
+
 export default function AuditPage() {
   const [rows, setRows] = useState<Decision[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [decision, setDecision] = useState("ALL");
   const [tier, setTier] = useState("ALL");
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<"created_at" | "tool" | "decision" | "risk_tier">("created_at");
+  const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<Decision | null>(null);
 
   useEffect(() => {
-    fetchAllDecisions()
-      .then((d) => {
-        setRows(d.items);
-        setSelected(d.items.find((r) => r.decision === "BLOCK") || d.items[0] || null);
+    const handle = window.setTimeout(() => {
+      setLoading(true);
+      fetchDecisions({
+        limit: PAGE,
+        offset,
+        decision: decision === "ALL" ? undefined : decision,
+        risk_tier: tier === "ALL" ? undefined : tier,
+        q: q.trim() || undefined,
+        sort,
+        order,
       })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, []);
-
-  const filtered = useMemo(
-    () =>
-      rows.filter(
-        (r) =>
-          (decision === "ALL" || r.decision === decision) &&
-          (tier === "ALL" || r.risk_tier === tier) &&
-          (!q ||
-            `${r.tool} ${r.agent_id} ${r.policy_id} ${r.call_id}`
-              .toLowerCase()
-              .includes(q.toLowerCase())),
-      ),
-    [rows, decision, tier, q],
-  );
+        .then((d) => {
+          const items = d.items as Decision[];
+          setRows(items);
+          setTotal(typeof d.total === "number" ? d.total : items.length);
+          setSelected((current) =>
+            current && items.some((row) => row.call_id === current.call_id)
+              ? current
+              : items.find((row) => row.decision === "BLOCK") || items[0] || null,
+          );
+          setError(null);
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+        .finally(() => setLoading(false));
+    }, 200);
+    return () => window.clearTimeout(handle);
+  }, [decision, tier, q, offset, sort, order]);
 
   return (
     <div className="console">
@@ -58,7 +71,13 @@ export default function AuditPage() {
       <div className="filters">
         <label>
           Decision
-          <select value={decision} onChange={(e) => setDecision(e.target.value)}>
+          <select
+            value={decision}
+            onChange={(e) => {
+              setDecision(e.target.value);
+              setOffset(0);
+            }}
+          >
             {["ALL", "ALLOW", "CONFIRM", "BLOCK"].map((v) => (
               <option key={v}>{v}</option>
             ))}
@@ -66,7 +85,13 @@ export default function AuditPage() {
         </label>
         <label>
           Risk tier
-          <select value={tier} onChange={(e) => setTier(e.target.value)}>
+          <select
+            value={tier}
+            onChange={(e) => {
+              setTier(e.target.value);
+              setOffset(0);
+            }}
+          >
             {["ALL", "LOW", "MEDIUM", "HIGH"].map((v) => (
               <option key={v}>{v}</option>
             ))}
@@ -76,17 +101,62 @@ export default function AuditPage() {
           Search
           <input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setOffset(0);
+            }}
             placeholder="tool, agent, policy or call id"
           />
         </label>
+        <label>
+          Sort
+          <select
+            value={`${sort}:${order}`}
+            onChange={(e) => {
+              const [nextSort, nextOrder] = e.target.value.split(":") as [
+                typeof sort,
+                typeof order,
+              ];
+              setSort(nextSort);
+              setOrder(nextOrder);
+              setOffset(0);
+            }}
+          >
+            <option value="created_at:desc">Newest</option>
+            <option value="created_at:asc">Oldest</option>
+            <option value="tool:asc">Tool</option>
+            <option value="decision:asc">Decision</option>
+            <option value="risk_tier:desc">Risk</option>
+          </select>
+        </label>
         <span className="meta">
-          {filtered.length} of {rows.length}
+          {loading ? "Loading…" : `${rows.length} on this page · ${total} match`}
         </span>
       </div>
+      <div className="actions" style={{ marginBottom: "0.8rem" }}>
+        <button
+          className="btn secondary"
+          type="button"
+          disabled={offset === 0 || loading}
+          onClick={() => setOffset((n) => Math.max(0, n - PAGE))}
+        >
+          Previous
+        </button>
+        <button
+          className="btn secondary"
+          type="button"
+          disabled={loading || offset + rows.length >= total}
+          onClick={() => setOffset((n) => n + PAGE)}
+        >
+          Next
+        </button>
+      </div>
+      {!loading && !rows.length ? (
+        <div className="empty">No audit records match these filters.</div>
+      ) : null}
       <div className="audit-grid">
         <section className="card">
-          <DecisionTable rows={filtered} onSelect={setSelected} selectedId={selected?.call_id} />
+          <DecisionTable rows={rows} onSelect={setSelected} selectedId={selected?.call_id} />
         </section>
         <section className="card audit-detail" aria-label="Decision detail">
           {selected ? (
