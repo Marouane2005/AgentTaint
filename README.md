@@ -15,6 +15,13 @@ This is **not** a prompt-injection classifier and **not** a keyword filter.
 > InjecAgent is not evaluated. Do not treat zero synthetic ASR as production
 > attack prevention. Details: [docs/technical_report.md](docs/technical_report.md).
 
+## Hosted demo
+
+The live demo is at <https://agenttaint-demo.onrender.com/demo/>. The product
+page is at <https://agenttaint-demo.onrender.com/product/>. It runs on a free
+server, so the first request after inactivity can take about a minute.
+
+
 ## Install (AgentTaint Pro 1.0, self-hosted)
 
 ```bash
