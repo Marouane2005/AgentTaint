@@ -35,7 +35,7 @@ forbid (principal, action, resource)
 when { context.recipient_blocked && !context.granted && !context.confirmation_validated };
 
 // ------------------------------------------------------------------- HIGH
-@id("allow-user-authorized-authority")
+@id("allow-high-authorized")
 permit (principal, action == Action::"execute", resource)
 when { context.tier == "HIGH" && context.granted };
 
@@ -95,7 +95,7 @@ when {
 };
 
 // ----------------------------------------------------------------- MEDIUM
-@id("allow-user-authorized-authority")
+@id("allow-medium-authorized")
 permit (principal, action == Action::"execute", resource)
 when {
   context.tier == "MEDIUM" && context.untrusted_influence &&
@@ -144,7 +144,7 @@ when {
   !context.cfg_fail_closed_unknown_medium
 };
 
-@id("allow-low-medium")
+@id("allow-medium")
 permit (principal, action == Action::"execute", resource)
 when {
   context.tier == "MEDIUM" && !context.untrusted_influence &&
@@ -153,6 +153,6 @@ when {
 };
 
 // -------------------------------------------------------------------- LOW
-@id("allow-low-medium")
+@id("allow-low")
 permit (principal, action == Action::"execute", resource)
 when { context.tier == "LOW" };

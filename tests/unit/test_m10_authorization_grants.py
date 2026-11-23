@@ -114,7 +114,11 @@ def test_user_prompt_path_is_not_scraped_into_global_allow(
         DecisionOutcome.BLOCK,
         DecisionOutcome.CONFIRM,
     }
-    assert exc.value.decision.policy_id != "allow-user-authorized-authority"
+    assert exc.value.decision.policy_id not in {
+        "allow-high-authorized",
+        "allow-medium-authorized",
+        "allow-user-authorized-authority",
+    }
 
 
 def test_structured_grant_allows_only_matching_tool_arg_value(
@@ -138,7 +142,7 @@ def test_structured_grant_allows_only_matching_tool_arg_value(
         raise_on_deny=True,
     )
     assert out.decision.decision == DecisionOutcome.ALLOW
-    assert out.decision.policy_id == "allow-user-authorized-authority"
+    assert out.decision.policy_id == "allow-high-authorized"
     assert len(sent) == 1
 
 

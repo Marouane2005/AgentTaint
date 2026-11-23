@@ -367,7 +367,7 @@ def test_user_authorized_recipient_allows_despite_untrusted_overlap(
         agent_id="agent_a",
     )
     assert outcome.decision.decision == DecisionOutcome.ALLOW
-    assert outcome.decision.policy_id == "allow-user-authorized-authority"
+    assert outcome.decision.policy_id == "allow-high-authorized"
     assert len(email.sent) == 1
 
 

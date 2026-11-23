@@ -80,7 +80,21 @@ EXPLANATIONS: dict[str, str] = {
     "allow-low-medium": (
         "The agent made no high-risk call (nothing was sent), so AgentTaint let it through."
     ),
+    "allow-medium": (
+        "The agent made no high-risk call (nothing was sent), so AgentTaint let it through."
+    ),
+    "allow-low": (
+        "The agent made no high-risk call (nothing was sent), so AgentTaint let it through."
+    ),
     "allow-user-authorized-authority": (
+        "The recipient came from your own instruction, so you authorized it. "
+        "Untrusted text may mention it too, but it does not decide where data goes."
+    ),
+    "allow-high-authorized": (
+        "The recipient came from your own instruction, so you authorized it. "
+        "Untrusted text may mention it too, but it does not decide where data goes."
+    ),
+    "allow-medium-authorized": (
         "The recipient came from your own instruction, so you authorized it. "
         "Untrusted text may mention it too, but it does not decide where data goes."
     ),

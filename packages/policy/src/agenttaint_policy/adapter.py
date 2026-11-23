@@ -173,7 +173,7 @@ class ProvenanceAwarePolicy:
             if granted:
                 return PolicyResult(
                     decision=DecisionOutcome.ALLOW,
-                    policy_id="allow-user-authorized-authority",
+                    policy_id="allow-high-authorized",
                     explanation=(
                         "High-risk authority arguments are covered by structured "
                         "session/agent authorization grants."
@@ -219,7 +219,7 @@ class ProvenanceAwarePolicy:
                     # Explicit grants can still authorize MEDIUM destinations.
                     return PolicyResult(
                         decision=DecisionOutcome.ALLOW,
-                        policy_id="allow-user-authorized-authority",
+                        policy_id="allow-medium-authorized",
                         explanation=(
                             "Medium-risk authority arguments covered by structured grants."
                         ),
@@ -275,9 +275,16 @@ class ProvenanceAwarePolicy:
                     ),
                 )
 
+        if risk_tier == RiskTier.MEDIUM:
+            return PolicyResult(
+                decision=DecisionOutcome.ALLOW,
+                policy_id="allow-medium",
+                explanation="Non-high-risk operation allowed under provenance-aware policy.",
+            )
+
         return PolicyResult(
             decision=DecisionOutcome.ALLOW,
-            policy_id="allow-low-medium",
+            policy_id="allow-low",
             explanation="Non-high-risk operation allowed under provenance-aware policy.",
         )
 

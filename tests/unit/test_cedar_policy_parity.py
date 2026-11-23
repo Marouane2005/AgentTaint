@@ -82,7 +82,12 @@ def test_policies_validate_against_schema_and_all_have_ids() -> None:
     assert result.validation_passed, result.errors
     ids = policy_ids_in_order(text)
     assert len(ids) == 20
+    assert len(ids) == len(set(ids))
     assert ids[0] == "fail-closed-registry-unavailable"
+    assert "allow-high-authorized" in ids
+    assert "allow-medium-authorized" in ids
+    assert "allow-medium" in ids
+    assert "allow-low" in ids
 
 
 @pytest.mark.parametrize(
