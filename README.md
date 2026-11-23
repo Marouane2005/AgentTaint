@@ -23,6 +23,17 @@ and **UNKNOWN** lineage and never silently upgrades inference to fact.
 > InjecAgent is not evaluated. Do not treat zero synthetic ASR as production
 > attack prevention. Details: [docs/technical_report.md](docs/technical_report.md).
 
+## Benchmark results
+
+On the held-out 68-scenario synthetic test split, the full (`combined`) defense recorded:
+
+- **0.000 ASR** — no attack auto-succeeded (`ALLOW` counts as success; `CONFIRM` and `BLOCK` do not)
+- **0.000 FNR**
+- **0.000 FPR_block** (0% false-positive blocks) and **0.000 FPR_confirm**
+- **1.000** utility on benign scenarios
+
+Source: the Milestone 13 evaluation, [docs/benchmark_results_m13.md](docs/benchmark_results_m13.md), from the raw report [benchmarks/reports/report_test_m13_3ef9e5ae.md](benchmarks/reports/report_test_m13_3ef9e5ae.md). These are synthetic-suite figures, not a production attack-prevention guarantee.
+
 ## Demo
 
 The live demo is at <https://agenttaint-demo.onrender.com/demo/>. The product
