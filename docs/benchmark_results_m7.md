@@ -4,9 +4,9 @@
 **Dataset:** `2026.11.13-m7.1` (seed `2120`)  
 **Held-out test size:** **65** scenarios (38 attack / 27 benign); **23** labeled `hard`  
 **Primary reports:**
-- Fixture: `benchmarks/reports/latest_test_fixture.md` (`72370391…`)
-- BGE: `benchmarks/reports/latest_test_bge.md` (`512a53ec…`)
-- Multi-seed: `benchmarks/reports/latest_experiment_fixture.md` (`fdd975f9…`)
+- Fixture: `benchmarks/reports/report_test_fixture_72370391.md`
+- BGE: `benchmarks/reports/report_test_bge_512a53ec.md`
+- Multi-seed: `benchmarks/reports/report_test_experiment_fixture_fdd975f9.md`
 - AgentDojo probe: `benchmarks/reports/agentdojo_probe.json`
 
 ---

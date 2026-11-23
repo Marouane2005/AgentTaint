@@ -25,3 +25,7 @@ benchmarks/reports/*.json
 !benchmarks/reports/.gitkeep
 packages/api/src/agenttaint_api/ui/
 dist/
+
+# Temporary latest-* pointers produced by benchmark runs.
+benchmarks/reports/latest_*.md
+benchmarks/reports/latest_*.json

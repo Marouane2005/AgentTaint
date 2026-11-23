@@ -11,7 +11,7 @@ make install
 python -m agenttaint_benchmark run --split test --seed 2120
 ```
 
-**Artifacts:** `benchmarks/reports/latest_test.json`, `benchmarks/reports/latest_test.md`  
+**Artifacts:** `benchmarks/reports/report_test_5f381310.md`  
 **Report id (this write-up):** `5f381310-f8fa-48d0-aac2-704f125a5af1`
 
 ---
