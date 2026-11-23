@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Marouane2005/AgentTaint/actions/workflows/ci.yml/badge.svg)](https://github.com/Marouane2005/AgentTaint/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![License: Commercial](https://img.shields.io/badge/license-Commercial-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 **Evidence-based information-flow enforcement for AI agents and MCP tool use.**
 
@@ -167,5 +167,5 @@ Deeper design notes: [docs/architecture.md](docs/architecture.md),
 
 ## License
 
-Commercial: AgentTaint Commercial License 1.0, see [LICENSE](LICENSE).
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 Third-party dependencies keep their own open-source licenses.

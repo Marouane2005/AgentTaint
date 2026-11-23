@@ -3,6 +3,7 @@ name = "agenttaint-reconstruction"
 version = "1.0.0"
 description = "Provenance reconstruction evidence channels for AgentTaint"
 requires-python = ">=3.12"
+license = "Apache-2.0"
 dependencies = [
   "agenttaint-core",
   "agenttaint-provenance",

@@ -3,6 +3,7 @@ name = "agenttaint-audit"
 version = "1.0.0"
 description = "Audit records for AgentTaint enforcement decisions"
 requires-python = ">=3.12"
+license = "Apache-2.0"
 dependencies = [
   "agenttaint-core",
   "sqlalchemy>=2.0.36",

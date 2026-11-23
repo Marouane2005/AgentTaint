@@ -3,6 +3,7 @@ name = "agenttaint-api"
 version = "1.0.0"
 description = "FastAPI control plane for the AgentTaint dashboard"
 requires-python = ">=3.12"
+license = "Apache-2.0"
 dependencies = [
   "agenttaint-core",
   "agenttaint-provenance",

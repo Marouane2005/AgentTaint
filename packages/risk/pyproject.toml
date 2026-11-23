@@ -3,6 +3,7 @@ name = "agenttaint-risk"
 version = "1.0.0"
 description = "Deterministic tool risk classification for AgentTaint"
 requires-python = ">=3.12"
+license = "Apache-2.0"
 dependencies = [
   "agenttaint-core",
   "agenttaint-provenance",

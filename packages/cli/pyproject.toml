@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "AgentTaint: provenance-based tool-call firewall for MCP agents (CLI and full install)"
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "LicenseRef-AgentTaint-Commercial" }
+license = "Apache-2.0"
 authors = [{ name = "Marouane El Aasri" }]
 dependencies = [
   "agenttaint-core==1.0.0",

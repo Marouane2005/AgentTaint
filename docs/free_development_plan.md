@@ -83,4 +83,4 @@ GPU: **not required**.
 
 Prefer MIT / Apache-2.0 / BSD / PSF.  
 Review model card for `bge-small-en-v1.5` before distribution of weights inside images.  
-Project license: decided at 1.0 — AgentTaint Commercial License (see LICENSE).
+Project license: Apache License 2.0 (see LICENSE).

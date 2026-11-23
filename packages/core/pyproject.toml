@@ -3,6 +3,7 @@ name = "agenttaint-core"
 version = "1.0.0"
 description = "Shared types, hashing, and configuration for AgentTaint"
 requires-python = ">=3.12"
+license = "Apache-2.0"
 dependencies = [
   "pydantic>=2.9.0",
   "pydantic-settings>=2.6.0",

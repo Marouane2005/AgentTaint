@@ -6,7 +6,7 @@ export const metadata = { title: "AgentTaint · Terms of Service" };
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of Service" updated="18 November 2026">
+    <LegalPage title="Terms of Service" updated="23 November 2026">
       <p>
         These terms govern your use of the AgentTaint website, the public demo and the AgentTaint
         Pro subscription (together, the &quot;Service&quot;). AgentTaint is provided by {SELLER}, an
@@ -33,7 +33,7 @@ export default function TermsPage() {
           is offered.
         </li>
         <li>
-          Use of the software is governed by the AgentTaint Commercial License included with it.
+          Use of the software is governed by the Apache License 2.0 included with it.
           Versions you received while subscribed may keep being used under that license.
         </li>
         <li>We may change the price for future billing periods with at least 30 days&apos; notice.</li>

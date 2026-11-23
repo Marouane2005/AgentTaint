@@ -3,6 +3,7 @@ name = "agenttaint-mock-email"
 version = "1.0.0"
 description = "Local mock email MCP server for AgentTaint benchmarks"
 requires-python = ">=3.12"
+license = "Apache-2.0"
 dependencies = [
   "mcp>=1.23.0,<2",
 ]

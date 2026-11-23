@@ -2,6 +2,11 @@
 
 All notable changes to AgentTaint. Versions follow semantic versioning.
 
+## Unreleased
+
+### Changed
+- Relicensed the project under the Apache License 2.0.
+
 ## 1.0.0 — 2026-11-18
 
 First commercial release (AgentTaint Pro, self-hosted).

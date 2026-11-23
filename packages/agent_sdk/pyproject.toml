@@ -3,6 +3,7 @@ name = "agenttaint-agent-sdk"
 version = "1.0.0"
 description = "Instrumented AgentTaint SDK: envelopes, transforms, confirmations"
 requires-python = ">=3.12"
+license = "Apache-2.0"
 dependencies = [
   "agenttaint-core",
   "agenttaint-provenance",

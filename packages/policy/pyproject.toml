@@ -3,6 +3,7 @@ name = "agenttaint-policy"
 version = "1.0.0"
 description = "Deterministic Cedar-backed policy engine for AgentTaint"
 requires-python = ">=3.12"
+license = "Apache-2.0"
 dependencies = [
   "agenttaint-core",
   "agenttaint-provenance",
