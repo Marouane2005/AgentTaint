@@ -3,8 +3,21 @@ import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
 import { PaddleCheckout } from "@/components/site/PaddleCheckout";
+import { CopyCommand } from "@/components/site/CopyCommand";
 import { TryIt } from "@/components/try/TryIt";
 import { CHECKOUT_URL, PADDLE_CLIENT_TOKEN, SUPPORT_PRICE, SUPPORT_EMAIL } from "@/lib/site";
+
+const INSTALL_COMMAND = "pip install agenttaint";
+
+/** Same stdio proxy entry the quickstart and `agenttaint connect` describe. */
+const PROXY_CLIENT = `{
+  "mcpServers": {
+    "files-protected": {
+      "command": "agenttaint",
+      "args": ["proxy", "--config", "/home/you/agenttaint/agenttaint.yaml"]
+    }
+  }
+}`;
 
 const FEATURES = [
   {
@@ -62,6 +75,9 @@ export default function ProductPage() {
           </p>
           <TryIt />
           <div className="hero-cta">
+            <Link className="btn big" href="#install">
+              Install
+            </Link>
             <Link className="btn big secondary" href="/demo">
               More attack scenarios
             </Link>
@@ -69,6 +85,42 @@ export default function ProductPage() {
               Open source &amp; support
             </Link>
           </div>
+        </section>
+
+        <section className="band install" id="install">
+          <h2>Install</h2>
+          <p>Release 1.0.0 is on PyPI. Python 3.12 or newer.</p>
+          <div className="install-bar">
+            <span className="version-badge">1.0.0</span>
+            <code>{INSTALL_COMMAND}</code>
+            <CopyCommand text={INSTALL_COMMAND} />
+          </div>
+          <h3>Quickstart</h3>
+          <p>
+            <code>init</code> writes <code>agenttaint.yaml</code>, the policies and a private{" "}
+            <code>.env</code>. <code>doctor</code> then checks the config, secrets and backend.
+          </p>
+          <pre className="code">{`agenttaint init ~/agenttaint --backend "npx -y @modelcontextprotocol/server-filesystem $HOME/projects"
+agenttaint doctor --config ~/agenttaint/agenttaint.yaml`}</pre>
+          <p>
+            Point your MCP client at the proxy. The client launches <code>agenttaint proxy</code>{" "}
+            instead of the server:
+          </p>
+          <pre className="code">{PROXY_CLIENT}</pre>
+          <p className="fine">
+            GUI clients do not inherit a virtualenv PATH.{" "}
+            <code>agenttaint connect claude-desktop --config ~/agenttaint/agenttaint.yaml</code>{" "}
+            prints a ready-to-paste config with absolute paths (<code>cursor</code> and{" "}
+            <code>claude-code</code> as well).
+          </p>
+          <p className="install-links">
+            <a href="https://pypi.org/project/agenttaint/" rel="noopener">
+              PyPI
+            </a>
+            <a href="https://github.com/Marouane2005/AgentTaint/releases/tag/v1.0.0" rel="noopener">
+              v1.0.0 release
+            </a>
+          </p>
         </section>
 
         <section className="band">
@@ -96,14 +148,7 @@ export default function ProductPage() {
               </li>
             ))}
           </ol>
-          <pre className="code">{`{
-  "mcpServers": {
-    "files-protected": {
-      "command": "agenttaint",
-      "args": ["proxy", "--config", "/home/you/agenttaint/agenttaint.yaml"]
-    }
-  }
-}`}</pre>
+          <pre className="code">{PROXY_CLIENT}</pre>
           <p className="fine">
             Works with MCP clients that launch stdio servers (desktop apps and IDE clients). The
             protected server keeps running unchanged behind the proxy.

@@ -26,7 +26,7 @@
 .hero .accent { color: var(--cyan); }
 .lead { color: var(--text-secondary); font-size: 1.15rem; line-height: 1.6; max-width: 780px; margin: 0 auto; }
 .doc .lead { margin: 0 0 24px; }
-.hero-cta { display: flex; gap: 12px; justify-content: center; margin: 28px 0 10px; }
+.hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 28px 0 10px; }
 .site .btn { background: var(--cyan); color: #031318; border: 1px solid var(--cyan); font-weight: 600; }
 .site .btn.secondary { background: transparent; color: var(--cyan); border-color: var(--cyan-border); }
 .site .btn.big { padding: 12px 22px; font-size: 1rem; }
@@ -44,6 +44,25 @@
 .steps h3 { margin: 0 0 6px; font-size: 1rem; }
 .step-n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--cyan-dim); color: var(--cyan); border: 1px solid var(--cyan-border); font-weight: 700; }
 .code { background: #070b10; border: 1px solid var(--line); border-radius: 10px; padding: 16px; color: #b8f3fb; overflow-x: auto; font-size: 0.85rem; }
+.install { scroll-margin-top: 12px; }
+.install > p:not(.fine) { color: var(--text-secondary); line-height: 1.6; max-width: 760px; }
+.install > p.fine { max-width: 760px; }
+.install p code { color: #b8f3fb; }
+.install h3 { margin: 28px 0 8px; font-size: 1.15rem; }
+.install .code { max-width: 860px; }
+.install-bar {
+  display: flex; align-items: center; gap: 12px; max-width: 640px;
+  background: #070b10; border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; margin: 16px 0 4px;
+}
+.version-badge {
+  flex: none; font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em;
+  color: #031318; background: var(--cyan); border-radius: 999px; padding: 3px 10px;
+}
+.install-bar code { flex: 1; min-width: 0; color: #b8f3fb; font-size: 0.95rem; overflow-x: auto; }
+.install .copy-btn { flex: none; }
+.install-links { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 18px; }
 .shots figure { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg-panel); }
 .shots figcaption { padding: 10px 14px; color: var(--text-secondary); font-size: 0.9rem; }
@@ -102,6 +121,21 @@
   }
   .hero h1 {
     font-size: 1.85rem;
+  }
+  .install-bar {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .install-bar code {
+    flex-basis: 100%;
+  }
+  .install .copy-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+  .install .code {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
   .scenario-item,
   .ri-compare,

@@ -11,6 +11,7 @@ export function SiteHeader() {
         <strong>AgentTaint</strong>
       </Link>
       <nav aria-label="Site">
+        <Link href="/product#install">Install</Link>
         <Link href="/product#how">How it works</Link>
         <Link href="/product#pricing">Open source &amp; support</Link>
         <Link href="/limitations">Limitations</Link>
