@@ -218,6 +218,8 @@ export type PendingConfirmation = {
   explanation: string;
   status: string;
   expires_at: string;
+  /** Present only in the response to an approve call; shown to the approver once. */
+  approval_token?: string;
 };
 
 /**

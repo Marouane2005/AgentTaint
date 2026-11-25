@@ -145,7 +145,13 @@ function FlowCanvas({
           </li>
         </ul>
       </div>
-      <p className="fine">Stored registry edges only. A gap is left blank.</p>
+      <p className="fine">
+        Read left to right: content enters as a source, is transformed or passed between agents,
+        and ends at a tool call. Highlighted nodes are the untrusted path to the selected call; if
+        it reaches a sensitive argument of a high-risk tool, the policy blocks it or holds it for
+        a person. KNOWN = declared lineage, INFERRED = reconstructed, UNKNOWN = no evidence. Only
+        stored registry edges are drawn; a missing link stays blank.
+      </p>
       {activeEdge ? <EdgeCard edge={activeEdge} onClose={() => setEdgeId(null)} /> : null}
     </div>
   );
@@ -181,6 +187,14 @@ export function ProvenanceFlow(props: {
   onSelect: (id: string | null) => void;
   revealKey?: string;
 }) {
+  if (!props.spans.length) {
+    return (
+      <p className="empty" role="status">
+        No provenance recorded yet. Make a tool call through the proxy (or seed the demo session)
+        and the flow from untrusted source to action appears here.
+      </p>
+    );
+  }
   return (
     <ReactFlowProvider>
       <FlowCanvas {...props} revealKey={props.revealKey || "trace"} />

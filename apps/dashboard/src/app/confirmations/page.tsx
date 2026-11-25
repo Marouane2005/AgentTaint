@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { decideConfirmation, fetchConfirmations, type PendingConfirmation } from "@/lib/api";
 import { formatUtcTime, parseTs } from "@/lib/derive";
 import { useDemoMode } from "@/lib/useDemoMode";
 import { PageHint } from "@/components/PageHint";
+import { StatePanel } from "@/components/StatePanel";
+import { friendlyError } from "@/lib/errors";
+
+const POLL_MS = 10_000;
 
 /**
  * Human-only approval screen. The approver token is typed by a person and kept
@@ -20,21 +24,35 @@ export default function ConfirmationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [issued, setIssued] = useState<{ id: string; tool: string; token: string } | null>(null);
 
   async function load(t: string) {
     const res = await fetchConfirmations(t);
     setItems(res.pending);
   }
 
+  // Keep the queue fresh while unlocked; a failed poll shows a retryable error.
+  useEffect(() => {
+    if (!unlocked) return;
+    const timer = setInterval(() => {
+      load(token).catch((err) => setError(friendlyError(err)));
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [unlocked, token]);
+
   async function onUnlock(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setLoading(true);
     try {
       await load(token);
       setUnlocked(true);
     } catch (err) {
       setUnlocked(false);
-      setError(err instanceof Error ? err.message : String(err));
+      setError(friendlyError(err));
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -44,25 +62,35 @@ export default function ConfirmationsPage() {
     try {
       const rec = await decideConfirmation(token, id, action);
       setLog((l) => [`${rec.status}: ${rec.tool} (${id.slice(0, 8)}…)`, ...l]);
+      if (action === "approve" && rec.approval_token) {
+        setIssued({ id, tool: rec.tool, token: rec.approval_token });
+      }
       await load(token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(friendlyError(err));
     } finally {
       setBusy(null);
     }
+  }
+
+  function retry() {
+    load(token)
+      .then(() => setError(null))
+      .catch((e) => setError(friendlyError(e)));
   }
 
   function lock() {
     setToken("");
     setUnlocked(false);
     setItems([]);
+    setIssued(null);
   }
 
   return (
     <div className="console">
       <PageHint id="confirmations" title="Pending confirmations">
         Calls that policy held for a human decision appear here. In the public demo approving is
-        switched off; in AgentTaint Pro an operator approves or denies with a separate approver
+        switched off; an operator approves or denies with a separate approver
         token or the CLI.
       </PageHint>
       <div className="console-head">
@@ -86,14 +114,32 @@ export default function ConfirmationsPage() {
           </div>
         ) : null}
       </div>
-      {error ? <div className="banner danger">{error}</div> : null}
+      {error ? (
+        <StatePanel
+          kind="error"
+          title="Something went wrong"
+          onRetry={unlocked ? retry : undefined}
+        >
+          {error}
+        </StatePanel>
+      ) : null}
+      {issued ? (
+        <div className="banner ok" role="status">
+          <strong>Approved {issued.tool}.</strong> Give this single-use token to the agent with
+          the confirmation id; it is shown once and cannot be read back.
+          <pre className="mono">{`_agenttaint: {"confirmation_id": "${issued.id}", "approval_token": "${issued.token}"}`}</pre>
+          <button className="btn secondary" type="button" onClick={() => setIssued(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
 
       {demo ? (
         <div className="card approver-gate" role="status">
           <h2>Approvals are locked in the public demo</h2>
           <p className="sub">
             Visitors can trigger CONFIRM decisions but nobody can approve them here: the demo server
-            refuses every approval request, whatever token is sent. In AgentTaint Pro a person
+            refuses every approval request, whatever token is sent. A person
             approves held calls with a separate approver token on this screen, or with{" "}
             <span className="mono">agenttaint approve</span> from a terminal the agent cannot reach.
           </p>
@@ -113,8 +159,8 @@ export default function ConfirmationsPage() {
             placeholder="Approver token"
             aria-label="Approver token"
           />
-          <button className="btn" type="submit" disabled={!token}>
-            Unlock approvals
+          <button className="btn" type="submit" disabled={!token || loading}>
+            {loading ? "Checking…" : "Unlock approvals"}
           </button>
         </form>
       ) : (
@@ -124,7 +170,12 @@ export default function ConfirmationsPage() {
               <h2>Queue</h2>
               <span className="meta">{items.length} pending</span>
             </header>
-            {!items.length ? <div className="empty">Nothing waiting for approval.</div> : null}
+            {!items.length ? (
+              <StatePanel kind="empty">
+                Nothing waiting. When an agent makes a high-risk call the policy cannot clear, it
+                shows up here. Refreshes every 10 seconds.
+              </StatePanel>
+            ) : null}
             <ul className="confirm-list">
               {items.map((c) => (
                 <li key={c.confirmation_id} className="confirm-item">
