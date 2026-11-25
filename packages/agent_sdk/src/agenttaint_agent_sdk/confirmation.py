@@ -62,6 +62,13 @@ class ConfirmationError(PermissionError):
     pass
 
 
+class ConfirmationQueueFull(ConfirmationError):
+    """An agent already has the maximum number of pending confirmations."""
+
+
+DEFAULT_MAX_PENDING_PER_AGENT = 50
+
+
 class ConfirmationService:
     """In-memory confirmation binder with locked single-use consume."""
 
@@ -70,9 +77,11 @@ class ConfirmationService:
         *,
         secret: str,
         default_ttl: timedelta = timedelta(minutes=5),
+        max_pending_per_agent: int = DEFAULT_MAX_PENDING_PER_AGENT,
     ) -> None:
         self.secret = secret
         self.default_ttl = default_ttl
+        self.max_pending_per_agent = max_pending_per_agent
         self._records: dict[str, ConfirmationRecord] = {}
         self._lock = threading.Lock()
 
@@ -90,22 +99,45 @@ class ConfirmationService:
         provenance_context_hash: str | None = None,
     ) -> ConfirmationRecord:
         now = _utcnow()
-        record = ConfirmationRecord(
-            confirmation_id=str(uuid4()),
-            tool=tool,
-            arguments_hash=arguments_hash(arguments),
-            arguments_redacted=dict(arguments_redacted or {}),
-            agent_id=agent_id,
-            risk_tier=risk_tier,
-            explanation=explanation,
-            created_at=now,
-            expires_at=now + (ttl or self.default_ttl),
-            status=ConfirmationStatus.PENDING,
-            nonce=generate_nonce(),
-            policy_id=policy_id,
-            provenance_context_hash=provenance_context_hash,
-        )
+        args_hash = arguments_hash(arguments)
         with self._lock:
+            pending = []
+            for existing in self._records.values():
+                if existing.status != ConfirmationStatus.PENDING or existing.agent_id != agent_id:
+                    continue
+                if existing.expires_at < now:
+                    existing.status = ConfirmationStatus.EXPIRED
+                    continue
+                pending.append(existing)
+            # A retried call re-uses its open request instead of flooding the queue.
+            for existing in pending:
+                if (
+                    existing.tool == tool
+                    and existing.arguments_hash == args_hash
+                    and existing.provenance_context_hash == provenance_context_hash
+                ):
+                    return existing
+            if len(pending) >= self.max_pending_per_agent:
+                raise ConfirmationQueueFull(
+                    f"agent {agent_id!r} already has {len(pending)} pending confirmations"
+                )
+            # Insert under the same lock as the checks so concurrent requests cannot
+            # overshoot the cap or create duplicate open requests.
+            record = ConfirmationRecord(
+                confirmation_id=str(uuid4()),
+                tool=tool,
+                arguments_hash=args_hash,
+                arguments_redacted=dict(arguments_redacted or {}),
+                agent_id=agent_id,
+                risk_tier=risk_tier,
+                explanation=explanation,
+                created_at=now,
+                expires_at=now + (ttl or self.default_ttl),
+                status=ConfirmationStatus.PENDING,
+                nonce=generate_nonce(),
+                policy_id=policy_id,
+                provenance_context_hash=provenance_context_hash,
+            )
             self._records[record.confirmation_id] = record
         return record
 
@@ -183,6 +215,23 @@ class ConfirmationService:
             # Atomic under lock: only APPROVED → CONSUMED.
             record.status = ConfirmationStatus.CONSUMED
             return record
+
+    def release(self, confirmation_id: str) -> bool:
+        """Undo a consume whose action provably never reached the backend.
+
+        Only CONSUMED → APPROVED, and only before expiry. Callers must use this
+        solely when the forward step was never started (e.g. cancelled first).
+        """
+        with self._lock:
+            record = self._records.get(confirmation_id)
+            if (
+                record is None
+                or record.status != ConfirmationStatus.CONSUMED
+                or record.expires_at < _utcnow()
+            ):
+                return False
+            record.status = ConfirmationStatus.APPROVED
+            return True
 
     def get(self, confirmation_id: str) -> ConfirmationRecord | None:
         with self._lock:

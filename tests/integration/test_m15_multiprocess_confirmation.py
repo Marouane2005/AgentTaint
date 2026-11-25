@@ -116,11 +116,16 @@ async def test_self_approval_blocked_and_out_of_band_cli_approval_works(tmp_path
                 timeout=60,
             )
             assert cli.returncode == 0, cli.stdout + cli.stderr
-            ok = await session.call_tool(
+            # The approver reads the token from the CLI output and relays it.
+            token_line = next(
+                line for line in cli.stdout.splitlines() if line.startswith("approval_token:")
+            )
+            meta = {"confirmation_id": cid2, "approval_token": token_line.split(":", 1)[1].strip()}
+            id_only = await session.call_tool(
                 "email.send", {**args, "_agenttaint": {"confirmation_id": cid2}}
             )
+            assert id_only.isError is True
+            ok = await session.call_tool("email.send", {**args, "_agenttaint": meta})
             assert ok.isError is False, _text(ok)
-            replay = await session.call_tool(
-                "email.send", {**args, "_agenttaint": {"confirmation_id": cid2}}
-            )
+            replay = await session.call_tool("email.send", {**args, "_agenttaint": meta})
             assert replay.isError is True

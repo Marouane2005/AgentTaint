@@ -6,6 +6,7 @@ Atomic single-use consume uses conditional UPDATE so concurrent consumers cannot
 from __future__ import annotations
 
 import json
+import threading
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -25,7 +26,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sess
 from sqlalchemy.pool import StaticPool
 
 from agenttaint_agent_sdk.confirmation import (
+    DEFAULT_MAX_PENDING_PER_AGENT,
     ConfirmationError,
+    ConfirmationQueueFull,
     ConfirmationRecord,
     ConfirmationStatus,
     arguments_hash,
@@ -131,12 +134,15 @@ class DurableConfirmationService:
         secret: str,
         database_url: str = "sqlite+pysqlite:///:memory:",
         default_ttl: timedelta = timedelta(minutes=5),
+        max_pending_per_agent: int = DEFAULT_MAX_PENDING_PER_AGENT,
     ) -> None:
         if not secret:
             raise ValueError("DurableConfirmationService requires a non-empty secret")
         self.secret = secret
         self.default_ttl = default_ttl
+        self.max_pending_per_agent = max_pending_per_agent
         self.database_url = database_url
+        self._request_lock = threading.Lock()
         self.engine = _make_engine(database_url)
         self._session_factory = sessionmaker(self.engine, expire_on_commit=False, future=True)
         SecurityStateBase.metadata.create_all(self.engine)
@@ -144,7 +150,16 @@ class DurableConfirmationService:
     def session(self) -> Session:
         return self._session_factory()
 
-    def request(
+    def request(self, **kwargs: Any) -> ConfirmationRecord:
+        """Create (or re-use) a pending confirmation; check-and-insert is atomic in-process.
+
+        Cross-process races can still overshoot the per-agent cap by a small margin; the
+        cap is a flood guard, not a security boundary (approval remains single-use).
+        """
+        with self._request_lock:
+            return self._request(**kwargs)
+
+    def _request(
         self,
         *,
         tool: str,
@@ -158,10 +173,37 @@ class DurableConfirmationService:
         provenance_context_hash: str | None = None,
     ) -> ConfirmationRecord:
         now = _utcnow()
+        args_hash = arguments_hash(arguments)
+        with self.session() as session:
+            rows = session.scalars(
+                select(ConfirmationRow)
+                .where(ConfirmationRow.agent_id == agent_id)
+                .where(ConfirmationRow.status == ConfirmationStatus.PENDING.value)
+            ).all()
+            pending: list[ConfirmationRow] = []
+            for row in rows:
+                record_expiry = self._from_row(row).expires_at
+                if record_expiry < now:
+                    row.status = ConfirmationStatus.EXPIRED.value
+                else:
+                    pending.append(row)
+            session.commit()
+            # A retried call re-uses its open request instead of flooding the queue.
+            for row in pending:
+                if (
+                    row.tool == tool
+                    and row.arguments_hash == args_hash
+                    and row.provenance_context_hash == provenance_context_hash
+                ):
+                    return self._from_row(row)
+            if len(pending) >= self.max_pending_per_agent:
+                raise ConfirmationQueueFull(
+                    f"agent {agent_id!r} already has {len(pending)} pending confirmations"
+                )
         record = ConfirmationRecord(
             confirmation_id=str(uuid4()),
             tool=tool,
-            arguments_hash=arguments_hash(arguments),
+            arguments_hash=args_hash,
             arguments_redacted=dict(arguments_redacted or {}),
             agent_id=agent_id,
             risk_tier=risk_tier,
@@ -266,6 +308,23 @@ class DurableConfirmationService:
             session.commit()
             record.status = ConfirmationStatus.CONSUMED
             return record
+
+    def release(self, confirmation_id: str) -> bool:
+        """Undo a consume whose action provably never reached the backend."""
+        with self.session() as session:
+            row = session.get(ConfirmationRow, confirmation_id)
+            if row is None or row.status != ConfirmationStatus.CONSUMED.value:
+                return False
+            if self._from_row(row).expires_at < _utcnow():
+                return False
+            result = session.execute(
+                update(ConfirmationRow)
+                .where(ConfirmationRow.confirmation_id == confirmation_id)
+                .where(ConfirmationRow.status == ConfirmationStatus.CONSUMED.value)
+                .values(status=ConfirmationStatus.APPROVED.value)
+            )
+            session.commit()
+            return int(getattr(result, "rowcount", 0) or 0) == 1
 
     def get(self, confirmation_id: str) -> ConfirmationRecord | None:
         with self.session() as session:
