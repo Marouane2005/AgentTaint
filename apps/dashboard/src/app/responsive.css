@@ -264,6 +264,10 @@
   .waitlist-row {
     flex-direction: column;
   }
+  .support-cta .btn {
+    align-self: stretch;
+    width: 100%;
+  }
   .pricing {
     grid-template-columns: minmax(0, 1fr);
   }

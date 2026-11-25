@@ -34,9 +34,16 @@ AgentTaint itself is free, open-source software under the Apache License 2.0.
 The optional Hosted Support card uses Paddle.js overlay checkout for price
 `pri_01m7r7zmmk1g29rp2y6t6px3mq` (optional hosted support, $15.00 USD/month). The
 Paddle client-side token is read at build time from `PADDLE_CLIENT_TOKEN`
-(Render: Environment, then redeploy so the static build picks it up). While it
-is unset the card shows the waitlist instead. Client-side tokens are public by
-design; never put a Paddle API key in this variable.
+(Render: Environment, then redeploy so the static build picks it up). Overlay
+checkout also requires `NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED=true` at build
+time. While that flag is not exactly `true` — the default, including when it
+is unset — the card does not open Paddle. The button is "Request hosted
+support" and emails the support address with the subject "AgentTaint hosted
+support". If Paddle.js fails to load, fails to initialise, or reports
+`checkout.error`, the overlay is closed and that same email path is shown.
+While the token itself is unset, the card shows the waitlist instead.
+Client-side tokens are public by design; never put a Paddle API key in this
+variable. The Render blueprint leaves the checkout flag unset.
 
 ## Free-plan caveats
 

@@ -36,6 +36,10 @@ services:
         sync: false
       - key: PADDLE_CLIENT_TOKEN
         sync: false
+      # Leave unset (or set to anything other than "true") so the pricing
+      # card emails for hosted support instead of opening Paddle checkout.
+      - key: NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED
+        sync: false
 
 databases:
   - name: agenttaint-site-db
