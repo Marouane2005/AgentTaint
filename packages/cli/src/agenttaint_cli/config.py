@@ -55,7 +55,11 @@ def _expand(value: Any) -> Any:
         def repl(match: re.Match[str]) -> str:
             name = match.group(1)
             if name not in os.environ:
-                raise ConfigError(f"config references ${{{name}}} but it is not set")
+                raise ConfigError(
+                    f"config references ${{{name}}} but it is not set. Add {name}=... to the "
+                    ".env file next to agenttaint.yaml or export it (`agenttaint init` "
+                    "generates a complete .env)"
+                )
             return os.environ[name]
 
         return _PLACEHOLDER.sub(repl, value)
@@ -90,17 +94,26 @@ def _resolve_path(base: Path, value: Any) -> Path | None:
 def load_config(path: str | Path, *, load_dotenv: bool = True) -> AgentTaintConfig:
     cfg_path = Path(path).expanduser().resolve()
     if not cfg_path.is_file():
-        raise ConfigError(f"config file not found: {cfg_path}")
+        raise ConfigError(
+            f"config file not found: {cfg_path}. Run `agenttaint init` to create one, or "
+            "pass --config <path>"
+        )
     if load_dotenv:
         load_env_defaults(cfg_path)
     try:
         raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
-        raise ConfigError(f"invalid YAML in {cfg_path}: {exc}") from exc
+        raise ConfigError(
+            f"invalid YAML in {cfg_path}: {exc}. Check indentation (spaces, not tabs) and quoting"
+        ) from exc
     if not isinstance(raw, dict):
-        raise ConfigError("config root must be a mapping")
+        raise ConfigError(
+            "config root must be a mapping of settings (version, agent_id, policy, storage, ...)"
+        )
     if raw.get("version", 1) != 1:
-        raise ConfigError(f"unsupported config version: {raw.get('version')!r}")
+        raise ConfigError(
+            f"unsupported config version: {raw.get('version')!r}; this release reads `version: 1`"
+        )
     data = _expand(raw)
     base = cfg_path.parent
     policy = data.get("policy") or {}
@@ -114,11 +127,15 @@ def load_config(path: str | Path, *, load_dotenv: bool = True) -> AgentTaintConf
 
         command = shlex.split(command)
     if not isinstance(command, list) or not all(isinstance(c, str) for c in command):
-        raise ConfigError("backend.command must be a list of strings")
+        raise ConfigError(
+            'backend.command must be a list of strings, e.g. ["npx", "-y", "my-mcp-server"]'
+        )
 
     auth = str(dashboard.get("auth", "required")).lower()
     if auth not in {"off", "mutations", "required"}:
-        raise ConfigError("dashboard.auth must be off, mutations or required")
+        raise ConfigError(
+            f"dashboard.auth is {auth!r}; it must be one of: off, mutations, required"
+        )
 
     return AgentTaintConfig(
         path=cfg_path,
