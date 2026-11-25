@@ -1,4 +1,4 @@
-"""Public demo mode, rate limiting and the Pro waitlist."""
+"""Public demo mode, rate limiting and the hosted-support waitlist."""
 
 from __future__ import annotations
 
@@ -101,6 +101,7 @@ def test_waitlist_store_dedupe_and_admin(demo_client: TestClient) -> None:
     listed = demo_client.get("/api/v1/admin/waitlist", headers={"X-AgentTaint-Admin": ADMIN})
     assert listed.json()["count"] == 1
     assert listed.json()["entries"][0]["email"] == "alice@example.com"
+    assert listed.json()["entries"][0]["plan"] == "hosted-support"
     csv = demo_client.get(
         "/api/v1/admin/waitlist?format=csv", headers={"X-AgentTaint-Admin": ADMIN}
     )

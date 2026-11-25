@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PADDLE_CLIENT_TOKEN, PADDLE_PRICE_ID, PRO_PRICE_LABEL } from "@/lib/site";
+import { PADDLE_CLIENT_TOKEN, PADDLE_PRICE_ID, SUPPORT_PRICE_LABEL } from "@/lib/site";
 
 type PaddleGlobal = {
   Initialize: (opts: { token: string }) => void;
@@ -29,7 +29,7 @@ function loadPaddle(): Promise<PaddleGlobal> {
   });
 }
 
-/** Paddle.js overlay checkout for AgentTaint Pro. Renders nothing without a token. */
+/** Paddle.js overlay checkout for optional hosted support. Renders nothing without a token. */
 export function PaddleCheckout() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,11 +57,12 @@ export function PaddleCheckout() {
           window.Paddle?.Checkout.open({ items: [{ priceId: PADDLE_PRICE_ID, quantity: 1 }] })
         }
       >
-        Subscribe · {PRO_PRICE_LABEL}
+        Subscribe to Hosted Support · {SUPPORT_PRICE_LABEL}
       </button>
       {error ? <p className="form-msg error">{error}</p> : null}
       <p className="fine">
-        Checkout by Paddle, our merchant of record. Cancel anytime; 14-day refund policy.
+        Optional hosted support processed by Paddle, our merchant of record. AgentTaint itself is
+        free open source (Apache-2.0). Cancel anytime; 14-day refund policy.
       </p>
     </>
   );

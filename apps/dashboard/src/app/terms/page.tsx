@@ -1,40 +1,43 @@
 import Link from "next/link";
 import { LegalPage } from "@/components/site/LegalPage";
-import { PRO_PRICE_LABEL, SELLER, SELLER_COUNTRY, SUPPORT_EMAIL } from "@/lib/site";
+import { SELLER, SELLER_COUNTRY, SUPPORT_EMAIL, SUPPORT_PRICE_LABEL } from "@/lib/site";
 
 export const metadata = { title: "AgentTaint · Terms of Service" };
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of Service" updated="23 November 2026">
+    <LegalPage title="Terms of Service" updated="25 November 2026">
       <p>
-        These terms govern your use of the AgentTaint website, the public demo and the AgentTaint
-        Pro subscription (together, the &quot;Service&quot;). AgentTaint is provided by {SELLER}, an
-        individual developer based in {SELLER_COUNTRY} (&quot;we&quot;, &quot;us&quot;). By using the
-        Service or buying a subscription you agree to these terms.
+        These terms govern your use of the AgentTaint website, the public demo, and optional paid
+        hosted support or services (together, the &quot;Service&quot;). AgentTaint software itself
+        is free, open-source software licensed under the Apache License 2.0 (see{" "}
+        <code>LICENSE</code> in the repository); no commercial license is needed to use, modify, or
+        self-host it. The Service is provided by {SELLER}, an individual developer based in{" "}
+        {SELLER_COUNTRY} (&quot;we&quot;, &quot;us&quot;). By using the Service or subscribing to
+        optional hosted support you agree to these terms.
       </p>
       <h2>1. Payments and merchant of record</h2>
       <p>
-        Orders are processed by Paddle.com, our online reseller and merchant of record. Paddle
-        handles payment, billing, invoices, sales tax/VAT and payment-related customer service, and
-        Paddle&apos;s own terms apply to your purchase.
+        Payments for optional hosted support are processed by Paddle.com, our online reseller and
+        merchant of record. Paddle handles payment, billing, invoices, sales tax/VAT and
+        payment-related customer service, and Paddle&apos;s own terms apply to your purchase.
       </p>
-      <h2>2. AgentTaint Pro subscription</h2>
+      <h2>2. Optional Hosted Support subscription</h2>
       <ul>
-        <li>Price: {PRO_PRICE_LABEL}, plus any taxes Paddle is required to collect.</li>
+        <li>Price: {SUPPORT_PRICE_LABEL}, plus any taxes Paddle is required to collect.</li>
         <li>
           The subscription renews automatically each month until you cancel. You can cancel at any
           time from the link in your Paddle receipt or by emailing us; cancellation stops future
-          renewals and access to new versions and support at the end of the paid period.
+          renewals and hosted support at the end of the paid period, without affecting your rights
+          to use the software under the Apache License 2.0.
         </li>
         <li>
-          While subscribed you get download access to the self-hosted software, updates, and email
-          support. Support is provided by email on a best-effort basis; no response-time guarantee
-          is offered.
+          While subscribed you receive email support and setup assistance on a best-effort basis;
+          no response-time guarantee is offered.
         </li>
         <li>
-          Use of the software is governed by the Apache License 2.0 included with it.
-          Versions you received while subscribed may keep being used under that license.
+          Use of the AgentTaint software is governed solely by the Apache License 2.0 included with
+          it.
         </li>
         <li>We may change the price for future billing periods with at least 30 days&apos; notice.</li>
       </ul>
@@ -51,8 +54,9 @@ export default function TermsPage() {
       </p>
       <h2>5. Acceptable use</h2>
       <p>
-        You may not use the Service to break the law, to attack systems you are not authorized to
-        test, or to resell or redistribute the software outside the terms of its license.
+        You may not use the Service to break the law or to attack systems you are not authorized to
+        test. Use and redistribution of the AgentTaint software are governed by the Apache License
+        2.0.
       </p>
       <h2>6. No warranty</h2>
       <p>

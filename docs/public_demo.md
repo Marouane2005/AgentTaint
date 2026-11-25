@@ -30,15 +30,13 @@ keeps it in memory only.
 
 ## Payments (Paddle)
 
-The Pro card uses Paddle.js overlay checkout for price
-`pri_01m7r7zmmk1g29rp2y6t6px3mq` (AgentTaint Pro, $15.00 USD/month). The
+AgentTaint itself is free, open-source software under the Apache License 2.0.
+The optional Hosted Support card uses Paddle.js overlay checkout for price
+`pri_01m7r7zmmk1g29rp2y6t6px3mq` (optional hosted support, $15.00 USD/month). The
 Paddle client-side token is read at build time from `PADDLE_CLIENT_TOKEN`
 (Render: Environment, then redeploy so the static build picks it up). While it
 is unset the card shows the waitlist instead. Client-side tokens are public by
 design; never put a Paddle API key in this variable.
-
-Delivering the release bundle to new subscribers is manual for now (send the
-`agenttaint-1.0.0.tar.gz` download link after Paddle's purchase notification).
 
 ## Free-plan caveats
 

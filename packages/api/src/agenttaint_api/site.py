@@ -1,4 +1,4 @@
-"""Product site backend: Pro waitlist signup and a token-protected admin list.
+"""Product site backend: waitlist signup and a token-protected admin list.
 
 Enabled when ``AGENTTAINT_DEMO_MODE=1`` or ``AGENTTAINT_SITE_DB_URL`` is set.
 Emails are stored in ``AGENTTAINT_SITE_DB_URL`` (Postgres in the hosted demo).
@@ -41,7 +41,7 @@ class WaitlistEntry(_Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False)
-    plan: Mapped[str] = mapped_column(String(32), nullable=False, default="pro")
+    plan: Mapped[str] = mapped_column(String(32), nullable=False, default="hosted-support")
     source: Mapped[str] = mapped_column(String(64), nullable=False, default="landing")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -106,7 +106,7 @@ def _require_enabled() -> None:
 @router.post("/api/v1/waitlist")
 def join_waitlist(body: WaitlistSignup) -> dict[str, Any]:
     _require_enabled()
-    message = "Thanks. You're on the Pro waitlist; we'll email you when checkout opens."
+    message = "Thanks. You're on the waitlist; we'll email you when hosted support opens."
     if body.website.strip():
         return {"ok": True, "message": message}
     from agenttaint_api.demo import demo_mode

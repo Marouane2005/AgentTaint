@@ -2,7 +2,7 @@
 
 All notable changes to AgentTaint. Versions follow semantic versioning.
 
-## Unreleased
+## 1.0.0 — 2026-11-25
 
 ### Security
 - Reconstruction: semantic similarity alone can no longer promote emails, URLs, file paths
@@ -46,17 +46,17 @@ All notable changes to AgentTaint. Versions follow semantic versioning.
   exercises the same evidence path as the proxy.
 
 ### Changed
-- Relicensed the project under the Apache License 2.0 (license metadata, READMEs,
-  quickstart and build scripts). The product site, checkout, waitlist, terms and refund
-  pages are unchanged.
+- Relicensed the project under the Apache License 2.0 across package metadata, READMEs,
+  quickstart, build scripts, and the product/legal site pages (any paid offering is
+  optional hosted support, not a commercial license for the code).
 - New CLI commands `connect`, `doctor` and `log`; color-coded decisions; actionable errors.
 - Dashboard: friendly API-unavailable errors, loading/empty states, live-refreshing
   confirmations queue that shows the single-use approval token once, clearer provenance
   flow explanation.
 
-## 1.0.0 — 2026-11-18
+## 1.0.0-pre — 2026-11-18
 
-First commercial release (AgentTaint Pro, self-hosted).
+Pre-release build prior to Apache-2.0 open-source relicensing.
 
 ### Added
 - `agenttaint` command (`pip install agenttaint`): `init`, `proxy --config`,
