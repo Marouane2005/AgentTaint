@@ -4,8 +4,55 @@ All notable changes to AgentTaint. Versions follow semantic versioning.
 
 ## Unreleased
 
+### Security
+- Reconstruction: semantic similarity alone can no longer promote emails, URLs, file paths
+  or shell commands to INFERRED; it needs weak structural/domain overlap or explicit
+  session context. Lists and nested values are now reconstructed leaf by leaf.
+- Proxy: `session_id` is bound to the connection (caller-supplied values are rejected);
+  malformed `_agenttaint` metadata is rejected instead of silently dropped; declared parent
+  spans are verified against the registry and calling agent; declared lineage and
+  caller-supplied candidates can no longer switch off session-wide reconstruction; the
+  reconstruction corpus is isolated per agent/session; `agenttaint.*` tool names cannot be
+  shadowed by a backend; `agenttaint.preview` is read-only.
+- Confirmations: `approval_token` is now required to execute an approved call (the gateway
+  no longer reads it from the stored record). `agenttaint approve` and the approve API
+  response show it to the approver. Retried calls reuse their pending confirmation and each
+  agent has a pending-confirmation cap. Approvals are released if the request is cancelled
+  before the backend call.
+- Grants: authority arguments now include `cc`, `bcc`, `cwd`, `args`, `uri`, `target`,
+  `recipients`, `endpoint`; list values need a grant per element; paths and commands are
+  compared case-sensitively.
+- Cedar/Python policy ids are unique: `allow-user-authorized-authority` is split into
+  `allow-high-user-authorized-authority` and `allow-medium-user-authorized-authority`, and
+  `allow-low-medium` into `allow-medium` and `allow-low`.
+
+- Proxy: policy evaluation, labelling and audit run on worker threads, so a slow
+  evaluation (embeddings, database) no longer stalls the event loop; gateway decisions are
+  serialised so concurrent replays of a single-use approval execute at most once.
+- Audit: an ALLOW is written to the audit log before the call is forwarded and updated with
+  the outcome (write-ahead), so a crash or cancellation mid-call still leaves a record.
+- Reconstruction: declared lineage is additional evidence, never a bypass. Reconstruction
+  runs for every MEDIUM/HIGH call in every gateway mode and the session corpus is always
+  included; a reconstruction miss on an argument whose lineage was declared no longer
+  downgrades it to UNKNOWN.
+- Reconstruction: addresses spelled out in prose ("alice at evil dot com") are matched
+  (MODERATE support) only when both the local part and the spelled domain appear in order.
+- Confirmation request check-and-insert is atomic (no cap overshoot or duplicate requests
+  under concurrency).
+
+### Fixed
+- Benchmark runner no longer monkey-patches the gateway's private evidence method; the
+  ablation is an explicit `reconstruction_ablation` gateway field and the benchmark now
+  exercises the same evidence path as the proxy.
+
 ### Changed
-- Relicensed the project under the Apache License 2.0.
+- Relicensed the project under the Apache License 2.0 (license metadata, READMEs,
+  quickstart and build scripts). The product site, checkout, waitlist, terms and refund
+  pages are unchanged.
+- New CLI commands `connect`, `doctor` and `log`; color-coded decisions; actionable errors.
+- Dashboard: friendly API-unavailable errors, loading/empty states, live-refreshing
+  confirmations queue that shows the single-use approval token once, clearer provenance
+  flow explanation.
 
 ## 1.0.0 — 2026-11-18
 

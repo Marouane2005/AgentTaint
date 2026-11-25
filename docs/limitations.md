@@ -64,3 +64,15 @@
 - The UI is read-mostly and does not offer operator overrides that weaken the gateway.  
 - Control plane is **local-trust** (loopback by default). Optional `AGENTTAINT_DASHBOARD_TOKEN` gates mutations; do not expose `HOST=0.0.0.0` without a token on untrusted networks.  
 - See [docs/security_review_m8.md](security_review_m8.md) and [docs/m9_independent_review.md](m9_independent_review.md).
+
+
+## Proxy hardening: known limits
+
+* Registry spans carry no session field, so stored (redacted) spans are filtered by agent
+  only; the plaintext corpus kept in the proxy process is isolated per agent and session.
+* Spelled-out addresses are matched only in the "local at domain" form; paraphrases,
+  homoglyphs or addresses split across several messages are not.
+* The per-agent pending-confirmation cap is a flood guard; across several proxy processes
+  sharing a database it can be exceeded slightly. Approvals stay single-use regardless.
+* Write-ahead audit needs a store with `update` (the bundled SQLAlchemy store has it); a
+  custom store without it falls back to recording once after the call.
