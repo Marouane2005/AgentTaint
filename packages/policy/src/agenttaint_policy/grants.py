@@ -12,7 +12,31 @@ from agenttaint_core.hashing import redact_sensitive
 
 
 def normalize_grant_value(value: str) -> str:
-    return value.strip().casefold()
+    """Kind-aware normalisation.
+
+    Only values that are case-insensitive by definition are casefolded: email
+    addresses and URL scheme/host. Paths, shell commands and other values are
+    compared case-sensitively so ``/tmp/X`` can never authorize ``/tmp/x``.
+    """
+    text = value.strip()
+    if "://" in text:
+        scheme, _, rest = text.partition("://")
+        host, slash, tail = rest.partition("/")
+        return f"{scheme.casefold()}://{host.casefold()}{slash}{tail}"
+    if "@" in text and not any(ch in text for ch in " /\\"):
+        return text.casefold()
+    return text
+
+
+def flatten_argument_values(value: object) -> list[str]:
+    """Leaf string values of an argument (lists/dicts are flattened, never str()-ed)."""
+    if isinstance(value, dict):
+        return [leaf for v in value.values() for leaf in flatten_argument_values(v)]
+    if isinstance(value, list | tuple | set | frozenset):
+        return [leaf for v in value for leaf in flatten_argument_values(v)]
+    if value is None:
+        return []
+    return [str(value)]
 
 
 def values_equivalent(granted: str, actual: str) -> bool:
@@ -29,13 +53,13 @@ def values_equivalent(granted: str, actual: str) -> bool:
         return False
     # Fail closed on redaction placeholders — they are not unique capabilities.
     placeholders = {
-        normalize_grant_value(redact_sensitive("user@example.com")),
-        normalize_grant_value(redact_sensitive("https://example.com/x")),
+        redact_sensitive("user@example.com").casefold(),
+        redact_sensitive("https://example.com/x").casefold(),
         "[redacted_email]",
         "[redacted_url]",
         "[redacted_ip]",
     }
-    if g in placeholders or a in placeholders:
+    if g.casefold() in placeholders or a.casefold() in placeholders:
         return False
     return g == a
 
@@ -80,24 +104,27 @@ def grants_cover_authority_arguments(
     session_id: str | None = None,
 ) -> bool:
     """True only when every present authority argument has a matching grant."""
-    present = [
-        name
-        for name in authority_argument_names
-        if name in arguments and str(arguments.get(name, "")).strip()
-    ]
+    present = {
+        name: [leaf for leaf in flatten_argument_values(arguments[name]) if leaf.strip()]
+        for name in sorted(authority_argument_names)
+        if name in arguments
+    }
+    present = {name: leaves for name, leaves in present.items() if leaves}
     if not present:
         return False
-    for name in present:
-        value = str(arguments[name])
-        if not any(
-            g.matches(
-                tool=tool_name,
-                argument=name,
-                value=value,
-                agent_id=agent_id,
-                session_id=session_id,
-            )
-            for g in grants
-        ):
-            return False
+    # Every leaf of every present authority argument (each recipient in a list, each
+    # element of ``args``) must be covered by its own grant.
+    for name, leaves in present.items():
+        for value in leaves:
+            if not any(
+                g.matches(
+                    tool=tool_name,
+                    argument=name,
+                    value=value,
+                    agent_id=agent_id,
+                    session_id=session_id,
+                )
+                for g in grants
+            ):
+                return False
     return True

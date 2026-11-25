@@ -24,7 +24,7 @@ from agenttaint_policy.context import (
     DEFAULT_CONTENT_ARGUMENTS,
     PolicyContext,
 )
-from agenttaint_policy.grants import AuthorizationGrant
+from agenttaint_policy.grants import AuthorizationGrant, flatten_argument_values
 
 
 def _origins_untrusted(origins: Iterable[Origin]) -> bool:
@@ -138,7 +138,14 @@ def build_policy_context(
                 if report.inferred_ancestor_ids or report.inferred_edge_count:
                     has_inferred_untrusted = True
 
+    declared_args = {name for name, ids in parents.items() if ids}
     for ev in evidence:
+        if not ev.matched_source_ids and ev.argument_name in declared_args:
+            # Independent reconstruction found no untrusted source for an argument whose
+            # lineage the caller declared: that is the absence of contrary evidence, not
+            # a lineage gap, so it must not downgrade the declared status. (Matches below
+            # still add influence: declared lineage never overrides verification.)
+            continue
         statuses.append(ev.provenance_status)
         if not ev.matched_source_ids:
             continue
@@ -229,29 +236,31 @@ def reconstruct_authority_evidence(
     for name in names:
         if name not in arguments:
             continue
-        value = arguments[name]
-        if not isinstance(value, str) or not value.strip():
-            continue
-        kwargs: dict[str, Any] = {
-            "argument_name": name,
-            "argument_value": value,
-            "candidates": candidates,
-            "agent_id": agent_id,
-            "attach": attach,
-        }
-        if ablation is not None:
-            kwargs["ablation"] = ablation
-        result = engine.reconstruct_argument(**kwargs)
-        if result.matches:
-            for match in result.matches:
-                evidence.append(match.evidence)
-        else:
-            evidence.append(
-                ArgumentEvidence(
-                    argument_name=name,
-                    value_hash=content_hash(value),
-                    provenance_status=ProvenanceStatus.UNKNOWN,
-                    evidence_type=EvidenceType.INFERRED,
+        # Lists / nested values are reconstructed leaf by leaf; passing recipients as a
+        # list must not skip reconstruction.
+        for value in flatten_argument_values(arguments[name]):
+            if not value.strip():
+                continue
+            kwargs: dict[str, Any] = {
+                "argument_name": name,
+                "argument_value": value,
+                "candidates": candidates,
+                "agent_id": agent_id,
+                "attach": attach,
+            }
+            if ablation is not None:
+                kwargs["ablation"] = ablation
+            result = engine.reconstruct_argument(**kwargs)
+            if result.matches:
+                for match in result.matches:
+                    evidence.append(match.evidence)
+            else:
+                evidence.append(
+                    ArgumentEvidence(
+                        argument_name=name,
+                        value_hash=content_hash(value),
+                        provenance_status=ProvenanceStatus.UNKNOWN,
+                        evidence_type=EvidenceType.INFERRED,
+                    )
                 )
-            )
     return evidence

@@ -8,8 +8,26 @@ from agenttaint_core.schemas import ArgumentEvidence, ProvenanceStatus, RiskTier
 
 from agenttaint_policy.grants import AuthorizationGrant
 
+# Arguments that decide *where* data goes or *what* gets executed. A grant must cover
+# every one that is present, so a grant on ``to`` never silently covers ``bcc``.
 DEFAULT_AUTHORITY_ARGUMENTS = frozenset(
-    {"to", "recipient", "url", "path", "command", "host", "destination"}
+    {
+        "to",
+        "cc",
+        "bcc",
+        "recipient",
+        "recipients",
+        "url",
+        "uri",
+        "endpoint",
+        "path",
+        "cwd",
+        "target",
+        "command",
+        "args",
+        "host",
+        "destination",
+    }
 )
 DEFAULT_CONTENT_ARGUMENTS = frozenset({"body", "content", "attachment", "data", "payload"})
 
