@@ -44,6 +44,51 @@ describe("Product page", () => {
     );
   });
 
+  it("shows the PyPI install command, 1.0.0 badge, doctor check, and proxy config", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<ProductPage />);
+
+    const installLinks = screen.getAllByRole("link", { name: "Install" });
+    expect(installLinks.map((link) => link.getAttribute("href"))).toEqual([
+      "/product#install",
+      "#install",
+    ]);
+
+    const section = document.getElementById("install");
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain("pip install agenttaint");
+    expect(section?.textContent).toContain("1.0.0");
+    expect(section?.textContent).toContain(
+      'agenttaint init ~/agenttaint --backend "npx -y @modelcontextprotocol/server-filesystem $HOME/projects"',
+    );
+    expect(section?.textContent).toContain(
+      "agenttaint doctor --config ~/agenttaint/agenttaint.yaml",
+    );
+    expect(section?.textContent).toContain(
+      '["proxy", "--config", "/home/you/agenttaint/agenttaint.yaml"]',
+    );
+    expect(section?.textContent).toContain(
+      "agenttaint connect claude-desktop --config ~/agenttaint/agenttaint.yaml",
+    );
+
+    expect(screen.getByRole("link", { name: "PyPI" })).toHaveAttribute(
+      "href",
+      "https://pypi.org/project/agenttaint/",
+    );
+    expect(screen.getByRole("link", { name: "v1.0.0 release" })).toHaveAttribute(
+      "href",
+      "https://github.com/Marouane2005/AgentTaint/releases/tag/v1.0.0",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Open source & optional hosted support" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    expect(writeText).toHaveBeenCalledWith("pip install agenttaint");
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
+  });
+
   it("reconciles terms and refund pages with Apache-2.0 open source", () => {
     render(<TermsPage />);
     expect(screen.getAllByText(/Apache License 2\.0/i).length).toBeGreaterThan(0);
