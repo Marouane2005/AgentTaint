@@ -40,8 +40,17 @@ jobs:
           PYTHONHASHSEED: "0"
         run: make test
 
+      - name: Cedar parity and audit store (must run, not skip)
+        env:
+          PYTHONHASHSEED: "0"
+        run: |
+          set -o pipefail
+          python3 -m pytest -q -rs tests/unit/test_cedar_policy_parity.py \
+            tests/unit/test_cedar_policy_ids.py tests/unit/test_audit_store_update.py | tee crit.log
+          if grep -q SKIPPED crit.log; then echo "security-critical tests were skipped"; exit 1; fi
+
   dashboard:
-    name: Dashboard (vitest, eslint)
+    name: Dashboard (vitest, eslint, tsc, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,7 +60,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-                    # Node 22 avoids undici decompress.bind crash under Vitest on Node 20.
+          # Node 22 avoids undici decompress.bind crash under Vitest on Node 20.
           node-version: "22"
           cache: npm
           cache-dependency-path: apps/dashboard/package-lock.json
@@ -64,6 +73,12 @@ jobs:
 
       - name: ESLint
         run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
 
   postgres:
     name: Postgres persistence
