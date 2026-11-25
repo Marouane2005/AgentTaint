@@ -89,48 +89,58 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  plan:
+    name: Plan publish matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - name: Select packages to publish
+        id: set
+        env:
+          SELECTED: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.package || 'all' }}
+        run: |
+          python3 << 'PY'
+          import json
+          import os
+
+          packages = [
+              {"package": "agenttaint", "environment": "pypi"},
+              {"package": "agenttaint-core", "environment": "pypi-agenttaint-core"},
+              {"package": "agenttaint-provenance", "environment": "pypi-agenttaint-provenance"},
+              {"package": "agenttaint-risk", "environment": "pypi-agenttaint-risk"},
+              {"package": "agenttaint-policy", "environment": "pypi-agenttaint-policy"},
+              {"package": "agenttaint-audit", "environment": "pypi-agenttaint-audit"},
+              {"package": "agenttaint-reconstruction", "environment": "pypi-agenttaint-reconstruction"},
+              {"package": "agenttaint-agent-sdk", "environment": "pypi-agenttaint-agent-sdk"},
+              {"package": "agenttaint-mcp-proxy", "environment": "pypi-agenttaint-mcp-proxy"},
+              {"package": "agenttaint-benchmark", "environment": "pypi-agenttaint-benchmark"},
+              {"package": "agenttaint-api", "environment": "pypi-agenttaint-api"},
+              {"package": "agenttaint-mock-email", "environment": "pypi-agenttaint-mock-email"},
+              {"package": "agenttaint-mock-filesystem", "environment": "pypi-agenttaint-mock-filesystem"},
+              {"package": "agenttaint-mock-http", "environment": "pypi-agenttaint-mock-http"},
+              {"package": "agenttaint-mock-shell", "environment": "pypi-agenttaint-mock-shell"},
+          ]
+          selected = (os.environ.get("SELECTED") or "all").strip()
+          if selected == "all":
+              chosen = packages
+          else:
+              chosen = [item for item in packages if item["package"] == selected]
+              if not chosen:
+                  raise SystemExit(f"Unknown package: {selected}")
+          matrix = {"include": chosen}
+          print(json.dumps(matrix, indent=2))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"matrix={json.dumps(matrix)}\n")
+          PY
+
   publish:
     name: Publish ${{ matrix.package }}
-    needs: build
+    needs: [build, plan]
     runs-on: ubuntu-latest
-    if: >-
-      github.event_name != 'workflow_dispatch'
-      || github.event.inputs.package == 'all'
-      || github.event.inputs.package == matrix.package
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - package: agenttaint
-            environment: pypi
-          - package: agenttaint-core
-            environment: pypi-agenttaint-core
-          - package: agenttaint-provenance
-            environment: pypi-agenttaint-provenance
-          - package: agenttaint-risk
-            environment: pypi-agenttaint-risk
-          - package: agenttaint-policy
-            environment: pypi-agenttaint-policy
-          - package: agenttaint-audit
-            environment: pypi-agenttaint-audit
-          - package: agenttaint-reconstruction
-            environment: pypi-agenttaint-reconstruction
-          - package: agenttaint-agent-sdk
-            environment: pypi-agenttaint-agent-sdk
-          - package: agenttaint-mcp-proxy
-            environment: pypi-agenttaint-mcp-proxy
-          - package: agenttaint-benchmark
-            environment: pypi-agenttaint-benchmark
-          - package: agenttaint-api
-            environment: pypi-agenttaint-api
-          - package: agenttaint-mock-email
-            environment: pypi-agenttaint-mock-email
-          - package: agenttaint-mock-filesystem
-            environment: pypi-agenttaint-mock-filesystem
-          - package: agenttaint-mock-http
-            environment: pypi-agenttaint-mock-http
-          - package: agenttaint-mock-shell
-            environment: pypi-agenttaint-mock-shell
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
     environment:
       name: ${{ matrix.environment }}
     permissions:
