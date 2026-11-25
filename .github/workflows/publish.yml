@@ -3,18 +3,38 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to publish (all, or a single package name)
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - agenttaint
+          - agenttaint-core
+          - agenttaint-provenance
+          - agenttaint-risk
+          - agenttaint-policy
+          - agenttaint-audit
+          - agenttaint-reconstruction
+          - agenttaint-agent-sdk
+          - agenttaint-mcp-proxy
+          - agenttaint-benchmark
+          - agenttaint-api
+          - agenttaint-mock-email
+          - agenttaint-mock-filesystem
+          - agenttaint-mock-http
+          - agenttaint-mock-shell
 
 permissions:
   contents: read
 
 jobs:
-  publish:
-    name: Build and publish packages to PyPI
+  build:
+    name: Build distributions
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -51,9 +71,104 @@ jobs:
           done
           rm -rf packages/api/src/agenttaint_api/ui
           twine check dist/pypi/*
+          python3 -c "
+          from pathlib import Path
+          files = sorted(Path('dist/pypi').iterdir())
+          print(f'Built {len(files)} artifacts:')
+          for item in files:
+              print(f'  {item.name}')
+          if len(files) != 30:
+              raise SystemExit(f'Expected 30 distribution files (sdist+wheel x 15), found {len(files)}')
+          "
 
-      - name: Publish distributions to PyPI (Trusted Publishing)
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: pypi-dists
+          path: dist/pypi/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish ${{ matrix.package }}
+    needs: build
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'workflow_dispatch'
+      || github.event.inputs.package == 'all'
+      || github.event.inputs.package == matrix.package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: agenttaint
+            environment: pypi
+          - package: agenttaint-core
+            environment: pypi-agenttaint-core
+          - package: agenttaint-provenance
+            environment: pypi-agenttaint-provenance
+          - package: agenttaint-risk
+            environment: pypi-agenttaint-risk
+          - package: agenttaint-policy
+            environment: pypi-agenttaint-policy
+          - package: agenttaint-audit
+            environment: pypi-agenttaint-audit
+          - package: agenttaint-reconstruction
+            environment: pypi-agenttaint-reconstruction
+          - package: agenttaint-agent-sdk
+            environment: pypi-agenttaint-agent-sdk
+          - package: agenttaint-mcp-proxy
+            environment: pypi-agenttaint-mcp-proxy
+          - package: agenttaint-benchmark
+            environment: pypi-agenttaint-benchmark
+          - package: agenttaint-api
+            environment: pypi-agenttaint-api
+          - package: agenttaint-mock-email
+            environment: pypi-agenttaint-mock-email
+          - package: agenttaint-mock-filesystem
+            environment: pypi-agenttaint-mock-filesystem
+          - package: agenttaint-mock-http
+            environment: pypi-agenttaint-mock-http
+          - package: agenttaint-mock-shell
+            environment: pypi-agenttaint-mock-shell
+    environment:
+      name: ${{ matrix.environment }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: pypi-dists
+          path: dist/pypi
+
+      - name: Select distributions for ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          pkg="${{ matrix.package }}"
+          # Wheels and current sdists use the PEP 503/625 name (hyphens -> underscores).
+          # Match "<name>-<version>..." so "agenttaint" does not also pick up
+          # agenttaint_core or a hyphenated sibling sdist such as agenttaint-core.
+          norm="${pkg//-/_}"
+          dest="dist/upload"
+          mkdir -p "$dest"
+          shopt -s nullglob
+          files=(dist/pypi/"${norm}"-[0-9]*)
+          if [[ "$pkg" != "$norm" ]]; then
+            files+=(dist/pypi/"${pkg}"-[0-9]*)
+          fi
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No distribution files found for ${pkg} (normalized: ${norm})"
+            ls -la dist/pypi/ || true
+            exit 1
+          fi
+          cp -v "${files[@]}" "$dest/"
+          echo "Publishing:"
+          ls -la "$dest/"
+
+      - name: Publish ${{ matrix.package }} to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: dist/pypi/
+          packages-dir: dist/upload/
           skip-existing: true
