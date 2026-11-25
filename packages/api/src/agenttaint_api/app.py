@@ -403,8 +403,10 @@ def _require_approval_token(
     if demo_mod.demo_mode():
         raise HTTPException(
             status_code=403,
-            detail="Approvals are disabled in the public demo. In AgentTaint Pro a person "
-            "approves held calls with a separate approver token or the CLI.",
+            detail=(
+                "Approvals are disabled in the public demo. In a self-hosted deployment a "
+                "person approves held calls with a separate approver token or the CLI."
+            ),
         )
     approver = os.environ.get("AGENTTAINT_APPROVER_TOKEN", "").strip()
     dashboard = os.environ.get("AGENTTAINT_DASHBOARD_TOKEN", "").strip()
@@ -448,8 +450,7 @@ def _confirmation_service() -> Any:
 
 
 def _confirmation_view(record: Any) -> dict[str, Any]:
-    # Never return the approval token: the agent does not need it and the
-    # control plane should not leak it.
+    # Read views never include the approval token; only the approve response does.
     return {
         "confirmation_id": record.confirmation_id,
         "tool": record.tool,
@@ -485,7 +486,12 @@ def _decide(confirmation_id: str, approve: bool) -> dict[str, Any]:
         record = service.approve(cid) if approve else service.deny(cid)
     except ConfirmationError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return _confirmation_view(record)
+    view = _confirmation_view(record)
+    if approve:
+        # Returned once, only to the authenticated approver, who relays it to the agent.
+        # List/read endpoints never include it.
+        view["approval_token"] = record.approval_token
+    return view
 
 
 @app.post("/api/v1/confirmations/{confirmation_id}/approve")

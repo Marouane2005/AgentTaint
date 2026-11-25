@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build the AgentTaint Pro release bundle that customers download:
+# Build the AgentTaint release bundle:
 #   dist/agenttaint-<version>/
 #     wheels/            all AgentTaint wheels (+ dependencies for this platform)
 #     agenttaint.yaml    config template
 #     Dockerfile, docker-compose.yml, .env.example
 #     docs/              quickstart, configuration, operations, limitations
-#     LICENSE, CHANGELOG.md
+#     LICENSE, NOTICE, CHANGELOG.md
 #   dist/agenttaint-<version>.tar.gz
 #
 # Requires Python 3.12+ and Node 22+ (to bundle the dashboard UI).
@@ -35,7 +35,7 @@ rm -rf packages/api/src/agenttaint_api/ui
 
 echo "==> Copying deployment files and docs"
 cp packages/cli/src/agenttaint_cli/templates/agenttaint.yaml "$OUT/"
-cp Dockerfile docker-compose.yml .env.example .dockerignore LICENSE CHANGELOG.md "$OUT/"
+cp Dockerfile docker-compose.yml .env.example .dockerignore LICENSE NOTICE CHANGELOG.md "$OUT/"
 cp docs/quickstart.md docs/configuration.md docs/operations.md docs/limitations.md "$OUT/docs/"
 # The Dockerfile in the bundle installs from wheels/ instead of source.
 cp deploy/Dockerfile.wheels "$OUT/Dockerfile"

@@ -60,8 +60,9 @@ def interactive_confirm(
 #   python3 -m agenttaint_agent_sdk.confirm_cli list
 #   python3 -m agenttaint_agent_sdk.confirm_cli approve <confirmation_id>
 #
-# The approval token stays in the security database; the agent retries the exact
-# call with only ``_agenttaint.confirmation_id`` and the proxy validates it.
+# Approving prints a single-use approval token. The human relays it to the agent, which
+# retries the exact call with ``_agenttaint.confirmation_id`` and
+# ``_agenttaint.approval_token``. A confirmation id alone never authorizes execution.
 
 
 def _build_service(database_url: str | None) -> Any:
@@ -136,11 +137,16 @@ def main(argv: list[str] | None = None) -> int:
                 service.deny(args.confirmation_id)
                 print(f"DENIED {args.confirmation_id}")
                 return 0
-        service.approve(args.confirmation_id)
+        approved = service.approve(args.confirmation_id)
     except Exception as exc:  # noqa: BLE001 - surface binder errors to the operator
         print(f"error: {exc}")
         return 1
     print(f"APPROVED {args.confirmation_id} (single use, bound to tool/arguments/agent)")
+    print(f"approval_token: {approved.approval_token}")
+    print(
+        "Give this token to the agent: retry the exact same call with "
+        '_agenttaint = {"confirmation_id": "<id>", "approval_token": "<token>"}.'
+    )
     return 0
 
 

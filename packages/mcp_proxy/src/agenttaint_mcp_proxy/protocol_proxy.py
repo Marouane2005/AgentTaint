@@ -12,16 +12,20 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import functools
 import json
 import os
 import shlex
+import uuid
 from pathlib import Path
 from typing import Any
 
 import anyio
+import anyio.to_thread
 import mcp.types as types
 from agenttaint_core.config import ConfigurationError, resolve_confirm_secret
 from agenttaint_core.schemas import DecisionOutcome
+from anyio.lowlevel import checkpoint
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.server.lowlevel.server import NotificationOptions, Server
@@ -34,10 +38,36 @@ from agenttaint_mcp_proxy.server import build_gateway_from_paths
 from agenttaint_mcp_proxy.wire import (
     AGENTTAINT_META_KEY,
     AgentIdentityError,
+    SessionIdentityError,
+    WireMetadata,
+    WireMetadataError,
     augment_input_schema,
     extract_wire_metadata,
     resolve_agent_identity,
+    resolve_session_identity,
 )
+
+RESERVED_TOOL_PREFIX = "agenttaint."
+_BUILTIN_TOOLS = frozenset({"agenttaint.preview", "agenttaint.audit_summary"})
+
+
+def _reject(policy_id: str, error: str) -> types.CallToolResult:
+    return _text_result(
+        {"decision": "BLOCK", "policy_id": policy_id, "error": error}, is_error=True
+    )
+
+
+def _identities(
+    wire: WireMetadata, agent_id: str, session_id: str
+) -> tuple[str, str] | types.CallToolResult:
+    """Resolve the connection-bound agent and session, or return a BLOCK result."""
+    try:
+        return resolve_agent_identity(wire, agent_id), resolve_session_identity(wire, session_id)
+    except AgentIdentityError as exc:
+        return _reject("agent-identity-mismatch", str(exc))
+    except SessionIdentityError as exc:
+        return _reject("session-identity-mismatch", str(exc))
+
 
 # Proxy-side secrets must never be handed to downstream tool servers.
 _SECRET_ENV_VARS = frozenset(
@@ -134,16 +164,26 @@ def build_protocol_server(
     gateway: SecurityGateway,
     backend_session: ClientSession,
     agent_id: str = "agent_default",
+    session_id: str | None = None,
 ) -> Server:
-    """Create a low-level MCP Server that enforces then forwards."""
+    """Create a low-level MCP Server that enforces then forwards.
+
+    ``agent_id`` and ``session_id`` are bound to this connection. Callers cannot
+    choose either: a different value in ``_agenttaint`` is rejected. When no session
+    id is configured a random one is generated, so session-scoped grants only match
+    when the operator configures the session explicitly.
+    """
     server = Server("agenttaint-mcp-protocol-proxy")
-    cancelled: set[str | int] = set()
+    bound_session = session_id or uuid.uuid4().hex
+    gateway.strict_lineage = True
 
     @server.list_tools()  # type: ignore[untyped-decorator, no-untyped-call]
     async def list_tools() -> list[types.Tool]:
         specs = gateway.list_tools()
         tools: list[types.Tool] = []
         for spec in specs:
+            if spec.name.startswith(RESERVED_TOOL_PREFIX):
+                continue  # a backend may not shadow AgentTaint's own tools
             tools.append(
                 types.Tool(
                     name=spec.name,
@@ -176,63 +216,63 @@ def build_protocol_server(
 
     @server.call_tool()  # type: ignore[untyped-decorator]
     async def call_tool(name: str, arguments: dict[str, Any]) -> types.CallToolResult:
-        # Cooperative cancellation: if a cancel notification arrived for this request,
-        # refuse to forward. Mid-flight backend calls may still complete (documented).
-        req_id = None
-        try:
-            req_id = server.request_context.request_id
-        except Exception:  # noqa: BLE001
-            req_id = None
-        if req_id is not None and req_id in cancelled:
-            return _text_result(
-                {"error": "cancelled", "request_id": req_id},
-                is_error=True,
-            )
-
         if name == "agenttaint.audit_summary":
             return _text_result({"counts": gateway.audit.count_by_decision()})
+
+        if name.startswith(RESERVED_TOOL_PREFIX) and name not in _BUILTIN_TOOLS:
+            return _reject("reserved-tool-name", f"unknown AgentTaint tool {name!r}")
 
         if name == "agenttaint.preview":
             tool_name = str((arguments or {}).get("tool_name", ""))
             raw_args = (arguments or {}).get("arguments") or {}
             if not isinstance(raw_args, dict):
-                raw_args = {}
-            wire = extract_wire_metadata(raw_args)
+                return _reject("malformed-agenttaint-metadata", "arguments must be an object")
             try:
-                preview_agent = resolve_agent_identity(wire, agent_id)
-            except AgentIdentityError as exc:
-                return _text_result({"decision": "BLOCK", "error": str(exc)}, is_error=True)
-            decision = gateway.preview(
-                tool_name,
-                wire.clean_arguments or {},
-                agent_id=preview_agent,
-                argument_parent_span_ids=wire.argument_parent_span_ids,
-                candidates=_candidate_records(wire.candidates),
-                session_id=wire.session_id,
+                wire = extract_wire_metadata(raw_args)
+            except WireMetadataError as exc:
+                return _reject("malformed-agenttaint-metadata", str(exc))
+            ids = _identities(wire, agent_id, bound_session)
+            if isinstance(ids, types.CallToolResult):
+                return ids
+            preview_agent, preview_session = ids
+            # Evaluation can be CPU/IO heavy (embeddings, SQLite): keep the event loop free.
+            decision = await anyio.to_thread.run_sync(
+                functools.partial(
+                    gateway.preview,
+                    tool_name,
+                    wire.clean_arguments or {},
+                    agent_id=preview_agent,
+                    argument_parent_span_ids=wire.argument_parent_span_ids,
+                    candidates=_candidate_records(wire.candidates),
+                    session_id=preview_session,
+                )
             )
             return _text_result(decision.model_dump(mode="json"))
 
-        wire = extract_wire_metadata(arguments or {})
+        try:
+            wire = extract_wire_metadata(arguments or {})
+        except WireMetadataError as exc:
+            return _reject("malformed-agenttaint-metadata", str(exc))
         clean = dict(wire.clean_arguments or {})
+        ids = _identities(wire, agent_id, bound_session)
+        if isinstance(ids, types.CallToolResult):
+            return ids
+        effective_agent, effective_session = ids
         try:
-            effective_agent = resolve_agent_identity(wire, agent_id)
-        except AgentIdentityError as exc:
-            return _text_result(
-                {"decision": "BLOCK", "policy_id": "agent-identity-mismatch", "error": str(exc)},
-                is_error=True,
-            )
-        try:
-            outcome = gateway.invoke(
-                name,
-                clean,
-                agent_id=effective_agent,
-                raise_on_deny=False,
-                confirmation_id=wire.confirmation_id,
-                approval_token=wire.approval_token,
-                argument_parent_span_ids=wire.argument_parent_span_ids,
-                candidates=_candidate_records(wire.candidates),
-                session_id=wire.session_id,
-                execute=False,
+            outcome = await anyio.to_thread.run_sync(
+                functools.partial(
+                    gateway.invoke,
+                    name,
+                    clean,
+                    agent_id=effective_agent,
+                    raise_on_deny=False,
+                    confirmation_id=wire.confirmation_id,
+                    approval_token=wire.approval_token,
+                    argument_parent_span_ids=wire.argument_parent_span_ids,
+                    candidates=_candidate_records(wire.candidates),
+                    session_id=effective_session,
+                    execute=False,
+                )
             )
         except EnforcementError as exc:
             return _text_result(
@@ -258,24 +298,39 @@ def build_protocol_server(
                 payload["confirmation_id"] = outcome.confirmation.confirmation_id
             return _text_result(payload, is_error=True)
 
-        if req_id is not None and req_id in cancelled:
-            return _text_result(
-                {"error": "cancelled_before_forward", "request_id": req_id},
-                is_error=True,
-            )
+        # Cancellation checkpoint: if the request is cancelled here the backend was
+        # never contacted, so a consumed approval can safely be given back. Once
+        # ``call_tool`` has been issued the approval stays consumed (the action may
+        # have run), which is the fail-closed choice.
+        try:
+            await checkpoint()
+        except anyio.get_cancelled_exc_class():
+            with anyio.CancelScope(shield=True):
+                if wire.confirmation_id:
+                    gateway.release_confirmation(wire.confirmation_id)
+                outcome.decision.decision = DecisionOutcome.BLOCK
+                outcome.decision.policy_id = "cancelled-before-forward"
+                outcome.decision.explanation = "Request cancelled before the backend call."
+                gateway.audit_final(outcome.decision)
+            raise
 
         try:
-            with anyio.CancelScope() as scope:
-                if req_id is not None and req_id in cancelled:
-                    scope.cancel()
-                backend_result = await backend_session.call_tool(name, clean)
+            backend_result = await backend_session.call_tool(name, clean)
         except anyio.get_cancelled_exc_class():
-            return _text_result({"error": "cancelled"}, is_error=True)
+            # Mid-flight cancel: the backend may have executed, so the approval stays
+            # consumed. Record it rather than silently dropping the ALLOW.
+            with anyio.CancelScope(shield=True):
+                outcome.decision.policy_id = "cancelled-in-flight"
+                outcome.decision.explanation = (
+                    f"{outcome.decision.explanation} Cancelled after forward; outcome unknown."
+                )
+                gateway.audit_final(outcome.decision)
+            raise
         except Exception as exc:  # noqa: BLE001
             outcome.decision.decision = DecisionOutcome.BLOCK
             outcome.decision.policy_id = "backend-error"
             outcome.decision.explanation = f"Backend failure after ALLOW: {exc}"
-            gateway.audit.record(outcome.decision)
+            gateway.audit_final(outcome.decision)
             return _text_result({"error": str(exc)}, is_error=True)
 
         # Label + audit success path (mirrors SecurityGateway.invoke post-forward).
@@ -289,16 +344,20 @@ def build_protocol_server(
             if text_bits
             else json.dumps({"isError": backend_result.isError}, sort_keys=True)
         )
-        span = gateway.label_tool_result(
-            tool_name=name,
-            content=result_text,
-            agent_id=effective_agent,
+        span = await anyio.to_thread.run_sync(
+            functools.partial(
+                gateway.label_tool_result,
+                tool_name=name,
+                content=result_text,
+                agent_id=effective_agent,
+                session_id=effective_session,
+            )
         )
         outcome.decision.explanation = (
             f"{outcome.decision.explanation} Provenance span={span.span_id} "
             f"origin={span.origin.value}."
         )
-        gateway.audit.record(outcome.decision)
+        gateway.audit_final(outcome.decision)
 
         meta = {
             "call_id": outcome.decision.call_id,
@@ -341,6 +400,7 @@ async def run_protocol_proxy(
     database_url: str = "sqlite+pysqlite:///:memory:",
     security_database_url: str | None = None,
     agent_id: str = "agent_default",
+    session_id: str | None = None,
 ) -> None:
     """Connect to a downstream MCP server over stdio and serve the proxy on stdio."""
     if not backend_command:
@@ -368,6 +428,7 @@ async def run_protocol_proxy(
                 gateway=gateway,
                 backend_session=backend_session,
                 agent_id=agent_id,
+                session_id=session_id,
             )
             init = server.create_initialization_options(
                 notification_options=NotificationOptions(),
@@ -395,6 +456,11 @@ def main(argv: list[str] | None = None) -> None:
         default=os.environ.get("AGENTTAINT_SECURITY_DB_URL"),
     )
     parser.add_argument("--agent-id", default="agent_default")
+    parser.add_argument(
+        "--session-id",
+        default=os.environ.get("AGENTTAINT_SESSION_ID"),
+        help="Session bound to this proxy (matches session-scoped grants); random if unset",
+    )
     args = parser.parse_args(argv)
     cmd = shlex.split(args.backend_cmd)
     if not cmd:
@@ -411,6 +477,7 @@ def main(argv: list[str] | None = None) -> None:
             database_url=args.database_url,
             security_database_url=args.security_database_url,
             agent_id=args.agent_id,
+            session_id=args.session_id,
         )
     )
 

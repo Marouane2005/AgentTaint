@@ -7,6 +7,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import lru_cache
 from urllib.parse import urlsplit, urlunsplit
 
 
@@ -163,4 +164,198 @@ def structural_matches(query: str, candidate: str) -> list[StructuralHit]:
                 normalized=qv.normalized,
             )
         )
+    # Spelled-out addresses ("alice at evil dot com"): a MODERATE-support structural hit
+    # (never STRONG on its own), found only when BOTH the local part and the spelled-out
+    # domain appear in the "local at domain" order.
+    for qv in q_vals:
+        key = (qv.kind.value, qv.normalized)
+        if qv.kind != StructuralKind.EMAIL or key in seen or "@" not in qv.normalized:
+            continue
+        local, _, domain = qv.normalized.rpartition("@")
+        found = _spelled_out_address_re(local, domain).search(
+            unicodedata.normalize("NFKC", candidate)
+        )
+        if found:
+            seen.add(key)
+            hits.append(
+                StructuralHit(
+                    kind=StructuralKind.EMAIL,
+                    query_value=qv.raw,
+                    candidate_value=found.group(0),
+                    normalized=qv.normalized,
+                )
+            )
     return hits
+
+
+# --------------------------------------------------------------------------------------
+# Semantic-promotion gate: high-precision arguments need corroboration
+# --------------------------------------------------------------------------------------
+
+_EMAIL_ARG_NAMES = frozenset({"to", "cc", "bcc", "recipient", "recipients", "email", "from"})
+_URL_ARG_NAMES = frozenset({"url", "uri", "endpoint"})
+_PATH_ARG_NAMES = frozenset({"path", "cwd", "file", "filename"})
+_SHELL_ARG_NAMES = frozenset({"command", "args", "cmd"})
+_FULL_EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
+_SPLIT_RE = re.compile(r"[^a-z0-9]+")
+
+
+def classify_structured_argument(argument_name: str, value: str) -> StructuralKind | None:
+    """Return the high-precision kind of an argument, or None for free text.
+
+    Emails, URLs, file paths and shell commands are *exact* values: a paraphrase
+    similarity score says almost nothing about whether the model copied one from
+    an untrusted source, so semantic evidence alone must not promote them.
+    """
+    name = argument_name.casefold()
+    text = value.strip()
+    if not text:
+        return None
+    if _FULL_EMAIL_RE.match(text):
+        return StructuralKind.EMAIL
+    lowered = text.lower()
+    if lowered.startswith(("http://", "https://")):
+        return StructuralKind.URL
+    if name in _SHELL_ARG_NAMES:
+        return StructuralKind.SHELL_TOKEN
+    if name in _EMAIL_ARG_NAMES and "@" in text and " " not in text:
+        return StructuralKind.EMAIL
+    if name in _URL_ARG_NAMES:
+        return StructuralKind.URL
+    if name in _PATH_ARG_NAMES or (
+        " " not in text and (text.startswith("/") or re.match(r"^[A-Za-z]:\\", text))
+    ):
+        return StructuralKind.PATH
+    return None
+
+
+def _words(text: str) -> set[str]:
+    return {w for w in _SPLIT_RE.split(unicodedata.normalize("NFKC", text).casefold()) if w}
+
+
+def _domain_of_email(normalized_email: str) -> str:
+    return normalized_email.rpartition("@")[2]
+
+
+def _host_of_url(normalized_url: str) -> str:
+    return urlsplit(normalized_url).hostname or ""
+
+
+def _name_overlap(domain: str, candidate: str, candidate_domains: set[str]) -> bool:
+    """Exact-domain match, or a spelled-out domain with no conflicting real address."""
+    if not domain:
+        return False
+    if domain in candidate_domains:
+        return True
+    if candidate_domains:
+        # The candidate states a *different* concrete address/host. Shared label
+        # fragments (corp-team vs corp-team-mail) are a near miss, not a copy.
+        return False
+    return (
+        _spelled_out_domain_re(domain).search(unicodedata.normalize("NFKC", candidate)) is not None
+    )
+
+
+_DOT_WORDS = r"(?:\s*\[?\(?\s*(?:dot|period)\s*\)?\]?\s*|\s*\[\.\]\s*|\s*\.\s*)"
+_HYPHEN_WORDS = r"(?:\s*(?:-|_|dash|hyphen)\s*|\s+)"
+
+
+@lru_cache(maxsize=512)
+def _spelled_out_domain_re(domain: str) -> re.Pattern[str]:
+    """Narrow matcher for a domain spelled out in prose ("evil dot com", "evil[.]com").
+
+    Every label must appear in order and consecutive labels must be joined by a dot
+    word or a dot (hyphenated labels may be spelled with spaces or "dash"). Loose
+    bag-of-words overlap ("an example of a .com site") deliberately does not match.
+    """
+    groups = [g for g in domain.casefold().split(".") if g]
+    if len(groups) < 2:
+        return re.compile(r"(?!x)x")  # never matches
+    parts = []
+    for g in groups:
+        tokens = [t for t in re.split(r"[^0-9a-z]+", g) if t]
+        if not tokens:
+            return re.compile(r"(?!x)x")
+        parts.append(_HYPHEN_WORDS.join(re.escape(t) for t in tokens))
+    return re.compile(r"(?<![0-9a-z])" + _DOT_WORDS.join(parts) + r"(?![0-9a-z])", re.IGNORECASE)
+
+
+@lru_cache(maxsize=512)
+def _spelled_out_address_re(local: str, domain: str) -> re.Pattern[str]:
+    """``local`` + an "at" marker + a spelled-out ``domain`` (see _spelled_out_domain_re)."""
+    domain_re = _spelled_out_domain_re(domain)
+    tokens = [t for t in re.split(r"[^0-9a-z]+", local.casefold()) if t]
+    if not tokens or domain_re.pattern == r"(?!x)x":
+        return re.compile(r"(?!x)x")
+    local_re = r"[\s._\-]*".join(re.escape(t) for t in tokens)
+    at_re = r"\s*(?:@|\[at\]|\(at\)|\bat\b)\s*"
+    return re.compile(
+        r"(?<![0-9a-z])" + local_re + at_re + domain_re.pattern.replace("(?<![0-9a-z])", "", 1),
+        re.IGNORECASE,
+    )
+
+
+def has_structural_overlap(kind: StructuralKind, query: str, candidate: str) -> bool:
+    """Weak structural/domain overlap between an argument and a candidate text.
+
+    Deliberately weaker than ``structural_matches`` (which needs the *whole*
+    value to recur) but strict enough that unrelated or near-miss text fails.
+    """
+    q = query.strip()
+    if not q:
+        return False
+    cand_values = extract_structural_values(candidate)
+    if kind == StructuralKind.EMAIL:
+        emails = [v.normalized for v in extract_structural_values(q) if v.kind == kind]
+        if not emails and "@" in q:
+            emails = [normalize_email(q)]
+        cand_domains = {
+            _domain_of_email(v.normalized) for v in cand_values if v.kind == StructuralKind.EMAIL
+        }
+        cand_domains |= {
+            _host_of_url(v.normalized) for v in cand_values if v.kind == StructuralKind.URL
+        }
+        cand_domains.discard("")
+        return any(
+            _name_overlap(_domain_of_email(e), candidate, cand_domains) for e in emails if "@" in e
+        )
+    if kind == StructuralKind.URL:
+        host = _host_of_url(normalize_url(q))
+        cand_hosts = {
+            _host_of_url(v.normalized) for v in cand_values if v.kind == StructuralKind.URL
+        }
+        cand_hosts |= {
+            _domain_of_email(v.normalized) for v in cand_values if v.kind == StructuralKind.EMAIL
+        }
+        cand_hosts.discard("")
+        return _name_overlap(host, candidate, cand_hosts)
+    if kind == StructuralKind.PATH:
+        norm = normalize_path(q)
+        parts = [p for p in norm.split("/") if p]
+        if not parts:
+            return False
+        cand_paths = [v.normalized for v in cand_values if v.kind == StructuralKind.PATH]
+        parent = "/".join(parts[:-1])
+        for cp in cand_paths:
+            if parent and (cp.startswith(parent + "/") or cp == parent):
+                return True
+            cparts = [p for p in cp.split("/") if p]
+            if len(parts) >= 2 and len(cparts) >= 2 and parts[:2] == cparts[:2]:
+                return True
+        # Distinctive file name recurring verbatim in the candidate.
+        base = parts[-1]
+        return len(base) >= 4 and base in _words(candidate) | set(cand_paths) | {
+            p for cp in cand_paths for p in cp.split("/")
+        }
+    if kind == StructuralKind.SHELL_TOKEN:
+        tokens = [t for t in q.split() if t]
+        if not tokens:
+            return False
+        words = _words(candidate)
+        if tokens[0].casefold() not in words:
+            return False
+        rest = [t for t in tokens[1:] if not t.startswith("-") and len(t) >= 3]
+        if not rest:
+            return True
+        return any(t.casefold() in candidate.casefold() for t in rest)
+    return False

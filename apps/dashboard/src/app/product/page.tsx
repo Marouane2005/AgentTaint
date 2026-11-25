@@ -4,7 +4,7 @@ import { SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
 import { PaddleCheckout } from "@/components/site/PaddleCheckout";
 import { TryIt } from "@/components/try/TryIt";
-import { CHECKOUT_URL, PADDLE_CLIENT_TOKEN, PRO_PRICE, SUPPORT_EMAIL } from "@/lib/site";
+import { CHECKOUT_URL, PADDLE_CLIENT_TOKEN, SUPPORT_PRICE, SUPPORT_EMAIL } from "@/lib/site";
 
 const FEATURES = [
   {
@@ -36,7 +36,7 @@ const SCREENS = [
   ["/screens/01-overview.png", "Console overview: decisions over time, risk gauges, destinations."],
   ["/screens/03-provenance-selected-action.png", "Provenance graph for one trace, with the blocked send selected."],
   ["/screens/05-audit.png", "Audit log: every decision with its policy and explanation."],
-  ["/screens/07-confirmations-queue.png", "Approval queue: held calls wait for a person (self-hosted Pro)."],
+  ["/screens/07-confirmations-queue.png", "Approval queue: held calls wait for a person (self-hosted)."],
 ];
 
 export const metadata = {
@@ -51,7 +51,7 @@ export default function ProductPage() {
       <SiteHeader />
       <main>
         <section className="hero">
-          <p className="eyebrow">Self-hosted · MCP stdio proxy · Cedar policies</p>
+          <p className="eyebrow">Free &amp; Open Source (Apache-2.0) · Self-hosted · MCP stdio proxy · Cedar policies</p>
           <h1>
             A provenance firewall for <span className="accent">MCP tool calls</span>
           </h1>
@@ -66,7 +66,7 @@ export default function ProductPage() {
               More attack scenarios
             </Link>
             <Link className="btn big secondary" href="#pricing">
-              Pricing
+              Open source &amp; support
             </Link>
           </div>
         </section>
@@ -145,47 +145,50 @@ export default function ProductPage() {
         </section>
 
         <section className="band" id="pricing">
-          <h2>Pricing</h2>
+          <h2>Open source &amp; optional hosted support</h2>
           <div className="pricing">
             <article className="plan">
-              <h3>Demo</h3>
-              <p className="price">Free</p>
+              <h3>Self-Hosted (Apache-2.0)</h3>
+              <p className="price">
+                Free <span>open source</span>
+              </p>
               <ul>
-                <li>This hosted demo, open to everyone</li>
-                <li>Synthetic attack and benign scenarios</li>
-                <li>Real gateway and Cedar policy, mock tools only</li>
-                <li>Provenance graph and audit log</li>
-                <li>Approvals locked</li>
+                <li>Full AgentTaint code under the Apache License 2.0</li>
+                <li>
+                  <span className="mono">agenttaint</span> CLI: proxy, approvals, dashboard
+                </li>
+                <li>Docker Compose stack with Postgres</li>
+                <li>Out-of-band approvals with single-use tokens</li>
+                <li>Public hosted demo with mock tools (approvals locked)</li>
               </ul>
               <Link className="btn secondary" href="/demo">
                 Open the demo
               </Link>
             </article>
             <article className="plan featured">
-              <h3>Pro</h3>
+              <h3>Hosted Support (Optional)</h3>
               <p className="price">
-                {PRO_PRICE}
+                {SUPPORT_PRICE}
                 <span> USD/month</span>
               </p>
               <ul>
-                <li>Self-hosted full version on your machines</li>
-                <li>
-                  <span className="mono">agenttaint</span> CLI: proxy, approvals, dashboard
-                </li>
-                <li>Docker Compose stack with Postgres</li>
-                <li>Out-of-band approvals with a separate approver token</li>
-                <li>Updates while subscribed</li>
-                <li>Email support</li>
+                <li>Optional email support and configuration guidance</li>
+                <li>Help integrating Cedar policies and custom MCP servers</li>
+                <li>Managed demo &amp; setup assistance</li>
+                <li>The AgentTaint software itself stays free and Apache-2.0</li>
               </ul>
               {PADDLE_CLIENT_TOKEN ? (
                 <PaddleCheckout />
               ) : CHECKOUT_URL ? (
                 <a className="btn" href={CHECKOUT_URL} rel="noopener">
-                  Subscribe · {PRO_PRICE} USD/month
+                  Subscribe to Hosted Support · {SUPPORT_PRICE} USD/month
                 </a>
               ) : (
                 <>
-                  <p className="fine">Checkout is not open yet. Join the waitlist and we&apos;ll email you.</p>
+                  <p className="fine">
+                    Hosted support checkout is not open yet. Join the waitlist and we&apos;ll email
+                    you.
+                  </p>
                   <WaitlistForm source="pricing" />
                 </>
               )}

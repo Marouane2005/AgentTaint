@@ -37,6 +37,9 @@ class ChannelEvidence:
     structural_hits: list[StructuralHit] = field(default_factory=list)
     semantic: SemanticScore | None = None
     explicit_lineage: bool = False
+    # True when the argument is a high-precision structured value (email, URL, path,
+    # shell command) and semantic similarity was ignored for lack of corroboration.
+    semantic_suppressed: bool = False
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -62,7 +65,18 @@ def support_level(
     explicit_lineage: bool,
     lexical_threshold: float = 0.55,
     semantic_threshold: float = 0.70,
+    semantic_requires_corroboration: bool = False,
+    corroborated: bool = False,
 ) -> SupportLevel:
+    """Ordinal support level.
+
+    ``semantic_requires_corroboration`` marks high-precision structured arguments
+    (emails, URLs, paths, shell commands). For those, a high cosine score alone is
+    ignored; it only counts when ``corroborated`` (weak structural/domain overlap
+    or explicit session context) is also true.
+    """
+    if semantic_requires_corroboration and not (corroborated or explicit_lineage):
+        semantic_score = None
     if explicit_lineage and (structural_match or lexical_score >= lexical_threshold):
         return SupportLevel.STRONG
     if structural_match and lexical_score >= lexical_threshold:
@@ -86,20 +100,18 @@ def to_argument_evidence(
     level: SupportLevel,
 ) -> ArgumentEvidence:
     """Build ArgumentEvidence. confidence stays null (uncalibrated)."""
-    if level == SupportLevel.NONE:
-        status = ProvenanceStatus.UNKNOWN
-    elif channel.explicit_lineage and level in {SupportLevel.STRONG, SupportLevel.MODERATE}:
-        # Explicit lineage is known for the parent path; the *argument influence*
-        # reconstruction remains INFERRED unless caller separates them.
-        status = ProvenanceStatus.INFERRED
-    else:
-        status = ProvenanceStatus.INFERRED
+    # Reconstruction only ever emits INFERRED (explicit_lineage is a separate signal).
+    status = ProvenanceStatus.UNKNOWN if level == SupportLevel.NONE else ProvenanceStatus.INFERRED
 
     return ArgumentEvidence(
         argument_name=argument_name,
         value_hash=content_hash(argument_value),
         lexical_score=channel.lexical_score,
-        semantic_score=0.0 if channel.semantic_score is None else float(channel.semantic_score),
+        semantic_score=(
+            0.0
+            if channel.semantic_score is None or channel.semantic_suppressed
+            else float(channel.semantic_score)
+        ),
         structural_match=channel.structural_match,
         explicit_lineage=channel.explicit_lineage,
         matched_source_ids=[channel.span_id] if level != SupportLevel.NONE else [],

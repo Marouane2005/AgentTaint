@@ -356,7 +356,7 @@ def test_m9_conflicting_user_and_untrusted_does_not_silent_allow() -> None:
     )
     # USER-authorized exact match is intentional allow; conflict is recorded via parents.
     assert out.decision.decision == DecisionOutcome.ALLOW
-    assert out.decision.policy_id == "allow-high-authorized"
+    assert out.decision.policy_id == "allow-high-user-authorized-authority"
     # Conflict detection still surfaces in lineage analysis.
     conflicts = reg.origin_conflicts(untrusted.span_id)
     assert conflicts is not None
@@ -409,9 +409,8 @@ def test_m9_unicode_homoglyph_does_not_bypass_structural_block() -> None:
     )
     # Must not treat lookoglyph as the authorized ASCII recipient.
     assert out.decision.policy_id not in {
-        "allow-high-authorized",
-        "allow-medium-authorized",
-        "allow-user-authorized-authority",
+        "allow-high-user-authorized-authority",
+        "allow-medium-user-authorized-authority",
     }
     assert out.decision.decision != DecisionOutcome.ALLOW
     assert sink == []

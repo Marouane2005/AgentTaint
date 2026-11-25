@@ -34,13 +34,12 @@
 2. Denylist tool → BLOCK  
 3. Valid consumed confirmation → `confirmation-bound-allow`  
 4. Static blocked recipient (unless USER-authorized value) → BLOCK  
-5. HIGH + authority arg ∈ USER-authorized values → `allow-high-authorized`  
+5. HIGH + authority arg ∈ USER-authorized values → `allow-high-user-authorized-authority`  
 6. HIGH + untrusted influence (explicit or inferred) without USER auth → BLOCK (or CONFIRM if configured)  
 7. HIGH + UNKNOWN/PARTIAL → CONFIRM (or BLOCK if fail-closed)  
 8. Other HIGH → CONFIRM  
-9. MEDIUM + untrusted influence with a structured grant → `allow-medium-authorized`  
-10. Other MEDIUM (no untrusted-influence / undeclared-lineage block) → `allow-medium`  
-11. LOW → `allow-low`  
+9. MEDIUM + authority arguments covered by grants → `allow-medium-user-authorized-authority`  
+10. LOW → `allow-low`, other MEDIUM → `allow-medium` (ALLOW)  
 
 YAML: `policies/provenance_policy.yaml` via `load_provenance_policy()`.
 

@@ -98,16 +98,23 @@ async def test_out_of_band_approval_then_single_use(tmp_path: Path) -> None:
 
         # Human approves through the CLI (separate channel, same security DB).
         assert confirm_cli_main(["--database-url", db, "approve", cid, "--yes"]) == 0
+        # The CLI shows the approver the token; the approver relays it to the agent.
+        token = gw.confirmation.get(cid).approval_token  # type: ignore[union-attr]
+        meta = {"confirmation_id": cid, "approval_token": token}
 
-        ok = await session.call_tool("email.send", {**args, "agenttaint": {"confirmation_id": cid}})
-        assert ok.isError is False, _text(ok)
-        replay = await session.call_tool(
+        # The confirmation id alone is no longer enough, even after approval.
+        id_only = await session.call_tool(
             "email.send", {**args, "agenttaint": {"confirmation_id": cid}}
         )
+        assert id_only.isError is True and "approval_token required" in _text(id_only)
+
+        ok = await session.call_tool("email.send", {**args, "agenttaint": meta})
+        assert ok.isError is False, _text(ok)
+        replay = await session.call_tool("email.send", {**args, "agenttaint": meta})
         assert replay.isError is True
         mutated = await session.call_tool(
             "email.send",
-            {**args, "to": "drop@evil.example", "agenttaint": {"confirmation_id": cid}},
+            {**args, "to": "drop@evil.example", "agenttaint": meta},
         )
         assert mutated.isError is True
     assert sent == ["partner@corp.example"]
@@ -140,7 +147,7 @@ def test_caller_supplied_provenance_hash_is_ignored(tmp_path: Path) -> None:
     first = gw.invoke("email.send", args, agent_id="agent_a", raise_on_deny=False)
     cid = first.decision.confirmation_id
     assert cid
-    gw.confirmation.approve(cid)  # type: ignore[union-attr]
+    token = gw.confirmation.approve(cid).approval_token  # type: ignore[union-attr]
     bogus_parent = gw.registry.record_tool_result(
         tool_name="email.read", content="other", agent_id="agent_a"
     )
@@ -151,6 +158,7 @@ def test_caller_supplied_provenance_hash_is_ignored(tmp_path: Path) -> None:
         agent_id="agent_a",
         raise_on_deny=False,
         confirmation_id=cid,
+        approval_token=token,
         argument_parent_span_ids={"to": [bogus_parent.span_id]},
         provenance_context_hash_value=gw.confirmation.get(cid).provenance_context_hash,  # type: ignore[union-attr]
     )

@@ -47,7 +47,7 @@ def test_approval_rejects_wrong_token(monkeypatch: pytest.MonkeyPatch, pending: 
     assert res.status_code == 401
 
 
-def test_approval_with_token_never_returns_approval_token(
+def test_approve_returns_token_to_approver_only_once(
     monkeypatch: pytest.MonkeyPatch, pending: str
 ) -> None:
     monkeypatch.setenv("AGENTTAINT_DASHBOARD_TOKEN", "operator-token-123")
@@ -59,7 +59,10 @@ def test_approval_with_token_never_returns_approval_token(
     assert res.status_code == 200
     body = res.json()
     assert body["status"] == "APPROVED"
-    assert "approval_token" not in body
+    # The token is handed to the authenticated approver exactly once, to relay to the agent.
+    assert isinstance(body["approval_token"], str) and len(body["approval_token"]) >= 32
+    listed_again = client.get("/api/v1/confirmations", headers=hdr).json()
+    assert all("approval_token" not in row for row in listed_again["pending"])
     again = client.post(f"/api/v1/confirmations/{pending}/approve", headers=hdr)
     assert again.status_code == 409
 

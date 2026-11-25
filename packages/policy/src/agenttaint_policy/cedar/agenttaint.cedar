@@ -35,7 +35,7 @@ forbid (principal, action, resource)
 when { context.recipient_blocked && !context.granted && !context.confirmation_validated };
 
 // ------------------------------------------------------------------- HIGH
-@id("allow-high-authorized")
+@id("allow-high-user-authorized-authority")
 permit (principal, action == Action::"execute", resource)
 when { context.tier == "HIGH" && context.granted };
 
@@ -95,7 +95,7 @@ when {
 };
 
 // ----------------------------------------------------------------- MEDIUM
-@id("allow-medium-authorized")
+@id("allow-medium-user-authorized-authority")
 permit (principal, action == Action::"execute", resource)
 when {
   context.tier == "MEDIUM" && context.untrusted_influence &&

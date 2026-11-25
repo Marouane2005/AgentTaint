@@ -10,6 +10,7 @@ AGENTTAINT_META_KEY = "_agenttaint"
 
 _AGENTTAINT_SCHEMA_PROPS: dict[str, Any] = {
     "confirmation_id": {"type": "string"},
+    "approval_token": {"type": "string"},
     "argument_parent_span_ids": {
         "type": "object",
         "additionalProperties": {
@@ -64,32 +65,114 @@ class WireMetadata:
     clean_arguments: dict[str, Any] | None = None
 
 
-def extract_wire_metadata(arguments: dict[str, Any] | None) -> WireMetadata:
-    """Split `_agenttaint` metadata from backend tool arguments."""
-    args = dict(arguments or {})
-    meta_raw = args.pop(AGENTTAINT_META_KEY, None)
-    meta: dict[str, Any] = {}
+class WireMetadataError(ValueError):
+    """The ``_agenttaint`` metadata object is malformed; the call must be rejected."""
+
+
+class SessionIdentityError(PermissionError):
+    """Caller tried to assert a session different from the one bound to this connection."""
+
+
+MAX_PARENT_ARGUMENTS = 64
+MAX_PARENT_IDS_PER_ARGUMENT = 128
+MAX_CANDIDATES = 64
+MAX_CANDIDATE_TEXT_CHARS = 65_536
+MAX_ID_CHARS = 256
+MAX_META_JSON_CHARS = 1_000_000
+
+
+def resolve_session_identity(wire: WireMetadata, bound_session_id: str) -> str:
+    """Session identity is bound to the connection, never chosen by the caller.
+
+    Session-scoped authorization grants and the reconstruction corpus are keyed by
+    session, so a caller-asserted ``session_id`` would let one session borrow another
+    session's grants. A caller may echo the bound id; anything else is rejected.
+    """
+    claimed = wire.session_id
+    if claimed is not None and claimed != bound_session_id:
+        raise SessionIdentityError(
+            "session_id is bound to this proxy connection; caller-supplied session "
+            f"{claimed!r} rejected"
+        )
+    return bound_session_id
+
+
+def _require_str_id(value: Any, where: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise WireMetadataError(f"{where} must be a non-empty string")
+    if len(value) > MAX_ID_CHARS:
+        raise WireMetadataError(f"{where} longer than {MAX_ID_CHARS} characters")
+    return value
+
+
+def _parse_meta(meta_raw: Any) -> dict[str, Any]:
+    if meta_raw is None:
+        return {}
     if isinstance(meta_raw, str):
+        if len(meta_raw) > MAX_META_JSON_CHARS:
+            raise WireMetadataError("_agenttaint metadata too large")
         try:
             parsed = json.loads(meta_raw)
-            if isinstance(parsed, dict):
-                meta = parsed
-        except json.JSONDecodeError:
-            meta = {}
-    elif isinstance(meta_raw, dict):
-        meta = dict(meta_raw)
+        except json.JSONDecodeError as exc:
+            raise WireMetadataError(f"_agenttaint is not valid JSON: {exc.msg}") from exc
+        if not isinstance(parsed, dict):
+            raise WireMetadataError("_agenttaint JSON must be an object")
+        return parsed
+    if isinstance(meta_raw, dict):
+        return dict(meta_raw)
+    raise WireMetadataError(
+        f"_agenttaint must be an object or a JSON object string, got {type(meta_raw).__name__}"
+    )
 
-    parents = meta.get("argument_parent_span_ids")
+
+def extract_wire_metadata(arguments: dict[str, Any] | None) -> WireMetadata:
+    """Split `_agenttaint` metadata from backend tool arguments.
+
+    Malformed metadata raises :class:`WireMetadataError` instead of being silently
+    dropped: dropping it would quietly turn a declared lineage into an undeclared one.
+    """
+    args = dict(arguments or {})
+    meta = _parse_meta(args.pop(AGENTTAINT_META_KEY, None))
+
     parent_map: dict[str, list[str]] | None = None
-    if isinstance(parents, dict):
-        parent_map = {
-            str(k): [str(x) for x in (v or [])] for k, v in parents.items() if isinstance(v, list)
-        }
+    parents = meta.get("argument_parent_span_ids")
+    if parents is not None:
+        if not isinstance(parents, dict):
+            raise WireMetadataError("argument_parent_span_ids must be an object")
+        if len(parents) > MAX_PARENT_ARGUMENTS:
+            raise WireMetadataError("argument_parent_span_ids has too many arguments")
+        parent_map = {}
+        for key, ids in parents.items():
+            if not isinstance(ids, list):
+                raise WireMetadataError(f"argument_parent_span_ids[{key!r}] must be a list")
+            if len(ids) > MAX_PARENT_IDS_PER_ARGUMENT:
+                raise WireMetadataError(f"argument_parent_span_ids[{key!r}] has too many ids")
+            parent_map[str(key)] = [
+                _require_str_id(x, f"argument_parent_span_ids[{key!r}] entry") for x in ids
+            ]
 
-    candidates = meta.get("candidates")
     cand_list: list[dict[str, Any]] | None = None
-    if isinstance(candidates, list):
-        cand_list = [c for c in candidates if isinstance(c, dict)]
+    candidates = meta.get("candidates")
+    if candidates is not None:
+        if not isinstance(candidates, list):
+            raise WireMetadataError("candidates must be a list")
+        if len(candidates) > MAX_CANDIDATES:
+            raise WireMetadataError("too many candidates")
+        cand_list = []
+        for item in candidates:
+            if not isinstance(item, dict):
+                raise WireMetadataError("each candidate must be an object")
+            text = item.get("text", item.get("content", ""))
+            if text is not None and (
+                not isinstance(text, str) or len(text) > MAX_CANDIDATE_TEXT_CHARS
+            ):
+                raise WireMetadataError("candidate text must be a string of bounded size")
+            cand_list.append(item)
+
+    for key in ("confirmation_id", "approval_token", "agent_id", "session_id"):
+        value = meta.get(key)
+        if value is not None and not isinstance(value, str):
+            raise WireMetadataError(f"{key} must be a string")
 
     return WireMetadata(
         confirmation_id=_as_opt_str(meta.get("confirmation_id")),
@@ -112,9 +195,9 @@ def augment_input_schema(schema: dict[str, Any] | None) -> dict[str, Any]:
     props[AGENTTAINT_META_KEY] = {
         "type": "object",
         "description": (
-            "AgentTaint enforcement metadata: confirmation_id, "
-            "argument_parent_span_ids, candidates, session_id. Agent identity is "
-            "fixed by proxy configuration; approvals happen out-of-band."
+            "AgentTaint enforcement metadata: confirmation_id, approval_token (issued to "
+            "the human approver), argument_parent_span_ids, candidates. Agent and session "
+            "identity are fixed by the proxy; approvals happen out-of-band."
         ),
         "properties": dict(_AGENTTAINT_SCHEMA_PROPS),
         "additionalProperties": False,

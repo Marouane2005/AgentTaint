@@ -1,0 +1,59 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build and publish packages to PyPI
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/dashboard/package-lock.json
+
+      - name: Build dashboard static UI for agenttaint-api
+        run: |
+          cd apps/dashboard
+          npm ci --no-audit --no-fund
+          npm run build:static
+          cd ../..
+          rm -rf packages/api/src/agenttaint_api/ui
+          cp -R apps/dashboard/out packages/api/src/agenttaint_api/ui
+
+      - name: Build distributions and verify with twine
+        run: |
+          python3 -m pip install -U pip build twine
+          mkdir -p dist/pypi
+          for pkg_dir in \
+            packages/core packages/provenance packages/risk packages/policy \
+            packages/audit packages/reconstruction packages/agent_sdk \
+            packages/mcp_proxy packages/benchmark packages/api packages/cli \
+            integrations/mock_email integrations/mock_filesystem \
+            integrations/mock_http integrations/mock_shell; do
+            python3 -m build --outdir dist/pypi "$pkg_dir"
+          done
+          rm -rf packages/api/src/agenttaint_api/ui
+          twine check dist/pypi/*
+
+      - name: Publish distributions to PyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/pypi/
+          skip-existing: true

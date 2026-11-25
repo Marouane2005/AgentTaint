@@ -6,7 +6,7 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { downloadWaitlistCsv, fetchWaitlist, type WaitlistEntry } from "@/lib/api";
 
 /**
- * Operator view of Pro waitlist signups. The admin token is typed by the
+ * Operator view of waitlist signups. The admin token is typed by the
  * operator, kept in memory for this tab only and sent as X-AgentTaint-Admin.
  */
 export default function WaitlistAdminPage() {
@@ -45,7 +45,7 @@ export default function WaitlistAdminPage() {
       <SiteHeader />
       <main className="doc">
         <p className="eyebrow">Operator only</p>
-        <h1>Pro waitlist</h1>
+        <h1>Waitlist signups</h1>
         {entries === null ? (
           <form className="card approver-gate" onSubmit={load}>
             <p className="sub">

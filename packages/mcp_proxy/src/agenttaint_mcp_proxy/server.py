@@ -36,8 +36,11 @@ from agenttaint_mcp_proxy.gateway import SecurityGateway
 from agenttaint_mcp_proxy.wire import (
     AGENTTAINT_META_KEY,
     AgentIdentityError,
+    SessionIdentityError,
+    WireMetadataError,
     extract_wire_metadata,
     resolve_agent_identity,
+    resolve_session_identity,
 )
 
 
@@ -104,6 +107,7 @@ def build_gateway_from_paths(
         confirmation=confirmation,  # type: ignore[arg-type]
         reconstruction=reconstruction,
         registry_available=None,
+        strict_lineage=True,
     )
 
 
@@ -135,8 +139,16 @@ def create_security_proxy(
     *,
     name: str = "agenttaint-mcp-proxy",
     agent_id: str = "agent_default",
+    session_id: str | None = None,
 ) -> FastMCP:
-    """Expose backend tools through the enforcement gateway as an MCP server."""
+    """Expose backend tools through the enforcement gateway as an MCP server.
+
+    Agent and session identity are bound to the proxy; callers cannot choose them.
+    """
+    import uuid
+
+    bound_session = session_id or uuid.uuid4().hex
+    gateway.strict_lineage = True
     mcp = FastMCP(
         name=name,
         instructions=(
@@ -175,12 +187,13 @@ def create_security_proxy(
         return {**payload, AGENTTAINT_META_KEY: meta}
 
     def _invoke(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        wire = extract_wire_metadata(arguments)
-        clean = dict(wire.clean_arguments or {})
         try:
+            wire = extract_wire_metadata(arguments)
             effective_agent = resolve_agent_identity(wire, agent_id)
-        except AgentIdentityError as exc:
+            effective_session = resolve_session_identity(wire, bound_session)
+        except (AgentIdentityError, SessionIdentityError, WireMetadataError) as exc:
             raise ToolError(f"AgentTaint BLOCK: {exc}") from exc
+        clean = dict(wire.clean_arguments or {})
         try:
             outcome = gateway.invoke(
                 tool_name,
@@ -191,7 +204,7 @@ def create_security_proxy(
                 approval_token=wire.approval_token,
                 argument_parent_span_ids=wire.argument_parent_span_ids,
                 candidates=_candidate_records(wire.candidates),
-                session_id=wire.session_id,
+                session_id=effective_session,
             )
         except EnforcementError as exc:
             if exc.decision.decision.value == "CONFIRM" and exc.decision.confirmation_id:
@@ -270,11 +283,19 @@ def create_security_proxy(
         description="Preview an enforcement decision without executing a tool.",
     )
     def preview(tool_name: str, arguments_json: str = "{}") -> dict[str, Any]:
-        args = json.loads(arguments_json) if arguments_json else {}
-        wire = extract_wire_metadata(args if isinstance(args, dict) else {})
         try:
+            args = json.loads(arguments_json) if arguments_json else {}
+        except json.JSONDecodeError as exc:
+            raise ToolError(
+                f"AgentTaint BLOCK: arguments_json is not valid JSON: {exc.msg}"
+            ) from exc
+        if not isinstance(args, dict):
+            raise ToolError("AgentTaint BLOCK: arguments_json must be a JSON object")
+        try:
+            wire = extract_wire_metadata(args)
             effective_agent = resolve_agent_identity(wire, agent_id)
-        except AgentIdentityError as exc:
+            effective_session = resolve_session_identity(wire, bound_session)
+        except (AgentIdentityError, SessionIdentityError, WireMetadataError) as exc:
             raise ToolError(f"AgentTaint BLOCK: {exc}") from exc
         decision = gateway.preview(
             tool_name,
@@ -282,7 +303,7 @@ def create_security_proxy(
             agent_id=effective_agent,
             argument_parent_span_ids=wire.argument_parent_span_ids,
             candidates=_candidate_records(wire.candidates),
-            session_id=wire.session_id,
+            session_id=effective_session,
         )
         return decision.model_dump(mode="json")
 

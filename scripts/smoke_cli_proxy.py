@@ -52,24 +52,47 @@ async def run(workdir: Path) -> None:
             confirmation_id = held["confirmation_id"]
             print("send #1:", held["decision"], held["policy_id"])
 
-            # 2. Approve out of band with the CLI (the agent has no approve tool).
-            subprocess.run(
+            # 2. Approve out of band with the CLI (the agent has no approve tool). The
+            #    approver receives a single-use approval token to hand to the agent.
+            approved = subprocess.run(
                 agenttaint(
                     "approve", "--config", str(cfg_path), "approve", confirmation_id, "--yes"
                 ),
                 check=True,
-                stdout=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
                 env=CLEAN_ENV,
             )
+            token_lines = [
+                line.split(":", 1)[1].strip()
+                for line in approved.stdout.splitlines()
+                if line.startswith("approval_token:")
+            ]
+            assert len(token_lines) == 1 and token_lines[0], "approve printed no approval_token"
+            approval_token = token_lines[0]
 
-            # 3. The exact same call with the confirmation id now goes through.
-            retry = await session.call_tool(
+            # 3. The confirmation id alone never authorizes execution.
+            id_only = await session.call_tool(
                 "email.send", {**send_args, "_agenttaint": {"confirmation_id": confirmation_id}}
+            )
+            rejected = json.loads(_text(id_only))
+            assert id_only.isError is True and rejected["decision"] == "BLOCK", rejected
+
+            # 4. The exact same call with the id and the approval token now goes through.
+            retry = await session.call_tool(
+                "email.send",
+                {
+                    **send_args,
+                    "_agenttaint": {
+                        "confirmation_id": confirmation_id,
+                        "approval_token": approval_token,
+                    },
+                },
             )
             assert retry.isError is False, _text(retry)
             print("send #1 retry after approval: allowed")
 
-            # 4. After reading untrusted email, a send is blocked outright.
+            # 5. After reading untrusted email, a send is blocked outright.
             assert (await session.call_tool("email.read", {})).isError is False
             blocked = await session.call_tool(
                 "email.send", {"to": "nobody@example.com", "subject": "x", "body": "y"}

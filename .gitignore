@@ -25,7 +25,6 @@ benchmarks/reports/*.json
 !benchmarks/reports/.gitkeep
 packages/api/src/agenttaint_api/ui/
 dist/
-
-# Temporary latest-* pointers produced by benchmark runs.
+# Generated "latest" benchmark summaries are regenerated per run; do not commit them.
 benchmarks/reports/latest_*.md
 benchmarks/reports/latest_*.json

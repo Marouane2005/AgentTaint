@@ -130,6 +130,18 @@ class AuditStore:
             session.commit()
         return decision
 
+    def update(self, decision: ToolCallDecision) -> ToolCallDecision:
+        """Insert or replace the row for ``decision.call_id``.
+
+        Used for write-ahead auditing: an ALLOW is recorded before the action is
+        forwarded and then updated with the outcome, so a crash mid-call still leaves a
+        record that the call was authorized.
+        """
+        with self.session() as session:
+            session.merge(_to_row(decision))
+            session.commit()
+        return decision
+
     def get(self, call_id: str) -> ToolCallDecision | None:
         with self.session() as session:
             row = session.get(DecisionRow, call_id)

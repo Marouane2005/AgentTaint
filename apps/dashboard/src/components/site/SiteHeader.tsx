@@ -12,7 +12,7 @@ export function SiteHeader() {
       </Link>
       <nav aria-label="Site">
         <Link href="/product#how">How it works</Link>
-        <Link href="/product#pricing">Pricing</Link>
+        <Link href="/product#pricing">Open source &amp; support</Link>
         <Link href="/limitations">Limitations</Link>
         <Link href="/demo" className="site-cta">
           Live demo
@@ -30,7 +30,7 @@ export function SiteFooter() {
         <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
       </span>
       <span>
-        <Link href="/product#pricing">Pricing</Link> · <Link href="/limitations">Limitations</Link>{" "}
+        <Link href="/product#pricing">Open source &amp; support</Link> · <Link href="/limitations">Limitations</Link>{" "}
         · <Link href="/terms">Terms of Service</Link> · <Link href="/privacy">Privacy Policy</Link>{" "}
         · <Link href="/refunds">Refund Policy</Link>
       </span>

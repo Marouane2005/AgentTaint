@@ -11,30 +11,33 @@ MCP server you protect is an `npx` package.
 
 ## 1. Install
 
-Pro customers receive `agenttaint-1.0.0.tar.gz` (and a `.sha256` file).
+AgentTaint is open source (Apache-2.0). Install from a source checkout:
 
 ```bash
-sha256sum -c agenttaint-1.0.0.tar.gz.sha256
-tar xzf agenttaint-1.0.0.tar.gz && cd agenttaint-1.0.0
+git clone https://github.com/Marouane2005/AgentTaint.git && cd AgentTaint
 python3 -m venv ~/.agenttaint-venv
-~/.agenttaint-venv/bin/pip install --no-index --find-links wheels agenttaint
-~/.agenttaint-venv/bin/agenttaint --version          # agenttaint 1.0.0
+source ~/.agenttaint-venv/bin/activate
+make install                       # editable install of every package in this checkout
+agenttaint --version
 ```
 
-`--no-index` makes pip install only from the bundled wheels, so nothing is
-fetched from a public index under the same names. The bundled dependency wheels
-target Linux x86_64 / CPython 3.12; on other platforms drop `--no-index` and pip
-fetches the third-party dependencies (FastAPI, cedarpy, ...) from PyPI while the
-AgentTaint wheels still come from `wheels/`.
+If your checkout was built with `scripts/build_release.sh`, install from the
+bundled wheels instead: `pip install --no-index --find-links wheels agenttaint`
+(the wheels target Linux x86_64 / CPython 3.12; drop `--no-index` elsewhere).
 
-From a source checkout instead: `pip install -e packages/cli` after `make install`.
+GUI clients (Claude Desktop, Cursor) do not inherit your virtualenv's `PATH`.
+`agenttaint connect` therefore prints the absolute path of the installed script.
 
 ## 2. Create a configuration
 
 ```bash
-mkdir -p ~/agenttaint && cd ~/agenttaint
-agenttaint init .
+agenttaint init ~/agenttaint --backend "npx -y @modelcontextprotocol/server-filesystem $HOME/projects"
+agenttaint doctor --config ~/agenttaint/agenttaint.yaml   # checks config, secrets, backend
 ```
+
+Without `--backend`, `init` points at a sandbox folder under the target
+directory so the first run works. Use `--client claude-desktop|cursor|claude-code`
+to print the client snippet at the same time.
 
 This writes:
 
@@ -87,9 +90,14 @@ a built-in mock email server.
 
 ## 4. Configure your MCP client
 
+`agenttaint connect <client> --config ~/agenttaint/agenttaint.yaml` prints a snippet
+like the ones below with absolute paths filled in (it names the server
+`agenttaint-protected`; rename it freely). Remove the server's original entry so the
+client cannot call it directly.
+
 ### Claude Desktop
 
-`claude_desktop_config.json` (Settings → Developer → Edit Config):
+Settings → Developer → Edit Config (`claude_desktop_config.json`):
 
 ```json
 {
@@ -102,22 +110,26 @@ a built-in mock email server.
 }
 ```
 
-Remove the server's original entry so the client cannot call it directly.
+### Cursor
 
-### IDE MCP clients
-
-Most IDE clients use the same shape. A workspace `mcp.json` example:
+`~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (per project):
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "files-protected": {
-      "type": "stdio",
       "command": "/home/you/.agenttaint-venv/bin/agenttaint",
       "args": ["proxy", "--config", "/home/you/agenttaint/agenttaint.yaml"]
     }
   }
 }
+```
+
+### Claude Code
+
+```bash
+claude mcp add files-protected -- \
+  /home/you/.agenttaint-venv/bin/agenttaint proxy --config /home/you/agenttaint/agenttaint.yaml
 ```
 
 ### Proxy inside Docker
@@ -139,7 +151,46 @@ With the compose stack from [operations.md](operations.md) running:
 The backend server then runs inside the AgentTaint container, so paths in
 `backend.command` must exist there (mount them in `docker-compose.yml`).
 
-## 5. Watch decisions and approve held calls
+Restart the client, make a tool call, then check what the gateway decided:
+
+```bash
+agenttaint log --config ~/agenttaint/agenttaint.yaml      # ALLOW / CONFIRM / BLOCK, color-coded
+```
+
+## 5. Approve a held call (CONFIRM)
+
+A `CONFIRM` decision is never self-service for the agent. A person approves it
+out of band, and the single-use approval token is shown to the approver once:
+
+```bash
+agenttaint approve list    --config ~/agenttaint/agenttaint.yaml
+agenttaint approve approve <confirmation_id> --config ~/agenttaint/agenttaint.yaml
+# prints:  approval_token: <token>
+```
+
+The same approval is available on the dashboard's Confirmations page. The agent
+then retries the identical call with both values; an id without the token is
+rejected:
+
+```json
+{"to": "partner@corp.example", "subject": "q3", "body": "report",
+ "_agenttaint": {"confirmation_id": "<id>", "approval_token": "<token>"}}
+```
+
+The approval is bound to the exact arguments and provenance context, expires,
+and works once. This is a deliberate change from earlier versions, where the id
+alone sufficed.
+
+## 6. Sessions
+
+Each proxy process is one session: it gets a random session id, and the
+untrusted content the agent has read is only considered for that session's
+calls. To pin a stable id (for example across restarts), pass
+`--session-id` to `agenttaint_mcp_proxy.protocol_proxy` or set
+`AGENTTAINT_SESSION_ID`. A call that carries a different `session_id` or
+`agent_id` in `_agenttaint`, or malformed metadata, is answered with `BLOCK`.
+
+## 7. Watch decisions on the dashboard
 
 ```bash
 agenttaint dashboard --config ~/agenttaint/agenttaint.yaml   # http://127.0.0.1:8080
@@ -147,19 +198,7 @@ agenttaint dashboard --config ~/agenttaint/agenttaint.yaml   # http://127.0.0.1:
 
 The dashboard asks once per browser tab for `AGENTTAINT_DASHBOARD_TOKEN` (from
 `.env`). It reads the same database as the proxy, so decisions appear live.
-
-When a call is held, the agent sees a `CONFIRM` error with a confirmation id.
-Approve from a terminal the agent cannot reach:
-
-```bash
-agenttaint approve --config ~/agenttaint/agenttaint.yaml list
-agenttaint approve --config ~/agenttaint/agenttaint.yaml show <id>
-agenttaint approve --config ~/agenttaint/agenttaint.yaml approve <id>
-```
-
-or on the dashboard's Confirmations page with `AGENTTAINT_APPROVER_TOKEN`. The
-agent then retries the exact same call with the confirmation id; an approval is
-bound to those exact arguments and works once.
+Approving on the Confirmations page needs `AGENTTAINT_APPROVER_TOKEN`.
 
 ## What it does not do
 

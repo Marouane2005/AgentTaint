@@ -24,7 +24,7 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
   }
 
   return (
-    <form className="waitlist" onSubmit={onSubmit} aria-label="Join the Pro waitlist">
+    <form className="waitlist" onSubmit={onSubmit} aria-label="Join the hosted support waitlist">
       <div className="waitlist-row">
         <input
           type="email"
@@ -37,7 +37,7 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
           onChange={(e) => setEmail(e.target.value)}
         />
         <button className="btn" type="submit" disabled={state === "busy"}>
-          {state === "busy" ? "Joining…" : "Join Pro waitlist"}
+          {state === "busy" ? "Joining…" : "Join waitlist"}
         </button>
       </div>
       {/* Honeypot for bots; hidden from people and screen readers. */}
@@ -55,7 +55,7 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
           {message}
         </p>
       ) : null}
-      <p className="fine">We store only your email to tell you when Pro checkout opens. No spam.</p>
+      <p className="fine">We store only your email to notify you about AgentTaint releases and optional hosted support. No spam.</p>
     </form>
   );
 }

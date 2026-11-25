@@ -5,24 +5,24 @@ export const metadata = { title: "AgentTaint · Privacy Policy" };
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy Policy" updated="18 November 2026">
+    <LegalPage title="Privacy Policy" updated="25 November 2026">
       <p>
-        This policy explains what personal data the AgentTaint website, demo and Pro subscription
-        collect, and why. The data controller is {SELLER}, {SELLER_COUNTRY} (
+        This policy explains what personal data the AgentTaint website, demo and optional hosted
+        support subscription collect, and why. The data controller is {SELLER}, {SELLER_COUNTRY} (
         <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>).
       </p>
       <h2>What we collect</h2>
       <ul>
         <li>
           <strong>Waitlist:</strong> the email address you submit, the signup time and which form
-          you used. Used only to tell you when Pro is available and about the product. Kept until
-          you ask us to delete it.
+          you used. Used only to tell you about AgentTaint releases and when optional hosted
+          support is available. Kept until you ask us to delete it.
         </li>
         <li>
           <strong>Purchases:</strong> Paddle, our merchant of record, collects your name, email,
           billing address and payment details and processes them under its own privacy policy. We
-          receive your name, email, country and subscription status from Paddle to provide the
-          software, updates and support. We never see your full card details.
+          receive your name, email, country and subscription status from Paddle to provide optional
+          hosted support. We never see your full card details.
         </li>
         <li>
           <strong>Support email:</strong> the messages you send us, kept as long as needed to help
@@ -41,8 +41,8 @@ export default function PrivacyPage() {
       </p>
       <h2>Legal bases</h2>
       <p>
-        Performing our contract with you (subscription, support), your consent (waitlist, which you
-        can withdraw anytime), and our legitimate interest in running and securing the site.
+        Performing our contract with you (optional hosted support), your consent (waitlist, which
+        you can withdraw anytime), and our legitimate interest in running and securing the site.
       </p>
       <h2>Processors</h2>
       <p>

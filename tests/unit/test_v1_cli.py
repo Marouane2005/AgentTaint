@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import stat
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,15 @@ from agenttaint_cli.main import main
 from agenttaint_core.paths import POLICY_FILE, TRUST_REGISTRY_FILE, packaged_default
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.fixture(autouse=True)
+def _restore_environ() -> Iterator[None]:
+    """CLI commands export .env values into os.environ; undo that after each test."""
+    saved = dict(os.environ)
+    yield
+    os.environ.clear()
+    os.environ.update(saved)
 
 
 @pytest.fixture(autouse=True)

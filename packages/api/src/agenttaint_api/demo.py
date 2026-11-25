@@ -77,24 +77,17 @@ def _defenses() -> tuple[Any, Any]:
 
 
 EXPLANATIONS: dict[str, str] = {
-    "allow-low-medium": (
-        "The agent made no high-risk call (nothing was sent), so AgentTaint let it through."
-    ),
-    "allow-medium": (
-        "The agent made no high-risk call (nothing was sent), so AgentTaint let it through."
-    ),
     "allow-low": (
         "The agent made no high-risk call (nothing was sent), so AgentTaint let it through."
     ),
-    "allow-user-authorized-authority": (
-        "The recipient came from your own instruction, so you authorized it. "
-        "Untrusted text may mention it too, but it does not decide where data goes."
+    "allow-medium": (
+        "This was a medium-risk action with no untrusted influence on where it goes or "
+        "what it does, so AgentTaint let it through."
     ),
-    "allow-high-authorized": (
-        "The recipient came from your own instruction, so you authorized it. "
-        "Untrusted text may mention it too, but it does not decide where data goes."
+    "allow-medium-user-authorized-authority": (
+        "The destination came from your own instruction, so you authorized it."
     ),
-    "allow-medium-authorized": (
+    "allow-high-user-authorized-authority": (
         "The recipient came from your own instruction, so you authorized it. "
         "Untrusted text may mention it too, but it does not decide where data goes."
     ),
@@ -140,6 +133,17 @@ EXPLANATIONS: dict[str, str] = {
         "A medium-risk call looks influenced by untrusted content; it is held for approval."
     ),
 }
+
+# Policy ids used before each Cedar rule got a unique id. Audit records written by
+# earlier versions still carry them, so keep their explanations readable.
+_LEGACY_POLICY_IDS: dict[str, str] = {
+    "allow-low-medium": "allow-low",
+    "allow-user-authorized-authority": "allow-high-user-authorized-authority",
+    "allow-high-authorized": "allow-high-user-authorized-authority",
+    "allow-medium-authorized": "allow-medium-user-authorized-authority",
+}
+for _old, _new in _LEGACY_POLICY_IDS.items():
+    EXPLANATIONS.setdefault(_old, EXPLANATIONS[_new])
 
 VERDICT_HINT = {
     "ALLOW": "The call runs.",

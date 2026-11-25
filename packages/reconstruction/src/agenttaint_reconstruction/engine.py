@@ -27,7 +27,11 @@ from agenttaint_reconstruction.semantic import (
     semantic_similarity,
     try_create_default_semantic_backend,
 )
-from agenttaint_reconstruction.structural import structural_matches
+from agenttaint_reconstruction.structural import (
+    classify_structured_argument,
+    has_structural_overlap,
+    structural_matches,
+)
 
 
 class AblationMode(StrEnum):
@@ -48,6 +52,7 @@ class CandidateRecord:
     origin: Origin = Origin.UNTRUSTED_TOOL
     agent_id: str | None = None
     provenance_status: ProvenanceStatus = ProvenanceStatus.KNOWN
+    session_id: str | None = None
 
 
 @dataclass
@@ -153,6 +158,7 @@ class ReconstructionEngine:
         if "semantic" in enabled and not semantic_available:
             notes.append("Semantic channel requested but no embedding backend is available.")
 
+        structured_kind = classify_structured_argument(argument_name, argument_value)
         matches: list[MatchResult] = []
         for candidate in candidates:
             channel = self._score_candidate(
@@ -162,6 +168,18 @@ class ReconstructionEngine:
                 explicit_ids=explicit_ids,
                 context_span_id=context_span_id,
             )
+            corroborated = False
+            if structured_kind is not None and "semantic" in enabled:
+                corroborated = channel.explicit_lineage or has_structural_overlap(
+                    structured_kind, argument_value, candidate.text
+                )
+                sem = channel.semantic_score
+                if sem is not None and sem >= self.semantic_threshold and not corroborated:
+                    channel.semantic_suppressed = True
+                    channel.notes.append(
+                        f"semantic similarity ignored for {structured_kind.value} argument: "
+                        "no structural/domain overlap or session context"
+                    )
             level = support_level(
                 lexical_score=channel.lexical_score if "lexical" in enabled else 0.0,
                 structural_match=channel.structural_match if "structural" in enabled else False,
@@ -169,6 +187,8 @@ class ReconstructionEngine:
                 explicit_lineage=channel.explicit_lineage if "explicit" in enabled else False,
                 lexical_threshold=self.lexical_threshold,
                 semantic_threshold=self.semantic_threshold,
+                semantic_requires_corroboration=structured_kind is not None,
+                corroborated=corroborated,
             )
             if enabled == {"explicit"} and not channel.explicit_lineage:
                 level = SupportLevel.NONE

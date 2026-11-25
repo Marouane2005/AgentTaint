@@ -64,3 +64,24 @@ python -m agenttaint_mcp_proxy.server
 2. ALLOW decisions create a provenance span for the tool result (email bodies → `UNTRUSTED_TOOL`).
 3. Audit records store argument **hashes** and **redacted** values, not raw secrets by default.
 4. Risk classification is deterministic (trust registry), not LLM-based.
+
+## Confirmation tokens, sessions and strict lineage
+
+* **Approval token.** Approving a CONFIRM (`agenttaint approve approve <id>` or the
+  dashboard) returns a single-use `approval_token` to the approver once. The agent
+  retries the identical call with
+  `_agenttaint: {"confirmation_id": ..., "approval_token": ...}`. A missing token is
+  rejected; it is never read from the stored record. Tokens are not shown in list views.
+* **Session binding.** Each proxy process has a session id (random, or
+  `--session-id` / `AGENTTAINT_SESSION_ID`). Untrusted spans from other sessions or
+  agents are not used for reconstruction. A different `session_id` or `agent_id`, or
+  malformed `_agenttaint` metadata, yields `BLOCK` (`session-identity-mismatch`,
+  `agent-identity-mismatch`, `malformed-agenttaint-metadata`).
+* **Strict lineage.** In the proxy, declared parent spans must exist and belong to the
+  calling agent; otherwise they resolve to UNKNOWN. Caller-supplied candidates are
+  additive and never replace the session corpus. `agenttaint.*` tool names are reserved.
+* **Read-only preview** never attaches provenance or consumes a confirmation.
+* **Queue cap.** At most 50 pending confirmations per agent; further requests get
+  `BLOCK` (`confirmation-queue-full`). Duplicate open requests are merged.
+* **Known limit:** registry spans carry no session field, so cross-session filtering of
+  stored spans is by agent only.

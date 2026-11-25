@@ -264,8 +264,15 @@ def run_scenario(
     registry: ProvenanceRegistry | None = None,
     audit: AuditStore | None = None,
     confirmation: Any | None = None,
+    corpus_source: str = "candidates",
 ) -> ScenarioRunResult:
     """Run one scenario through a fresh gateway.
+
+    ``corpus_source`` controls where reconstruction finds untrusted text:
+    ``"candidates"`` (default) hands the scenario corpus to the gateway and to each call,
+    ``"session"`` hands nothing and lets the gateway use only what it labelled itself
+    (how the MCP proxy runs), and ``"none"`` gives it no corpus at all (what a caller
+    that declares lineage got before always-on session reconstruction).
 
     ``registry`` and ``audit`` default to fresh in-memory stores; the dashboard
     demo seed passes shared stores (and optionally a durable confirmation
@@ -320,62 +327,25 @@ def run_scenario(
         audit=audit if audit is not None else AuditStore(),
         confirmation=confirmation,
         reconstruction=reconstruction,
-        candidates=list(state.candidates) if defense.use_reconstruction else [],
+        candidates=(
+            list(state.candidates)
+            if defense.use_reconstruction and corpus_source == "candidates"
+            else []
+        ),
         user_authorized_values=set(scenario.user_authorized_values),
         attach_reconstruction=defense.use_reconstruction,
+        reconstruction_ablation=(
+            defense.reconstruction_ablation() if defense.use_reconstruction else None
+        ),
     )
-
-    # Patch reconstruction ablation into evidence gathering by wrapping engine calls
-    # via gateway candidates + custom reconstruct if ablation set.
-    if defense.use_reconstruction and reconstruction is not None:
-        ablation = defense.reconstruction_ablation()
-
-        def _gather_with_ablation(**kwargs: Any) -> list[Any]:
-            from agenttaint_policy.evidence import reconstruct_authority_evidence
-
-            return reconstruct_authority_evidence(
-                engine=reconstruction,
-                arguments=kwargs.get("arguments")
-                or {},  # filled below via monkeypatch-style override
-                candidates=list(state.candidates),
-                authority_argument_names=gateway.authority_argument_names,
-                agent_id=kwargs.get("agent_id"),
-                attach=True,
-                ablation=ablation,
-            )
-
-        # Override gateway evidence helper to pass ablation.
-        original_gather = gateway._gather_evidence
-
-        def _gather_evidence(
-            *,
-            tool_name: str,
-            arguments: dict[str, Any],
-            agent_id: str | None,
-            risk_tier: Any,
-            candidates: list[Any] | None,
-            lineage_declared: bool = True,
-        ) -> list[Any]:
-            # The scenario corpus (state.candidates) already holds every untrusted
-            # span the pipeline ingested, so undeclared lineage needs no extra corpus.
-            _ = lineage_declared
-            if risk_tier.value != "HIGH":
-                return []
-            from agenttaint_policy.evidence import reconstruct_authority_evidence
-
-            return reconstruct_authority_evidence(
-                engine=reconstruction,
-                arguments=arguments,
-                candidates=list(candidates if candidates is not None else state.candidates),
-                authority_argument_names=gateway.authority_argument_names,
-                agent_id=agent_id,
-                attach=gateway.attach_reconstruction,
-                ablation=ablation,
-            )
-
-        gateway._gather_evidence = _gather_evidence  # type: ignore[method-assign]
-        _ = original_gather
-        _ = _gather_with_ablation
+    if defense.use_reconstruction and corpus_source == "session":
+        # Same plaintext the proxy keeps in-process after labelling each tool result.
+        gateway.session_untrusted.extend(
+            c for c in state.candidates if c.origin in {Origin.UNTRUSTED_TOOL, Origin.UNKNOWN}
+        )
+    elif defense.use_reconstruction and corpus_source == "none":
+        # Emulates the pre-fix behaviour for callers that declare lineage: no corpus.
+        gateway.session_corpus = lambda agent_id=None, session_id=None: []  # type: ignore[method-assign]
 
     parent_ids: dict[str, list[str]] | None = None
     if defense.use_explicit:
@@ -408,7 +378,11 @@ def run_scenario(
             agent_id=state.send_agent_id,
             raise_on_deny=False,
             argument_parent_span_ids=parent_ids,
-            candidates=list(state.candidates) if defense.use_reconstruction else None,
+            candidates=(
+                list(state.candidates)
+                if defense.use_reconstruction and corpus_source == "candidates"
+                else None
+            ),
         )
         decision = outcome.decision.decision
         policy_id = outcome.decision.policy_id

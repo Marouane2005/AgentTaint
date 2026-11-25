@@ -39,14 +39,13 @@ _EXPLANATIONS: dict[str, str] = {
     "denylist-tool": "Tool is on the enforcement denylist.",
     "confirmation-bound-allow": "Bound user confirmation validated for this exact action.",
     "blocked-recipient": "Recipient is blocked by policy.",
-    "allow-high-authorized": (
-        "Authority arguments are covered by structured session/agent authorization grants."
+    "allow-high-user-authorized-authority": (
+        "High-risk authority arguments are covered by structured session/agent "
+        "authorization grants."
     ),
-    "allow-medium-authorized": (
-        "Authority arguments are covered by structured session/agent authorization grants."
-    ),
-    "allow-user-authorized-authority": (
-        "Authority arguments are covered by structured session/agent authorization grants."
+    "allow-medium-user-authorized-authority": (
+        "Medium-risk authority arguments are covered by structured session/agent "
+        "authorization grants."
     ),
     "confirm-inferred-untrusted-influence": (
         "INFERRED untrusted influence on a high-risk action; requires bound confirmation "
@@ -87,9 +86,8 @@ _EXPLANATIONS: dict[str, str] = {
         "MEDIUM sink with undeclared (UNKNOWN) lineage after the session ingested untrusted "
         "content; confirmation required."
     ),
-    "allow-medium": "Non-high-risk operation allowed under provenance-aware policy.",
-    "allow-low": "Non-high-risk operation allowed under provenance-aware policy.",
-    "allow-low-medium": "Non-high-risk operation allowed under provenance-aware policy.",
+    "allow-medium": "Medium-risk operation allowed under provenance-aware policy.",
+    "allow-low": "Low-risk operation allowed under provenance-aware policy.",
 }
 
 

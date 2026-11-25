@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PageHint } from "@/components/PageHint";
+import { friendlyError } from "@/lib/errors";
 import { ProvenanceFlow } from "@/components/ProvenanceFlow";
 import { Skeleton } from "@/components/Skeleton";
 import {
@@ -66,7 +67,7 @@ export default function ProvenancePage() {
         const match = wanted && t.traces.some((x) => x.trace_id === wanted);
         setActive(match ? (wanted as string) : t.traces[0]?.trace_id || ALL);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .catch((err) => setError(friendlyError(err)))
       .finally(() => setLoaded(true));
   }, []);
 
@@ -93,7 +94,7 @@ export default function ProvenancePage() {
       .catch((err) => {
         if (cancelled) return;
         setAncestors([]);
-        setAncestorNote(err instanceof Error ? err.message : String(err));
+        setAncestorNote(friendlyError(err));
       });
     return () => {
       cancelled = true;
