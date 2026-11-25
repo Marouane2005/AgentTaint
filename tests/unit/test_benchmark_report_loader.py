@@ -16,8 +16,10 @@ def test_committed_markdown_reports_are_visible() -> None:
     assert body["scenarios"]["catalog_count"] >= 20
     assert body["scenarios"]["counts"]["test"] >= 60
     paths = {report["path"] for report in body["reports"]}
-    assert "report_test_m12_069d5298.md" in paths
-    m12 = next(r for r in body["reports"] if r["path"] == "report_test_m12_069d5298.md")
+    # The most recent committed test-split report must be among the reports shown.
+    current = "report_test_fixture_480f0c5f.md"
+    assert current in paths
+    m12 = next(r for r in body["reports"] if r["path"] == current)
     assert m12["artifact"] == "markdown"
     assert m12["dataset_version"] == "2026.11.18-m12.1"
     combined = m12["per_defense"]["combined:combined"]
